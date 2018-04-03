@@ -1,0 +1,29 @@
+Changelog:
+
+	ver. 0.1 (30.11.17):
+		- Initial version
+
+	ver. 0.2 (14.01.18):
+		- New: this changelog and more comments :)
+		- Fixed: compatible with new filename politics (see PlatformIO issue #1107)
+		  ('inc' now must be 'include' so we add option to 'platformio.ini')
+		- Changed: use os.path.normpath() instead of manually removing trailing '/'
+
+	ver. 0.21 (18.01.18):
+		- New: checking board name before PlatformIO start
+
+	ver. 0.4 (03.04.18):
+		- New: hide CubeMX and PlatformIO stdout output
+		- New: shebang
+		- New: choose your favourite editor with --start-editor option (replaced --with-atom)
+		- New: logging module
+		- New: more checks
+		- New: settings.py file
+		- New: cross-platform running
+		- Fixed: remove unnecessary imports
+		- Fixed: command to init pio project (removed double quotation marks)
+		- Changed: many architectural improvements
+		- Changed: documentations improvements
+
+
+TODO: comments; more checks; unittests; Windows tests
