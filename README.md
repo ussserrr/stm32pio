@@ -4,7 +4,7 @@ Small Python app that can create and update [PlatformIO](https://platformio.org)
 ## Features
   - Start new project in a single directory using only `.ioc` file
   - Update existing project to add/change hardware options from CubeMX
-  - *[optional]* Automatically run your favorite editor with generated project
+  - *[optional]* Automatically run your favorite editor in the end
 
 ## Requirements:
   - For this app:
@@ -21,12 +21,13 @@ $ python3 stm32pio.py --help
 to see help.
 
 ## Example
-  1. Run CubeMX, choose MCU/board, do all necessary stuff
-  2. Open `Project -> Settings` menu, set Project Name, choose Other Toolchains (GPDSC). In Code Generator tab check "Copy only the necessary library files" and "Generate periphery initialization as a pair of '.c/.h' files per peripheral"
-  3. Back in the first tab (Project) copy the "Toolchain Folder Location" string. Click OK
-  4. Use copied string as a `-d` argument for stm32pio
-  5. Run `pio boards` to list all supported devices. Pick one and use ID as a `-b` argument (for example, `nucleo_f031k6`)
-  6. All done. You can now run
-  ```sh
-  $ python3 stm32pio.py new -d /path/to/cubemx/project -b nucleo_f031k6 --start-editor=vscode
-  ```
+1. Run CubeMX, choose MCU/board, do all necessary stuff
+2. Open `Project -> Settings` menu, set Project Name, choose Other Toolchains (GPDSC). In Code Generator tab check "Copy only the necessary library files" and "Generate periphery initialization as a pair of '.c/.h' files per peripheral"
+3. Back in the first tab (Project) copy the "Toolchain Folder Location" string. Click OK
+4. Use copied string as a `-d` argument for stm32pio
+5. Run `pio boards` to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
+6. All done. You can now run
+```sh
+$ python3 stm32pio.py new -d /path/to/cubemx/project -b nucleo_f031k6 --start-editor=vscode
+```
+to complete generation.
