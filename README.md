@@ -16,7 +16,7 @@ Small Python app that can create and update [PlatformIO](https://platformio.org)
     - PlatformIO CLI (if using from IDE (for example, Atom), run (macOS and Linux) `Menubar -> PlatformIO -> Install Shell Commands`). Therefore, currently stm32pio doesn't support Windows due to the lack of PlatformIO CLI.
 
 ## Usage
-Check settings.py to make sure that all user-specific parameters are valid. Run
+Check `settings.py` to make sure that all user-specific parameters are valid. Run
 ```sh
 $ python3 stm32pio.py --help
 ```
