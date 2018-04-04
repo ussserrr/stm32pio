@@ -9,10 +9,11 @@ Small Python app that can create and update [PlatformIO](https://platformio.org)
 ## Requirements:
   - For this app:
     - Python 3.5+
-  - For general usage:
+  - For usage:
+    - macOS or Linux OS
     - STM32CubeMX (all recent versions)
     - Java CLI (probably already installed for STM32CubeMX)
-    - PlatformIO + PlatformIO CLI (if using from IDE (for example, Atom), run `Menu -> PlatformIO -> Install Shell Commands`)
+    - PlatformIO CLI (if using from IDE (for example, Atom), run (macOS and Linux) `Menubar -> PlatformIO -> Install Shell Commands`). Therefore, currently stm32pio doesn't support Windows due to the lack of PlatformIO CLI.
 
 ## Usage
 Run

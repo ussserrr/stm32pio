@@ -12,7 +12,7 @@ Changelog:
 	ver. 0.21 (18.01.18):
 		- New: checking board name before PlatformIO start
 
-	ver. 0.4 (03.04.18):
+	ver. 0.4 (04.04.18):
 		- New: hide CubeMX and PlatformIO stdout output
 		- New: shebang
 		- New: choose your favourite editor with --start-editor option (replaced --with-atom)
@@ -20,10 +20,12 @@ Changelog:
 		- New: more checks
 		- New: settings.py file
 		- New: cross-platform running
+		- New: debug output (verbose -v mode)
+		- New: readme.md and more comments
 		- Fixed: remove unnecessary imports
 		- Fixed: command to init pio project (removed double quotation marks)
 		- Changed: many architectural improvements
 		- Changed: documentations improvements
 
 
-TODO: comments; more checks; unittests; Windows tests
+TODO: more checks; unittests
