@@ -25,7 +25,7 @@ Changelog:
 		- Fixed: remove unnecessary imports
 		- Fixed: command to init pio project (removed double quotation marks)
 		- Changed: many architectural improvements
-		- Changed: documentations improvements
+		- Changed: documentation improvements
 
 
 TODO: more checks; unittests
