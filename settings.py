@@ -1,7 +1,7 @@
 import platform, pathlib
 
 myOS = platform.system()
-_homeDir = str(pathlib.Path.home())
+homeDir = str(pathlib.Path.home())
 
 # we trying to guess STM32CubeMX path. You can just avoid this and hardcode it
 
@@ -11,7 +11,7 @@ if myOS == 'Darwin':
 
 # not exactly default STM32CubeMX path on Linux but general convention on it
 elif myOS == 'Linux':
-	cubemxPath = '{homeDir}/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX'.format(homeDir=_homeDir)
+	cubemxPath = '{homeDir}/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX'.format(homeDir=homeDir)
 
 # Windows not implemented yet
 elif myOS == 'Windows':

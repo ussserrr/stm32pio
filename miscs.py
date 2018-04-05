@@ -16,7 +16,7 @@ def generate_code(path):
 	Arguments:
 		path: path to project (folder with .ioc file)
 	"""
-	
+
 	logger.debug('searching for .ioc file...')
 	projectName = _getProjectNameByPath(path)
 	cubemxIocFullFilename = '{path}/{projectName}.ioc'.format(path=path, projectName=projectName)
@@ -82,9 +82,11 @@ def pio_init(path, board):
 							  .format(path=path, board=board), shell=True)
 	else:
 		rslt = subprocess.run('platformio init -d {path} -b {board} -O framework=stm32cube'\
-							  .format(path=path, board=board), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-	# rslt = subprocess.run(['platformio', 'init', '-d', path, '-b', board, '--ide', 'atom', '-O', 'framework=stm32cube'],
-	# 					  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+							  .format(path=path, board=board),  shell=True,
+							  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	# rslt = subprocess.run(['platformio', 'init', '-d', path, '-b', board, '--ide',
+	#						'atom', '-O', 'framework=stm32cube'],
+	# 					    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	if rslt.returncode != 0:
 		logger.error('PlatformIO project initialization error')
 		sys.exit()

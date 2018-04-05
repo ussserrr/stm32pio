@@ -2,7 +2,13 @@ import unittest, os, shutil
 import settings
 from miscs import generate_code, pio_init, patch_platformio_ini, start_editor, clean
 
-path = '/home/chufyrev/Documents/CubeMX/stm32pio-test'
+if settings.myOS == 'Darwin':
+    path = settings.homeDir + '/Documents/STM32/stm32pio-test'
+elif settings.myOS == 'Linux':
+    path = settings.homeDir + '/Documents/CubeMX/stm32pio-test'
+elif settings.myOS == 'Windows':
+    path = '?'
+
 board = 'nucleo_f031k6'
 
 
@@ -41,10 +47,6 @@ class Test(unittest.TestCase):
 
         self.assertEqual(platformio_ini_patched_str, settings.platformio_ini_patch,
                          msg="'platformio.ini' patching error")
-
-
-    def test_start_editor(self):
-        self.assertTrue(True)
 
 
 
