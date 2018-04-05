@@ -16,3 +16,10 @@ elif myOS == 'Linux':
 # Windows not implemented yet
 elif myOS == 'Windows':
 	cubemxPath = '?'
+
+
+cubemxScriptFilename = 'cubemx-script'
+
+platformio_ini_patch = '\n[platformio]\n'\
+						 'include_dir = Inc\n'\
+						 'src_dir = Src\n'

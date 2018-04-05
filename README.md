@@ -11,7 +11,7 @@ Small Python app that can create and update [PlatformIO](https://platformio.org)
     - Python 3.5+
   - For usage:
     - macOS or Linux OS
-    - STM32CubeMX (all recent versions)
+    - STM32CubeMX (all recent versions) with downloaded needed framework (F0, F1, ...). Try to generate code in the ordinary way (through the GUI) at least once before running stm32pio
     - Java CLI (probably already installed for STM32CubeMX)
     - PlatformIO CLI (if using from IDE (for example, Atom), run (macOS and Linux) `Menubar -> PlatformIO -> Install Shell Commands`). Therefore, currently stm32pio doesn't support Windows due to the lack of PlatformIO CLI.
 
@@ -33,3 +33,10 @@ to see help.
 $ python3 stm32pio.py new -d /path/to/cubemx/project -b nucleo_f031k6 --start-editor=vscode
 ```
 to complete generation.
+
+## Testing
+Since ver. 0.45 there are some unit-tests in file `test.py` (based on the unittest module). Run
+```sh
+$ python3 -m unittest -v tests.py
+```
+to test the app. You need to edit some parameters in this file to match your set-up: specify 100% correct `path` and `board`. **WARNING** Running tests erase all content of `path` except the `.ioc` file.

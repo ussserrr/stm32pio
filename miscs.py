@@ -15,21 +15,21 @@ def generate_code(path):
 	
 	logger.debug('searching for .ioc file...')
 	projectName = path.split('/')[-1]
-	cubemxIocFileFullName = '{path}/{projectName}.ioc'.format(path=path, projectName=projectName)
-	if not os.path.exists(cubemxIocFileFullName):
+	cubemxIocFullFilename = '{path}/{projectName}.ioc'.format(path=path, projectName=projectName)
+	if not os.path.exists(cubemxIocFullFilename):
 		logger.error('there is no .ioc file')
 		sys.exit()
 	logger.debug('.ioc file was found')
 
 	# There should be correct 'cubemx-script' file, otherwise STM32CubeMX will fail
-	logger.debug('checking cubemx-script file...')
-	cubemxScriptFileFullName = '{path}/cubemx-script'.format(path=path)
-	if not os.path.isfile(cubemxScriptFileFullName):
-		logger.debug("cubemx-script file wasn't found, creating one...")
-		cubemxScript = "config load {cubemxIocFileFullName}\n"\
+	logger.debug('checking {} file...'.format(settings.cubemxScriptFilename))
+	cubemxScriptFullFilename = path + '/' + settings.cubemxScriptFilename
+	if not os.path.isfile(cubemxScriptFullFilename):
+		logger.debug(settings.cubemxScriptFilename + " file wasn't found, creating one...")
+		cubemxScript = "config load {cubemxIocFullFilename}\n"\
 					   "generate code {path}\n"\
-					   "exit\n".format(path=path, cubemxIocFileFullName=cubemxIocFileFullName)
-		cubemxScriptFile = open(cubemxScriptFileFullName, 'w')
+					   "exit\n".format(path=path, cubemxIocFullFilename=cubemxIocFullFilename)
+		cubemxScriptFile = open(cubemxScriptFullFilename, 'w')
 		cubemxScriptFile.write(cubemxScript)
 		cubemxScriptFile.close()
 		logger.debug('cubemx-script file has been successfully created')
@@ -38,9 +38,9 @@ def generate_code(path):
 
 	logger.info("starting generate code from CubeMX' .ioc file...")
 	if logger.level <= logging.DEBUG:
-		rslt = subprocess.run(['java', '-jar', settings.cubemxPath, '-q', cubemxScriptFileFullName])
+		rslt = subprocess.run(['java', '-jar', settings.cubemxPath, '-q', cubemxScriptFullFilename])
 	else:
-		rslt = subprocess.run(['java', '-jar', settings.cubemxPath, '-q', cubemxScriptFileFullName],\
+		rslt = subprocess.run(['java', '-jar', settings.cubemxPath, '-q', cubemxScriptFullFilename],
 							  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	if rslt.returncode != 0:
 		logger.error('code generation error (return code is {returncode}). '\
@@ -74,12 +74,12 @@ def pio_init(path, board):
 	logger.info('starting PlatformIO project initialization...')
 	# 02.04.18: both versions work but second is much more slower
 	if logger.level <= logging.DEBUG:
-		rslt = subprocess.run('platformio init -d {path} -b {board} --ide atom -O framework=stm32cube'\
+		rslt = subprocess.run('platformio init -d {path} -b {board} -O framework=stm32cube'\
 							  .format(path=path, board=board), shell=True)
 	else:
-		rslt = subprocess.run('platformio init -d {path} -b {board} --ide atom -O framework=stm32cube'\
+		rslt = subprocess.run('platformio init -d {path} -b {board} -O framework=stm32cube'\
 							  .format(path=path, board=board), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-	# rslt = subprocess.run(['platformio', 'init', '-d', path, '-b', board, '--ide', 'atom', '-O', 'framework=stm32cube'],\
+	# rslt = subprocess.run(['platformio', 'init', '-d', path, '-b', board, '--ide', 'atom', '-O', 'framework=stm32cube'],
 	# 					  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	if rslt.returncode != 0:
 		logger.error('PlatformIO project initialization error')
@@ -100,15 +100,14 @@ def patch_platformio_ini(path):
 	if settings.myOS in ['Darwin', 'Linux']:
 		# Patch 'platformio.ini' to include source folders
 		platformioIniFile = open('{path}/platformio.ini'.format(path=path), 'a')
-		platformioIniFile.write('\n[platformio]\n'\
-								  'include_dir = Inc\n'\
-								  'src_dir = Src\n')
+		platformioIniFile.write(settings.platformio_ini_patch)
 		platformioIniFile.close()
 
 		try:
 			os.rmdir(path + '/' + 'inc')
 		except Exception as e:
 			pass
+
 		try:
 			os.rmdir(path + '/' + 'src')
 		except Exception as e:

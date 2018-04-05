@@ -13,13 +13,13 @@ parser = argparse.ArgumentParser(description='Automation of creating and updatin
 parser.add_argument('--version', action='version', version='%(prog)s v{version}'.format(version=__version__))
 parser.add_argument('-v', '--verbose', help='enable verbose output (default: INFO)', action='count', required=False)
 
-subparsers = parser.add_subparsers(dest='subcommand', title='subcommands',\
+subparsers = parser.add_subparsers(dest='subcommand', title='subcommands',
 								   description='valid subcommands', help='modes of operation')
 
 parser_new = subparsers.add_parser('new', help='generate cubemx-code, create pio-project [and start editor]')
 parser_new.add_argument('-d', '--directory', dest='path', help='path to project', required=True)
 parser_new.add_argument('-b', '--board', dest='board', help='pio name of the board', required=True)
-parser_new.add_argument('--start-editor', dest='editor', help="use specidied editor to open pio project",\
+parser_new.add_argument('--start-editor', dest='editor', help="use specidied editor to open pio project",
 						choices=['atom', 'vscode'], required=False)
 
 parser_generate = subparsers.add_parser('generate', help='generate cubemx-code')
@@ -46,7 +46,7 @@ if not len(sys.argv) > 1:
 # main routine
 else:
 	import os, subprocess
-	from miscs import generate_code, pio_init, start_editor, patch_platformio_ini
+	from miscs import generate_code, pio_init, patch_platformio_ini, start_editors
 
 
 	path = os.path.normpath(args.path)  # handle /path/to/proj and /path/to/proj/ cases
