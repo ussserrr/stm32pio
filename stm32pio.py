@@ -25,6 +25,9 @@ parser_new.add_argument('--start-editor', dest='editor', help="use specidied edi
 parser_generate = subparsers.add_parser('generate', help='generate cubemx-code')
 parser_generate.add_argument('-d', '--directory', dest='path', help='path to project', required=True)
 
+parser_clean = subparsers.add_parser('clean', help="clean-up project (delete all content of 'path' except the .ioc file)")
+parser_clean.add_argument('-d', '--directory', dest='path', help='path to project', required=True)
+
 args = parser.parse_args()
 
 
@@ -46,7 +49,7 @@ if not len(sys.argv) > 1:
 # main routine
 else:
 	import os, subprocess
-	from miscs import generate_code, pio_init, patch_platformio_ini, start_editors
+	from miscs import generate_code, pio_init, patch_platformio_ini, start_editor, clean
 
 
 	path = os.path.normpath(args.path)  # handle /path/to/proj and /path/to/proj/ cases
@@ -66,6 +69,10 @@ else:
 
 	elif args.subcommand == 'generate':
 		generate_code(path)
+
+	
+	elif args.subcommand == 'clean':
+		clean(path)
 
 
 logger.info('normal exit')

@@ -1,8 +1,12 @@
-import sys, os, subprocess, logging
+import sys, os, shutil, subprocess, logging
 import settings
 
 
 logger = logging.getLogger('')
+
+
+def _getProjectNameByPath(path):
+	return path.split('/')[-1]
 
 
 def generate_code(path):
@@ -14,7 +18,7 @@ def generate_code(path):
 	"""
 	
 	logger.debug('searching for .ioc file...')
-	projectName = path.split('/')[-1]
+	projectName = _getProjectNameByPath(path)
 	cubemxIocFullFilename = '{path}/{projectName}.ioc'.format(path=path, projectName=projectName)
 	if not os.path.exists(cubemxIocFullFilename):
 		logger.error('there is no .ioc file')
@@ -135,3 +139,22 @@ def start_editor(path, editor):
 		subprocess.run(['atom', path])
 	elif editor == 'vscode':
 		subprocess.run(['code', path])
+
+
+def clean(path):
+	content = os.listdir(path)
+	try:
+		content.remove(_getProjectNameByPath(path)+'.ioc')
+	except:
+		pass
+	# content = ['Src', 'src', 'Inc', 'inc', 'platformio.ini', settings.cubemxScriptFilename,
+	#            '.pioenvs']
+	for item in content:
+		if os.path.isdir(path + '/' + item):
+			shutil.rmtree(path + '/' + item)
+			logger.debug('del ./' + item)
+		elif os.path.isfile(path + '/' + item):
+			os.remove(path + '/' + item)
+			logger.debug('del ' + item)
+
+	logger.info('project cleaned')

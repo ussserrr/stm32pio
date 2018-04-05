@@ -1,24 +1,9 @@
 import unittest, os, shutil
 import settings
-from miscs import generate_code, pio_init, patch_platformio_ini, start_editor
+from miscs import generate_code, pio_init, patch_platformio_ini, start_editor, clean
 
 path = '/home/chufyrev/Documents/CubeMX/stm32pio-test'
 board = 'nucleo_f031k6'
-
-
-def clean(path):
-    content = os.listdir(path)
-    try:
-        content.remove(settings.cubemxScriptFilename)
-    except:
-        pass
-    # content = ['Src', 'src', 'Inc', 'inc', 'platformio.ini', settings.cubemxScriptFilename,
-    #            '.pioenvs']
-    for item in content:
-        if os.path.isdir(path + '/' + item):
-            shutil.rmtree(path + '/' + item)
-        elif os.path.isfile(path + '/' + item):
-            os.remove(path + '/' + item)
 
 
 

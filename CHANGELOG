@@ -29,6 +29,7 @@ Changelog:
 
 	ver. 0.45 (04-05.04.18):
 		- New: introducing unit-tests for the app
+		- New: clean-up mode
 
 
-TODO: more checks; unittests
+TODO: more checks; more unittests; screenshots for tutorial

@@ -4,6 +4,7 @@ Small Python app that can create and update [PlatformIO](https://platformio.org)
 ## Features
   - Start new project in a single directory using only `.ioc` file
   - Update existing project to add/change hardware options from CubeMX
+  - Clean up project
   - *[optional]* Automatically run your favorite editor in the end
 
 ## Requirements:
@@ -37,6 +38,6 @@ to complete generation.
 ## Testing
 Since ver. 0.45 there are some unit-tests in file `test.py` (based on the unittest module). Run
 ```sh
-$ python3 -m unittest -v tests.py
+$ python3 tests.py -v
 ```
 to test the app. You need to edit some parameters in this file to match your set-up: specify 100% correct `path` and `board`. **WARNING** Running tests erase all content of `path` except the `.ioc` file.
