@@ -26,9 +26,13 @@ to see help.
 ## Example
 1. Run CubeMX, choose MCU/board, do all necessary stuff
 2. Open `Project -> Settings` menu, specify Project Name, choose Other Toolchains (GPDSC). In Code Generator tab check "Copy only the necessary library files" and "Generate periphery initialization as a pair of '.c/.h' files per peripheral" options
-![Project tab](/screenshots/tab_Project.png)
-3. Back in the first tab (Project) copy the "Toolchain Folder Location" string. Click OK
+
 ![Code Generator tab](/screenshots/tab_CodeGenerator.png)
+
+3. Back in the first tab (Project) copy the "Toolchain Folder Location" string. Click OK
+
+![Project tab](/screenshots/tab_Project.png)
+
 4. Use copied string as a `-d` argument for stm32pio
 5. Run `pio boards` to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
 6. All done. You can now run
