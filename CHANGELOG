@@ -31,5 +31,8 @@ Changelog:
 		- New: introducing unit-tests for the app
 		- New: clean-up mode
 
-
-TODO: more checks; more unittests; screenshots for tutorial
+	ver. 0.5 (07.04.18):
+		- New: more comments
+		- New: screenshots for the usage example
+		- Fixed: many small fixes and improvements
+		- Changed: test now more isolated and uses ./stm32pio-test/stm32pio-test.ioc file

@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser(description='Automation of creating and updatin
 											 'Requirements: Python 3.5+, STM32CubeMX, Platformio CLI or PlatformIO '\
 											 'Shell Commands (Menubar -> PlatformIO -> Install Shell Commands). '\
 											 "Edit settings.py to set path to the STM32CubeMX (if it can't find).")
+# global arguments (there is also automatically added -h, --help option)
 parser.add_argument('--version', action='version', version='%(prog)s v{version}'.format(version=__version__))
 parser.add_argument('-v', '--verbose', help='enable verbose output (default: INFO)', action='count', required=False)
 
@@ -25,13 +26,15 @@ parser_new.add_argument('--start-editor', dest='editor', help="use specidied edi
 parser_generate = subparsers.add_parser('generate', help='generate cubemx-code')
 parser_generate.add_argument('-d', '--directory', dest='path', help='path to project', required=True)
 
-parser_clean = subparsers.add_parser('clean', help="clean-up project (delete all content of 'path' except the .ioc file)")
+parser_clean = subparsers.add_parser('clean', help="clean-up the project (delete all content of 'path'"\
+												   "except the .ioc file)")
 parser_clean.add_argument('-d', '--directory', dest='path', help='path to project', required=True)
 
 args = parser.parse_args()
 
 
-# Logger instance goes through the whole program
+# Logger instance goes through the whole program.
+# Currently only 2 levels of verbosity though -v option is counted
 logging.basicConfig(format='%(levelname)-8s %(message)s')
 logger = logging.getLogger('')
 if args.verbose:
@@ -45,7 +48,7 @@ else:
 if not len(sys.argv) > 1:
 	parser.print_help()
 	sys.exit()
-	
+
 # main routine
 else:
 	import os, subprocess
@@ -70,7 +73,7 @@ else:
 	elif args.subcommand == 'generate':
 		generate_code(path)
 
-	
+
 	elif args.subcommand == 'clean':
 		clean(path)
 

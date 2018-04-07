@@ -11,7 +11,7 @@ def _getProjectNameByPath(path):
 
 def generate_code(path):
 	"""
-	Call STM32CubeMX as a 'java -jar' file with automatically prearranged 'cubemx-script' file
+	Call STM32CubeMX app as a 'java -jar' file with automatically prearranged 'cubemx-script' file
 
 	Arguments:
 		path: path to project (folder with .ioc file)
@@ -65,7 +65,7 @@ def pio_init(path, board):
 	"""
 
 	# Check board name
-	logger.debug("searching for platformio' board...")
+	logger.debug("searching for PlatformIO' board...")
 	rslt = subprocess.run(['platformio', 'boards'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	if rslt.returncode != 0:
 		logger.error('failed to start PlatformIO')
@@ -106,7 +106,7 @@ def patch_platformio_ini(path):
 	if settings.myOS in ['Darwin', 'Linux']:
 		# Patch 'platformio.ini' to include source folders
 		platformioIniFile = open('{path}/platformio.ini'.format(path=path), 'a')
-		platformioIniFile.write(settings.platformio_ini_patch)
+		platformioIniFile.write(settings.platformioIniPatch)
 		platformioIniFile.close()
 
 		try:

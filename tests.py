@@ -2,10 +2,9 @@ import unittest, os, shutil
 import settings
 from miscs import generate_code, pio_init, patch_platformio_ini, start_editor, clean
 
-if settings.myOS == 'Darwin':
-    path = settings.homeDir + '/Documents/STM32/stm32pio-test'
-elif settings.myOS == 'Linux':
-    path = settings.homeDir + '/Documents/CubeMX/stm32pio-test'
+if settings.myOS in ['Darwin', 'Linux']:
+    path = os.path.dirname(os.path.abspath(__file__)) + '/stm32pio-test'
+# Windows not implemented yet
 elif settings.myOS == 'Windows':
     path = '?'
 
@@ -16,6 +15,10 @@ board = 'nucleo_f031k6'
 class Test(unittest.TestCase):
 
     def test_generate_code(self):
+        """
+        Check whether files and folders were created
+        """
+
         generate_code(path)
         self.assertEqual( [os.path.isfile(path+'/'+settings.cubemxScriptFilename),
                            os.path.isdir(path+'/Src'),
@@ -26,26 +29,35 @@ class Test(unittest.TestCase):
 
 
     def test_pio_init(self):
+        """
+        Consider that existence of 'platformio.ini' file is displaying successful
+        PlatformIO project initialization
+        """
+
         pio_init(path, board)
         self.assertTrue( os.path.isfile(path+'/platformio.ini'),
                          msg='platformio.ini is not here' )
 
 
     def test_patch_platformio_ini(self):
-        platformio_ini = open(path+'/platformio.ini', mode='w')
-        platformio_ini.write('*** TEST PLATFORMIO.INI FILE ***')
-        platformio_ini.close()
+        """
+        Compare contents of the patched string and the desired patch
+        """
+
+        platformioIni = open(path+'/platformio.ini', mode='w')
+        platformioIni.write('*** TEST PLATFORMIO.INI FILE ***')
+        platformioIni.close()
 
         patch_platformio_ini(path)
 
-        platformio_ini = open(path+'/platformio.ini', mode='rb')
-        platformio_ini.seek(-len(settings.platformio_ini_patch), 2)
-        platformio_ini_patched_str = platformio_ini.read(len(settings.platformio_ini_patch))\
+        platformioIni = open(path+'/platformio.ini', mode='rb')
+        platformioIni.seek(-len(settings.platformioIniPatch), 2)
+        platformioIniPatchedStr = platformioIni.read(len(settings.platformioIniPatch))\
                                                    .decode('utf-8')
-        platformio_ini.close()
+        platformioIni.close()
         os.remove(path + '/platformio.ini')
 
-        self.assertEqual(platformio_ini_patched_str, settings.platformio_ini_patch,
+        self.assertEqual(platformioIniPatchedStr, settings.platformioIniPatch,
                          msg="'platformio.ini' patching error")
 
 
