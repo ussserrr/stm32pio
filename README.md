@@ -42,7 +42,7 @@ $ python3 stm32pio.py new -d /path/to/cubemx/project -b nucleo_f031k6 --start-ed
 to complete generation and start the Visual Studio Code editor with opened folder (as example, not required).
 
 ## Testing
-Since ver. 0.45 there are some unit-tests in file `test.py` (based on the unittest module). Run
+Since ver. 0.45 there are some unit-tests in file `tests.py` (based on the unittest module). Run
 ```sh
 $ python3 tests.py -v
 ```
