@@ -18,7 +18,7 @@ Small Python app that can create and update [PlatformIO](https://platformio.org)
 
 ## Usage
 Check `settings.py` to make sure that all user-specific parameters (path to the STM32CubeMX executable) are valid. Run
-```sh
+```bash
 $ python3 stm32pio.py --help
 ```
 to see help.
@@ -36,14 +36,14 @@ to see help.
 4. Use copied string as a `-d` argument for stm32pio
 5. Run `pio boards` to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
 6. All done. You can now run
-```sh
+```bash
 $ python3 stm32pio.py new -d /path/to/cubemx/project -b nucleo_f031k6 --start-editor=vscode
 ```
 to complete generation and start the Visual Studio Code editor with opened folder (as example, not required).
 
 ## Testing
 Since ver. 0.45 there are some unit-tests in file `tests.py` (based on the unittest module). Run
-```sh
+```bash
 $ python3 tests.py -v
 ```
 to test the app. It uses STM32F0 framework to generate code from `./stm32pio-test/stm32pio-test.ioc` file.
