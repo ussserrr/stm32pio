@@ -8,16 +8,16 @@ homeDir = str(pathlib.Path.home())
 
 # macOS default: Applications folder
 if myOS == 'Darwin':
-	cubemxPath = '/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX'
+    cubemxPath = '/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX'
 # not exactly default STM32CubeMX path on Linux but general convention on it
 elif myOS == 'Linux':
-	cubemxPath = '{homeDir}/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX'.format(homeDir=homeDir)
+    cubemxPath = '{homeDir}/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX'.format(homeDir=homeDir)
 # Windows not implemented yet
 elif myOS == 'Windows':
-	cubemxPath = '?'
+    cubemxPath = '?'
 
 cubemxScriptFilename = 'cubemx-script'
 
 platformioIniPatch = '\n[platformio]\n'\
-					   'include_dir = Inc\n'\
-					   'src_dir = Src\n'
+                       'include_dir = Inc\n'\
+                       'src_dir = Src\n'
