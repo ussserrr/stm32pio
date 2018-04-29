@@ -1,38 +1,38 @@
 Changelog:
 
-	ver. 0.1 (30.11.17):
-		- Initial version
+    ver. 0.1 (30.11.17):
+        - Initial version
 
-	ver. 0.2 (14.01.18):
-		- New: this changelog and more comments :)
-		- Fixed: compatible with new filename politics (see PlatformIO issue #1107)
-		  ('inc' now must be 'include' so we add option to 'platformio.ini')
-		- Changed: use os.path.normpath() instead of manually removing trailing '/'
+    ver. 0.2 (14.01.18):
+        - New: this changelog and more comments :)
+        - Fixed: compatible with new filename politics (see PlatformIO issue #1107)
+          ('inc' now must be 'include' so we add option to 'platformio.ini')
+        - Changed: use os.path.normpath() instead of manually removing trailing '/'
 
-	ver. 0.21 (18.01.18):
-		- New: checking board name before PlatformIO start
+    ver. 0.21 (18.01.18):
+        - New: checking board name before PlatformIO start
 
-	ver. 0.4 (03-04.04.18):
-		- New: hide CubeMX and PlatformIO stdout output
-		- New: shebang
-		- New: choose your favourite editor with --start-editor option (replaced --with-atom)
-		- New: logging module
-		- New: more checks
-		- New: settings.py file
-		- New: cross-platform running
-		- New: debug output (verbose -v mode)
-		- New: readme.md and more comments
-		- Fixed: remove unnecessary imports
-		- Fixed: command to init pio project (removed double quotation marks)
-		- Changed: many architectural improvements
-		- Changed: documentation improvements
+    ver. 0.4 (03-04.04.18):
+        - New: hide CubeMX and PlatformIO stdout output
+        - New: shebang
+        - New: choose your favourite editor with --start-editor option (replaced --with-atom)
+        - New: logging module
+        - New: more checks
+        - New: settings.py file
+        - New: cross-platform running
+        - New: debug output (verbose -v mode)
+        - New: readme.md and more comments
+        - Fixed: remove unnecessary imports
+        - Fixed: command to init pio project (removed double quotation marks)
+        - Changed: many architectural improvements
+        - Changed: documentation improvements
 
-	ver. 0.45 (04-05.04.18):
-		- New: introducing unit-tests for the app
-		- New: clean-up mode
+    ver. 0.45 (04-05.04.18):
+        - New: introducing unit-tests for the app
+        - New: clean-up mode
 
-	ver. 0.5 (07.04.18):
-		- New: more comments
-		- New: screenshots for the usage example
-		- Fixed: many small fixes and improvements
-		- Changed: test now more isolated and uses ./stm32pio-test/stm32pio-test.ioc file
+    ver. 0.5 (07.04.18):
+        - New: more comments
+        - New: screenshots for the usage example
+        - Fixed: many small fixes and improvements
+        - Changed: test now more isolated and uses ./stm32pio-test/stm32pio-test.ioc file
