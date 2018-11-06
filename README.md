@@ -2,9 +2,9 @@
 Small Python app that can create and update [PlatformIO](https://platformio.org) project from [STM32CubeMX](http://www.st.com/en/development-tools/stm32cubemx.html) `.ioc` file.
 
 ## Features
-  - Start new project in a single directory using only `.ioc` file
-  - Update existing project to add/change hardware options from CubeMX
-  - Clean up project
+  - Start the new project in a single directory using only `.ioc` file
+  - Update existing project after adding/changing hardware options from CubeMX
+  - Clean-up the project
   - *[optional]* Automatically run your favorite editor in the end
 
 ## Requirements:
@@ -12,9 +12,9 @@ Small Python app that can create and update [PlatformIO](https://platformio.org)
     - Python 3.5+
   - For usage:
     - macOS or Linux OS
-    - STM32CubeMX (all recent versions) with downloaded needed framework (F0, F1, ...). Try to generate code in the ordinary way (through the GUI) at least once before running stm32pio
-    - Java CLI (JRE) (likely already installed if STM32CubeMX works)
-    - PlatformIO CLI (from Atom you can run `Menubar -> PlatformIO -> Install Shell Commands`). Therefore, currently stm32pio doesn't support Windows due to lack of the PlatformIO CLI.
+    - STM32CubeMX (all recent versions) with downloaded necessary frameworks (F0, F1, etc.). Try to generate code in ordinary way (through the GUI) at least once before running stm32pio
+    - Java CLI (JRE) (likely is already installed if STM32CubeMX works)
+    - PlatformIO CLI (from Atom you can run `Menubar -> PlatformIO -> Install Shell Commands`). Therefore, currently stm32pio doesn't support Windows due to the lack of the PlatformIO CLI.
 
 ## Usage
 Check `settings.py` to make sure that all user-specific parameters (path to the STM32CubeMX executable) are valid. Run

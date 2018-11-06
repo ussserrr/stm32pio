@@ -1,23 +1,34 @@
-import platform, pathlib
+import logging
+import pathlib
+import platform
+import sys
 
 
-myOS = platform.system()
-homeDir = str(pathlib.Path.home())
+my_os = platform.system()
+home_dir = str(pathlib.Path.home())
 
-# we trying to guess STM32CubeMX path. You can just avoid this and hardcode it
+logger = logging.getLogger('')
 
-# macOS default: Applications folder
-if myOS == 'Darwin':
-    cubemxPath = '/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX'
+
+# We trying to guess STM32CubeMX path. You can just avoid this and hard-code it
+
+# macOS default: 'Applications' folder
+if my_os == 'Darwin':
+    cubemx_path = "/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX"
 # not exactly default STM32CubeMX path on Linux but general convention on it
-elif myOS == 'Linux':
-    cubemxPath = '{homeDir}/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX'.format(homeDir=homeDir)
-# Windows not implemented yet
-elif myOS == 'Windows':
-    cubemxPath = '?'
+elif my_os == 'Linux':
+    cubemx_path = f"{home_dir}/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX"
+# Windows is not implemented yet
+elif my_os == 'Windows':
+    logger.error("Windows is not supported!")
+    sys.exit()
 
-cubemxScriptFilename = 'cubemx-script'
+cubemx_script_filename = 'cubemx-script'
 
-platformioIniPatch = '\n[platformio]\n'\
-                       'include_dir = Inc\n'\
-                       'src_dir = Src\n'
+cubemx_script_text = "config load {cubemx_ioc_full_filename}\n" \
+                     "generate code {project_path}\n" \
+                     "exit\n"
+
+platformio_ini_patch_text = "\n[platformio]\n" \
+                            "include_dir = Inc\n" \
+                            "src_dir = Src\n"

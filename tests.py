@@ -1,68 +1,146 @@
-import unittest, os, shutil
-import settings
-from miscs import generate_code, pio_init, patch_platformio_ini, start_editor, clean
+#!/usr/bin/env python3
 
-if settings.myOS in ['Darwin', 'Linux']:
-    path = os.path.dirname(os.path.abspath(__file__)) + '/stm32pio-test'
-# Windows not implemented yet
-elif settings.myOS == 'Windows':
-    path = '?'
+
+import os
+import subprocess
+import time
+import unittest
+
+import settings
+import util
+
+project_path = '?'
+if settings.my_os in ['Darwin', 'Linux']:
+    project_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stm32pio-test')
+# Windows is not implemented yet
+# elif settings.my_os == 'Windows':
+#     project_path = '?'
 
 board = 'nucleo_f031k6'
 
 
 
+def clean_run(test):
+    def wrapper(self):
+        util.clean(project_path)
+        return test(self)
+    return wrapper
+
+
+
 class Test(unittest.TestCase):
 
+    @clean_run
     def test_generate_code(self):
         """
-        Check whether files and folders were created
+        Check whether files and folders have been created
         """
 
-        generate_code(path)
-        self.assertEqual( [os.path.isfile(path+'/'+settings.cubemxScriptFilename),
-                           os.path.isdir(path+'/Src'),
-                           os.path.isdir(path+'/Inc')],
-                          [True, True, True],
-                          msg="{cubemxScriptFilename}, /Inc, /Src weren't created"\
-                          .format(cubemxScriptFilename=settings.cubemxScriptFilename) )
+        util.generate_code(project_path)
+        self.assertEqual([os.path.isfile(os.path.join(project_path, settings.cubemx_script_filename)),
+                          os.path.isdir(os.path.join(project_path, 'Src')),
+                          os.path.isdir(os.path.join(project_path, 'Inc'))],
+                         [True, True, True],
+                         msg=f"{settings.cubemx_script_filename}, /Inc, /Src haven't been created")
 
 
+    @clean_run
     def test_pio_init(self):
         """
-        Consider that existence of 'platformio.ini' file is displaying successful
-        PlatformIO project initialization
+        Consider that existence of 'platformio.ini' file is displaying successful PlatformIO project initialization
         """
 
-        pio_init(path, board)
-        self.assertTrue( os.path.isfile(path+'/platformio.ini'),
-                         msg='platformio.ini is not here' )
+        util.pio_init(project_path, board)
+        self.assertTrue(os.path.isfile(os.path.join(project_path, 'platformio.ini')), msg="platformio.ini is not here")
 
 
+    @clean_run
     def test_patch_platformio_ini(self):
         """
         Compare contents of the patched string and the desired patch
         """
 
-        platformioIni = open(path+'/platformio.ini', mode='w')
-        platformioIni.write('*** TEST PLATFORMIO.INI FILE ***')
-        platformioIni.close()
+        with open(os.path.join(project_path, 'platformio.ini'), mode='w') as platformio_ini:
+            platformio_ini.write("*** TEST PLATFORMIO.INI FILE ***")
 
-        patch_platformio_ini(path)
+        util.patch_platformio_ini(project_path)
 
-        platformioIni = open(path+'/platformio.ini', mode='rb')
-        platformioIni.seek(-len(settings.platformioIniPatch), 2)
-        platformioIniPatchedStr = platformioIni.read(len(settings.platformioIniPatch))\
-                                                   .decode('utf-8')
-        platformioIni.close()
-        os.remove(path + '/platformio.ini')
+        with open(os.path.join(project_path, 'platformio.ini'), mode='rb') as platformio_ini:
+            # '2' means that we count from the end of the file. This feature works only in binary file mode
+            platformio_ini.seek(-len(settings.platformio_ini_patch_text), 2)
+            platformio_ini_patched_str = platformio_ini.read(len(settings.platformio_ini_patch_text)).decode('utf-8')
 
-        self.assertEqual(platformioIniPatchedStr, settings.platformioIniPatch,
+        self.assertEqual(platformio_ini_patched_str, settings.platformio_ini_patch_text,
                          msg="'platformio.ini' patching error")
+
+
+    @clean_run
+    def test_build(self):
+        """
+        Initialize a new project and try to build it
+        """
+
+        util.generate_code(project_path)
+        util.pio_init(project_path, board)
+        util.patch_platformio_ini(project_path)
+
+        result = subprocess.run(['platformio', 'run'], cwd=project_path, capture_output=True)
+
+        self.assertEqual(result.returncode, 0, msg="build failed")
+
+
+    def test_run_editor(self):
+        """
+        Call editors
+        """
+
+        util.start_editor(project_path, 'atom')
+        util.start_editor(project_path, 'vscode')
+        util.start_editor(project_path, 'sublime')
+        time.sleep(1)  # wait a little bit for apps to start
+        result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
+
+        self.assertIn('Atom', result.stdout)
+        self.assertIn('Visual Studio Code', result.stdout)
+        self.assertIn('Sublime', result.stdout)
+
+
+    @clean_run
+    def test_regenerate_code(self):
+        """
+        Simulate new project creation, its changing and CubeMX regeneration (for example, after adding new hardware
+        and some new files)
+        """
+
+        # Generate new project
+        util.generate_code(project_path)
+        util.pio_init(project_path, board)
+        util.patch_platformio_ini(project_path)
+
+        # Change it:
+        #   - add some sample string inside CubeMX' /* BEGIN - END */ block
+        with open(os.path.join(project_path, 'Src', 'main.c'), mode='r+') as main_c:
+            main_c_content = main_c.read()
+            pos = main_c_content.index("while (1)")
+            main_c_new_content = main_c_content[:pos] + "*** TEST STRING 1 ***\n" + main_c_content[pos:]
+            main_c.seek(0)
+            main_c.truncate()
+            main_c.write(main_c_new_content)
+        #  - add new file inside the project
+        with open(os.path.join(project_path, 'Inc', 'my_header.h'), mode='w') as my_header_h:
+            my_header_h.write("*** TEST STRING 2 ***\n")
+
+        # Regenerate CubeMX project
+        util.generate_code(project_path)
+
+        # Check if added information is preserved
+        with open(os.path.join(project_path, 'Src', 'main.c'), mode='r') as main_c:
+            self.assertIn("*** TEST STRING 1 ***", main_c.read())
+        with open(os.path.join(project_path, 'Inc', 'my_header.h'), mode='r') as my_header_h:
+            self.assertIn("*** TEST STRING 2 ***", my_header_h.read())
 
 
 
 if __name__ == '__main__':
-    clean(path)
     unittest.main(exit=False)
-    clean(path)
+    util.clean(project_path)
