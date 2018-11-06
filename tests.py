@@ -84,7 +84,9 @@ class Test(unittest.TestCase):
         util.pio_init(project_path, board)
         util.patch_platformio_ini(project_path)
 
-        result = subprocess.run(['platformio', 'run'], cwd=project_path, capture_output=True)
+        result = subprocess.run(['platformio', 'run'], cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Or, for Python 3.7 and above:
+        # result = subprocess.run(['platformio', 'run'], cwd=project_path, capture_output=True)
 
         self.assertEqual(result.returncode, 0, msg="build failed")
 
@@ -98,8 +100,10 @@ class Test(unittest.TestCase):
         util.start_editor(project_path, 'vscode')
         util.start_editor(project_path, 'sublime')
         time.sleep(1)  # wait a little bit for apps to start
-        result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
-
+        result = subprocess.run(['ps', '-A'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+        # Or, for Python 3.7 and above:
+        # result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
+        
         self.assertIn('Atom', result.stdout)
         self.assertIn('Visual Studio Code', result.stdout)
         self.assertIn('Sublime', result.stdout)

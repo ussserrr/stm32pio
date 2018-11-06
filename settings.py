@@ -17,7 +17,7 @@ if my_os == 'Darwin':
     cubemx_path = "/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX"
 # not exactly default STM32CubeMX path on Linux but general convention on it
 elif my_os == 'Linux':
-    cubemx_path = f"{home_dir}/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX"
+    cubemx_path = "/usr/local/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX"
 # Windows is not implemented yet
 elif my_os == 'Windows':
     logger.error("Windows is not supported!")
