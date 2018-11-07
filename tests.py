@@ -104,7 +104,6 @@ class Test(unittest.TestCase):
         util.start_editor(project_path, 'atom')
         util.start_editor(project_path, 'vscode')
         util.start_editor(project_path, 'sublime')
-        util.start_editor(project_path, 'gedit')
         time.sleep(1)  # wait a little bit for apps to start
 
         if settings.my_os == 'Windows':
@@ -125,7 +124,6 @@ class Test(unittest.TestCase):
                 self.assertIn('atom', result.stdout)
                 self.assertIn('code', result.stdout)
                 self.assertIn('sublime', result.stdout)
-                self.assertIn('gedit', result.stdout)
 
 
 

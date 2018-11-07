@@ -39,7 +39,7 @@ stm32pio changelog:
 
     ver. 0.7 (05-07.11.18):
         - New: Windows support!
-        - New: new editors support (Sublime Text, gedit)
+        - New: new editors support (Sublime Text)
         - New: more comments and docstrings
         - New: more checks to improve robustness
         - New: if __name__ == '__main__' block

@@ -154,8 +154,6 @@ def start_editor(project_path, editor):
                 subprocess.run(['code', project_path], check=True)
             elif editor == 'sublime':
                 subprocess.run(['subl', project_path], check=True)
-            elif editor == 'gedit':
-                subprocess.run(['gedit', project_path], check=True)
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Failed to start the editor {editor}: {e.stdout}")
