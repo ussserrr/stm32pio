@@ -20,8 +20,9 @@ elif my_os == 'Linux':
     cubemx_path = "/usr/local/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX"
 # Windows is not implemented yet
 elif my_os == 'Windows':
-    logger.error("Windows is not supported!")
-    sys.exit()
+	cubemx_path = "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe"
+    # logger.error("Windows is not supported!")
+    # sys.exit()
 
 cubemx_script_filename = 'cubemx-script'
 

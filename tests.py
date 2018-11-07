@@ -9,15 +9,9 @@ import unittest
 import settings
 import util
 
-project_path = '?'
-if settings.my_os in ['Darwin', 'Linux']:
-    project_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stm32pio-test')
-# Windows is not implemented yet
-# elif settings.my_os == 'Windows':
-#     project_path = '?'
 
+project_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stm32pio-test')
 board = 'nucleo_f031k6'
-
 
 
 def clean_run(test):
@@ -66,9 +60,18 @@ class Test(unittest.TestCase):
         util.patch_platformio_ini(project_path)
 
         with open(os.path.join(project_path, 'platformio.ini'), mode='rb') as platformio_ini:
-            # '2' means that we count from the end of the file. This feature works only in binary file mode
-            platformio_ini.seek(-len(settings.platformio_ini_patch_text), 2)
-            platformio_ini_patched_str = platformio_ini.read(len(settings.platformio_ini_patch_text)).decode('utf-8')
+            # '2' in seek() means that we count from the end of the file. This feature works only in binary file mode
+            # In Windows additional '\r' is appended to every '\n' so we need to count them for the correct calculation
+            if settings.my_os == 'Windows':
+                platformio_ini.seek(-(len(settings.platformio_ini_patch_text) +
+                                      settings.platformio_ini_patch_text.count('\n')), 2)
+                platformio_ini_patched_str = platformio_ini.read(len(settings.platformio_ini_patch_text) +
+                                                                 settings.platformio_ini_patch_text.count('\n'))
+                platformio_ini_patched_str = platformio_ini_patched_str.replace(b'\r', b'').decode('utf-8')
+            else:
+                platformio_ini.seek(-len(settings.platformio_ini_patch_text), 2)
+                platformio_ini_patched_str = platformio_ini.read(
+                    len(settings.platformio_ini_patch_text)).decode('utf-8')
 
         self.assertEqual(platformio_ini_patched_str, settings.platformio_ini_patch_text,
                          msg="'platformio.ini' patching error")
@@ -84,7 +87,8 @@ class Test(unittest.TestCase):
         util.pio_init(project_path, board)
         util.patch_platformio_ini(project_path)
 
-        result = subprocess.run(['platformio', 'run'], cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(['platformio', 'run'],
+                                cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # Or, for Python 3.7 and above:
         # result = subprocess.run(['platformio', 'run'], cwd=project_path, capture_output=True)
 
@@ -100,13 +104,20 @@ class Test(unittest.TestCase):
         util.start_editor(project_path, 'vscode')
         util.start_editor(project_path, 'sublime')
         time.sleep(1)  # wait a little bit for apps to start
-        result = subprocess.run(['ps', '-A'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
-        # Or, for Python 3.7 and above:
-        # result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
-        
-        self.assertIn('Atom', result.stdout)
-        self.assertIn('Visual Studio Code', result.stdout)
-        self.assertIn('Sublime', result.stdout)
+
+        if settings.my_os == 'Windows':
+            result = subprocess.run(['wmic', 'process', 'get', 'description'],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+            self.assertIn('atom.exe', result.stdout)
+            self.assertIn('Code.exe', result.stdout)
+            self.assertIn('sublime_text.exe', result.stdout)
+        else:
+            result = subprocess.run(['ps', '-A'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+            # Or, for Python 3.7 and above:
+            # result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
+            self.assertIn('Atom', result.stdout)
+            self.assertIn('Visual Studio Code', result.stdout)
+            self.assertIn('Sublime', result.stdout)
 
 
     @clean_run

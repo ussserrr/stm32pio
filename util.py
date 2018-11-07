@@ -57,6 +57,9 @@ def generate_code(project_path):
     else:
         logger.info("successful code generation")
 
+    if settings.my_os == 'Windows':
+        shutil.rmtree(os.path.join(project_path, 'MXTmpFiles'), ignore_errors=True)
+
 
 
 def pio_init(project_path, board):
@@ -78,7 +81,7 @@ def pio_init(project_path, board):
         sys.exit()
     else:
         if board not in result.stdout.split():
-            logger.error("wrong STM32 board. Run 'pio boards' for possible names")
+            logger.error("wrong STM32 board. Run 'platformio boards' for possible names")
             sys.exit()
 
     logger.info("starting PlatformIO project initialization...")
@@ -113,16 +116,11 @@ def patch_platformio_ini(project_path):
 
     logger.debug("patching 'platformio.ini' file...")
 
-    if settings.my_os in ['Darwin', 'Linux']:
-        with open(f"{project_path}/platformio.ini", mode='a') as platformio_ini_file:
-            platformio_ini_file.write(settings.platformio_ini_patch_text)
+    with open(os.path.join(project_path, 'platformio.ini'), mode='a') as platformio_ini_file:
+        platformio_ini_file.write(settings.platformio_ini_patch_text)
 
-        shutil.rmtree(os.path.join(project_path, 'include'), ignore_errors=True)
-        shutil.rmtree(os.path.join(project_path, 'src'), ignore_errors=True)
-
-    # Windows
-    else:
-        logger.warning("Windows is not supported")
+    shutil.rmtree(os.path.join(project_path, 'include'), ignore_errors=True)
+    shutil.rmtree(os.path.join(project_path, 'src'), ignore_errors=True)
 
     logger.info("'platformio.ini' patched")
 
@@ -139,14 +137,22 @@ def start_editor(project_path, editor):
 
     # TODO: handle errors if there is no editor
 
-    logger.info("starting editor...")
+    logger.info("starting an editor...")
 
-    if editor == 'atom':
-        subprocess.run(['atom', project_path])
-    elif editor == 'vscode':
-        subprocess.run(['code', project_path])
-    elif editor == 'sublime':
-        subprocess.run(['subl', project_path])
+    if settings.my_os == 'Windows':
+        if editor == 'atom':
+            subprocess.run(['atom', project_path], shell=True)
+        elif editor == 'vscode':
+            subprocess.run(['code', project_path], shell=True)
+        elif editor == 'sublime':
+            subprocess.run(['subl', project_path], shell=True)
+    else:
+        if editor == 'atom':
+            subprocess.run(['atom', project_path])
+        elif editor == 'vscode':
+            subprocess.run(['code', project_path])
+        elif editor == 'sublime':
+            subprocess.run(['subl', project_path])
 
 
 
@@ -164,7 +170,7 @@ def clean(project_path):
 
     for item in folder_content:
         if os.path.isdir(os.path.join(project_path, item)):
-            shutil.rmtree(os.path.join(project_path, item))
+            shutil.rmtree(os.path.join(project_path, item), ignore_errors=True)
             logger.debug('del ./' + item)
         elif os.path.isfile(os.path.join(project_path, item)):
             os.remove(os.path.join(project_path, item))
