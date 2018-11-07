@@ -1,7 +1,6 @@
 import logging
 import pathlib
 import platform
-import sys
 
 
 my_os = platform.system()
@@ -10,19 +9,20 @@ home_dir = str(pathlib.Path.home())
 logger = logging.getLogger('')
 
 
-# We trying to guess STM32CubeMX path. You can just avoid this and hard-code it
+# How you start Java from command line?
+java_cmd = 'java'
 
+# We trying to guess STM32CubeMX location. You can just avoid this and hard-code it. Note that STM32CubeMX will be
+# called as 'java -jar'
 # macOS default: 'Applications' folder
 if my_os == 'Darwin':
     cubemx_path = "/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX"
-# not exactly default STM32CubeMX path on Linux but general convention on it
+# Linux (Ubuntu) default:
 elif my_os == 'Linux':
     cubemx_path = "/usr/local/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX"
-# Windows is not implemented yet
+# Windows default:
 elif my_os == 'Windows':
-	cubemx_path = "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe"
-    # logger.error("Windows is not supported!")
-    # sys.exit()
+    cubemx_path = "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe"
 
 cubemx_script_filename = 'cubemx-script'
 

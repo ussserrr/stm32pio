@@ -43,12 +43,12 @@ def generate_code(project_path):
 
     logger.info("starting to generate a code from the CubeMX .ioc file...")
     if logger.level <= logging.DEBUG:
-        result = subprocess.run(['java', '-jar', settings.cubemx_path, '-q', cubemx_script_full_filename])
+        result = subprocess.run([settings.java_cmd, '-jar', settings.cubemx_path, '-q', cubemx_script_full_filename])
     else:
-        result = subprocess.run(['java', '-jar', settings.cubemx_path, '-q', cubemx_script_full_filename],
+        result = subprocess.run([settings.java_cmd, '-jar', settings.cubemx_path, '-q', cubemx_script_full_filename],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # Or, for Python 3.7 and above:
-        # result = subprocess.run(['java', '-jar', settings.cubemx_path, '-q', cubemx_script_full_filename],
+        # result = subprocess.run([settings.java_cmd, '-jar', settings.cubemx_path, '-q', cubemx_script_full_filename],
         #                         capture_output=True)
     if result.returncode != 0:
         logger.error(f"code generation error (return code is {result.returncode}).\n"
@@ -116,13 +116,15 @@ def patch_platformio_ini(project_path):
 
     logger.debug("patching 'platformio.ini' file...")
 
-    with open(os.path.join(project_path, 'platformio.ini'), mode='a') as platformio_ini_file:
-        platformio_ini_file.write(settings.platformio_ini_patch_text)
+    if os.path.isfile(os.path.join(project_path, 'platformio.ini')):
+        with open(os.path.join(project_path, 'platformio.ini'), mode='a') as platformio_ini_file:
+            platformio_ini_file.write(settings.platformio_ini_patch_text)
+        logger.info("'platformio.ini' patched")
+    else:
+        logger.warning("'platformio.ini' file not found")
 
     shutil.rmtree(os.path.join(project_path, 'include'), ignore_errors=True)
     shutil.rmtree(os.path.join(project_path, 'src'), ignore_errors=True)
-
-    logger.info("'platformio.ini' patched")
 
 
 
@@ -135,24 +137,28 @@ def start_editor(project_path, editor):
         editor: editor keyword
     """
 
-    # TODO: handle errors if there is no editor
-
     logger.info("starting an editor...")
 
-    if settings.my_os == 'Windows':
-        if editor == 'atom':
-            subprocess.run(['atom', project_path], shell=True)
-        elif editor == 'vscode':
-            subprocess.run(['code', project_path], shell=True)
-        elif editor == 'sublime':
-            subprocess.run(['subl', project_path], shell=True)
-    else:
-        if editor == 'atom':
-            subprocess.run(['atom', project_path])
-        elif editor == 'vscode':
-            subprocess.run(['code', project_path])
-        elif editor == 'sublime':
-            subprocess.run(['subl', project_path])
+    try:
+        if settings.my_os == 'Windows':
+            if editor == 'atom':
+                subprocess.run(['atom', project_path], check=True, shell=True)
+            elif editor == 'vscode':
+                subprocess.run(['code', project_path], check=True, shell=True)
+            elif editor == 'sublime':
+                subprocess.run(['subl', project_path], check=True, shell=True)
+        else:
+            if editor == 'atom':
+                subprocess.run(['atom', project_path], check=True)
+            elif editor == 'vscode':
+                subprocess.run(['code', project_path], check=True)
+            elif editor == 'sublime':
+                subprocess.run(['subl', project_path], check=True)
+            elif editor == 'gedit':
+                subprocess.run(['gedit', project_path], check=True)
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to start the editor {editor}: {e.stdout}")
 
 
 
@@ -164,16 +170,18 @@ def clean(project_path):
         project_path: path to the project
     """
 
+    # Get folder content
     folder_content = os.listdir(project_path)
+    # Keep the '.ioc' file
     if (os.path.basename(project_path) + '.ioc') in folder_content:
         folder_content.remove(os.path.basename(project_path) + '.ioc')
 
     for item in folder_content:
         if os.path.isdir(os.path.join(project_path, item)):
             shutil.rmtree(os.path.join(project_path, item), ignore_errors=True)
-            logger.debug('del ./' + item)
+            logger.debug(f"del {item}/")
         elif os.path.isfile(os.path.join(project_path, item)):
             os.remove(os.path.join(project_path, item))
-            logger.debug('del ' + item)
+            logger.debug(f"del {item}")
 
     logger.info("project has been cleaned")

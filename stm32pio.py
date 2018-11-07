@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-__version__ = 0.6
+__version__ = 0.7
 
 
 if __name__ == '__main__':
@@ -11,7 +11,7 @@ if __name__ == '__main__':
     import sys
 
     parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
-                                                 "Requirements: Python 3.5+, STM32CubeMX, PlatformIO CLI. Edit "
+                                                 "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Edit "
                                                  "settings.py to set project path to the STM32CubeMX (if default "
                                                  "doesn't work)")
     # global arguments (there is also automatically added '-h, --help' option)
@@ -21,11 +21,12 @@ if __name__ == '__main__':
     subparsers = parser.add_subparsers(dest='subcommand', title='subcommands',
                                        description="valid subcommands", help="modes of operation")
 
-    parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project [and start editor]")
+    parser_new = subparsers.add_parser('new',
+                                       help="generate CubeMX code, create PlatformIO project [and start the editor]")
     parser_new.add_argument('-d', '--directory', dest='project_path', help="path to the project", required=True)
     parser_new.add_argument('-b', '--board', dest='board', help="PlatformIO name of the board", required=True)
     parser_new.add_argument('--start-editor', dest='editor', help="use specified editor to open PlatformIO project",
-                            choices=['atom', 'vscode', 'sublime'], required=False)
+                            choices=['atom', 'vscode', 'sublime', 'gedit'], required=False)
 
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code")
     parser_generate.add_argument('-d', '--directory', dest='project_path', help="path to the project", required=True)

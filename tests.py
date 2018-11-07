@@ -61,7 +61,8 @@ class Test(unittest.TestCase):
 
         with open(os.path.join(project_path, 'platformio.ini'), mode='rb') as platformio_ini:
             # '2' in seek() means that we count from the end of the file. This feature works only in binary file mode
-            # In Windows additional '\r' is appended to every '\n' so we need to count them for the correct calculation
+            # In Windows additional '\r' is appended to every '\n' (newline differences) so we need to count them
+            # for the correct calculation
             if settings.my_os == 'Windows':
                 platformio_ini.seek(-(len(settings.platformio_ini_patch_text) +
                                       settings.platformio_ini_patch_text.count('\n')), 2)
@@ -103,6 +104,7 @@ class Test(unittest.TestCase):
         util.start_editor(project_path, 'atom')
         util.start_editor(project_path, 'vscode')
         util.start_editor(project_path, 'sublime')
+        util.start_editor(project_path, 'gedit')
         time.sleep(1)  # wait a little bit for apps to start
 
         if settings.my_os == 'Windows':
@@ -115,9 +117,16 @@ class Test(unittest.TestCase):
             result = subprocess.run(['ps', '-A'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
             # Or, for Python 3.7 and above:
             # result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
-            self.assertIn('Atom', result.stdout)
-            self.assertIn('Visual Studio Code', result.stdout)
-            self.assertIn('Sublime', result.stdout)
+            if settings.my_os == 'Darwin':
+                self.assertIn('Atom', result.stdout)
+                self.assertIn('Visual Studio Code', result.stdout)
+                self.assertIn('Sublime', result.stdout)
+            if settings.my_os == 'Linux':
+                self.assertIn('atom', result.stdout)
+                self.assertIn('code', result.stdout)
+                self.assertIn('sublime', result.stdout)
+                self.assertIn('gedit', result.stdout)
+
 
 
     @clean_run
@@ -127,7 +136,7 @@ class Test(unittest.TestCase):
         and some new files)
         """
 
-        # Generate new project
+        # Generate a new project
         util.generate_code(project_path)
         util.pio_init(project_path, board)
         util.patch_platformio_ini(project_path)

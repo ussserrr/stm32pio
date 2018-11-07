@@ -1,4 +1,4 @@
-Changelog:
+stm32pio changelog:
 
     ver. 0.1 (30.11.17):
         - Initial version
@@ -15,24 +15,48 @@ Changelog:
     ver. 0.4 (03-04.04.18):
         - New: hide CubeMX and PlatformIO stdout output
         - New: shebang
-        - New: choose your favourite editor with --start-editor option (replaced --with-atom)
+        - New: choose your favourite editor with '--start-editor' option (replaces '--with-atom')
         - New: logging module
         - New: more checks
-        - New: settings.py file
+        - New: 'settings.py' file
         - New: cross-platform running
-        - New: debug output (verbose -v mode)
-        - New: readme.md and more comments
+        - New: debug output (verbose '-v' mode)
+        - New: 'README.md' and more comments
         - Fixed: remove unnecessary imports
-        - Fixed: command to init pio project (removed double quotation marks)
+        - Fixed: command to initialize PlatformIO project (remove double quotation marks)
         - Changed: many architectural improvements
         - Changed: documentation improvements
 
     ver. 0.45 (04-05.04.18):
         - New: introducing unit-tests for the app
-        - New: clean-up mode
+        - New: clean-up feature
 
     ver. 0.5 (07.04.18):
         - New: more comments
         - New: screenshots for the usage example
         - Fixed: many small fixes and improvements
-        - Changed: test now more isolated and uses ./stm32pio-test/stm32pio-test.ioc file
+        - Changed: test now is more isolated and uses ./stm32pio-test/stm32pio-test.ioc file
+
+    ver. 0.7 (05-07.11.18):
+        - New: Windows support!
+        - New: new editors support (Sublime Text, gedit)
+        - New: more comments and docstrings
+        - New: more checks to improve robustness
+        - New: if __name__ == '__main__' block
+        - New: new test: build generated project
+        - New: new test: run editors
+        - New: new test: user's code preservation after the code regeneration
+        - New: clean run for test cases (implemented using decorator)
+        - Fixed: compatible with latest PlatformIO project structure (ver 3.6.1)
+        - Fixed: many small fixes and improvements
+        - Changed: 'java_cmd' parameter in 'settings.py' (simple 'java' by default)
+        - Changed: move to double-quoted strings
+        - Changed: remove '_getProjectNameByPath()' function (replaced by 'os.path.basename()')
+        - Changed: vast f-strings usage
+        - Changed: test '.ioc' file is updated to the latest STM32CubeMX version (4.27.0 at the moment)
+        - Changed: use 'os.path.join()' instead of manually composing of paths
+        - Changed: use 'with ... as ...' construction for opening files
+        - Changed: 120 chars line width
+        - Changed: PEP 8 conformity: variables and functions naming conventions
+        - Changed: PEP 8 conformity: multi-line imports
+        - Changed: 'miscs.py' module is renamed to 'util.py'
