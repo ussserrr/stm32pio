@@ -40,6 +40,7 @@ to see help.
 $ python3 stm32pio.py new -d /path/to/cubemx/project -b nucleo_f031k6 --start-editor=vscode
 ```
 to complete generation and start the Visual Studio Code editor with opened folder (as example, not required). Make sure you have all tools in PATH (`java` (or set in `settings.py`), editor, Python)
+
 7. If you will be in need to update hardware configuration in the future, make all necessary stuff in CubeMX and run `generate` command in a similar way:
 ```bash
 $ python3 stm32pio.py generate -d /path/to/cubemx/project
