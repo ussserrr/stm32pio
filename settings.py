@@ -24,12 +24,15 @@ elif my_os == 'Linux':
 elif my_os == 'Windows':
     cubemx_path = "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe"
 
+# (default is OK) choose a file name in which we store the CubeMX script
 cubemx_script_filename = 'cubemx-script'
 
+# (default is OK)
 cubemx_script_text = "config load {cubemx_ioc_full_filename}\n" \
                      "generate code {project_path}\n" \
                      "exit\n"
 
+# (default is OK)
 platformio_ini_patch_text = "\n[platformio]\n" \
                             "include_dir = Inc\n" \
                             "src_dir = Src\n"
