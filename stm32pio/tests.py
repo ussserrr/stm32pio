@@ -132,12 +132,12 @@ class Test(unittest.TestCase):
         and some new files)
         """
 
-        # Generate a new project
+        # Generate a new project ...
         util.generate_code(project_path)
         util.pio_init(project_path, board)
         util.patch_platformio_ini(project_path)
 
-        # Change it:
+        # ... change it:
         #   - add some sample string inside CubeMX' /* BEGIN - END */ block
         with open(os.path.join(project_path, 'Src', 'main.c'), mode='r+') as main_c:
             main_c_content = main_c.read()

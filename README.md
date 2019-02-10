@@ -9,6 +9,15 @@ Small cross-platform Python app that can create and update [PlatformIO](https://
   - *[optional]* Automatically run your favorite editor in the end
 
 
+## Restrictions
+  - The tool doesn't check for different parameters compatibility, e.g. CPU frequency, memory sizes and so on. It simply ease your workflow with these 2 programs (PlatformIO and STM32CubeMX) a little bit.
+  - CubeMX middlewares doesn't support yet because it's hard to be prepared for every possible configuration. You need to manually adjust them to build appropriately. For example, FreeRTOS can be added via PlatformIO' `lib` feature or be directly compiled in its own directory using `lib_extra_dirs` option:
+    ```ini
+    lib_extra_dirs = Middlewares/Third_Party/FreeRTOS
+    ```
+    You also need to move all `.c`/`.h` files to the `src`/`include` folders respectively. See PlatformIO documentation for more information.
+
+
 ## Requirements:
   - For this app:
     - Python 3.6+
@@ -37,8 +46,8 @@ to see help.
 
 ![Project tab](/screenshots/tab_Project.png)
 
-4. Use copied string as a `-d` argument for stm32pio. So it is assumed that the name of the project folder matches the name of `.ioc` file
-5. Run `platformio boards` (`pio boards`) to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
+4. Use copied string as a `-d` argument for stm32pio. So it is assumed that the name of the project folder matches the name of `.ioc` file. (`-d` argument can be omitted if your current working directory is already a project directory)
+5. Run `platformio boards` (`pio boards`) or go to [boards](https://docs.platformio.org/en/latest/boards) to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
 6. All done. You can now run
 ```bash
 $ python3 stm32pio.py new -d /path/to/cubemx/project -b nucleo_f031k6 --start-editor=vscode
@@ -57,8 +66,8 @@ Since ver. 0.45 there are some unit-tests in file `tests.py` (based on the unitt
 ```bash
 $ python3 tests.py -v
 ```
-to test the app. It uses STM32F0 framework to generate code from `./stm32pio-test/stm32pio-test.ioc` file.
+to test the app. It uses STM32F0 framework to generate and build a code from the `./stm32pio-test/stm32pio-test.ioc` file.
 
 
 ## Notes
-The tool doesn't check for different parameters compatibility, e.g. CPU frequency, memory sizes and so on. It simply ease your workflow with these 2 programs (PlatformIO and STM32CubeMX) a little bit.
+  - CI is hard to implement for all target OSes during the requirement to have all tools (PlatformIO, Java, CubeMX, etc.) installed during the test. For example, ST doesn't even provide a direct link to CubeMX for downloading

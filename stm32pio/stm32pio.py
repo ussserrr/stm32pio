@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 
 
-__version__ = 0.71
-
-
 if __name__ == '__main__':
 
     import argparse
     import logging
     import sys
+    import os
+
+    import __init__
 
     parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
                                                  "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Edit "
                                                  "settings.py to set project path to the STM32CubeMX (if default "
                                                  "doesn't work)")
     # global arguments (there is also automatically added '-h, --help' option)
-    parser.add_argument('--version', action='version', version=f"%(prog)s v{__version__}")
+    parser.add_argument('--version', action='version', version=f"%(prog)s v{__init__.__version__}")
     parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', required=False)
 
     subparsers = parser.add_subparsers(dest='subcommand', title='subcommands',
@@ -23,17 +23,20 @@ if __name__ == '__main__':
 
     parser_new = subparsers.add_parser('new',
                                        help="generate CubeMX code, create PlatformIO project [and start the editor]")
-    parser_new.add_argument('-d', '--directory', dest='project_path', help="path to the project", required=True)
+    parser_new.add_argument('-d', '--directory', dest='project_path',
+                            help="path to the project (current directory, if not given)", default=os.getcwd())
     parser_new.add_argument('-b', '--board', dest='board', help="PlatformIO name of the board", required=True)
     parser_new.add_argument('--start-editor', dest='editor', help="use specified editor to open PlatformIO project",
                             choices=['atom', 'vscode', 'sublime'], required=False)
 
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code")
-    parser_generate.add_argument('-d', '--directory', dest='project_path', help="path to the project", required=True)
+    parser_generate.add_argument('-d', '--directory', dest='project_path',
+                                 help="path to the project (current directory, if not given)", default=os.getcwd())
 
-    parser_clean = subparsers.add_parser('clean', help="clean-up the project (delete all content of 'path' "
-                                                       "except the .ioc file)")
-    parser_clean.add_argument('-d', '--directory', dest='project_path', help="path to the project", required=True)
+    parser_clean = subparsers.add_parser('clean', help="clean-up the project (WARNING: it deletes ALL content of "
+                                                       "'path' except the .ioc file)")
+    parser_clean.add_argument('-d', '--directory', dest='project_path',
+                              help="path to the project (current directory, if not given)", default=os.getcwd())
 
     args = parser.parse_args()
 
@@ -56,11 +59,10 @@ if __name__ == '__main__':
 
     # Main routine
     else:
-        import os
-
         import util
 
-        project_path = os.path.normpath(args.project_path)  # handle '/path/to/proj' and '/path/to/proj/' cases
+        # Handle '/path/to/proj' and '/path/to/proj/', 'dot' (current directory) cases
+        project_path = os.path.abspath(os.path.normpath(args.project_path))
         if not os.path.exists(project_path):
             logger.error("incorrect project path")
             sys.exit()
