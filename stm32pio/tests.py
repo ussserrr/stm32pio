@@ -30,10 +30,10 @@ class Test(unittest.TestCase):
 
         util.generate_code(project_path)
         self.assertEqual([os.path.isfile(os.path.join(project_path, settings.cubemx_script_filename)),
-                          os.path.isdir(os.path.join(project_path, 'Src')),
-                          os.path.isdir(os.path.join(project_path, 'Inc'))],
+                          os.path.isfile(os.path.join(project_path, 'Src/main.c')),
+                          os.path.isfile(os.path.join(project_path, 'Inc/main.h'))],
                          [True, True, True],
-                         msg=f"{settings.cubemx_script_filename}, /Inc, /Src haven't been created")
+                         msg=f"{settings.cubemx_script_filename}, /Inc/main.h, /Src/main.c haven't been created")
 
 
     @clean_run

@@ -61,12 +61,13 @@ stm32pio changelog:
         - Changed: PEP 8 conformity: multi-line imports
         - Changed: 'miscs.py' module is renamed to 'util.py'
 
-    ver. 0.72 (10.02.19):
+    ver. 0.73 (10-11.02.19):
         - New: use more convenient Python project structure
         - New: package can be install using setuptools
         - New: TODO list
         - New: '--directory' option is now optional if the program gets called from the project directory
         - Fixed: license copyright
         - Fixed: 'dot' path will be handle successfully now
+        - Fixed: bug on case insensitive machines
         - Changed: test '.ioc' file is updated to the latest STM32CubeMX version (5.0.1 at the moment)
         - Changed: documentation improvements

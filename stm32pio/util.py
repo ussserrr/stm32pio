@@ -123,7 +123,8 @@ def patch_platformio_ini(project_path):
         logger.warning("'platformio.ini' file not found")
 
     shutil.rmtree(os.path.join(project_path, 'include'), ignore_errors=True)
-    shutil.rmtree(os.path.join(project_path, 'src'), ignore_errors=True)
+    if not os.path.exists(os.path.join(project_path, 'SRC')):  # case sensitive file system
+        shutil.rmtree(os.path.join(project_path, 'src'), ignore_errors=True)
 
 
 
