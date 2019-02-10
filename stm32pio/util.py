@@ -6,7 +6,6 @@ import sys
 
 import settings
 
-
 logger = logging.getLogger('')
 
 

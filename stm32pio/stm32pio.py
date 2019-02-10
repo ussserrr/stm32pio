@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-__version__ = 0.7
+__version__ = 0.71
 
 
 if __name__ == '__main__':
@@ -59,7 +59,6 @@ if __name__ == '__main__':
         import os
 
         import util
-
 
         project_path = os.path.normpath(args.project_path)  # handle '/path/to/proj' and '/path/to/proj/' cases
         if not os.path.exists(project_path):

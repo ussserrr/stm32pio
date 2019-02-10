@@ -6,11 +6,9 @@ import subprocess
 import time
 import unittest
 
-import settings
-import util
+import settings, util
 
-
-project_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stm32pio-test')
+project_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'stm32pio-test')
 board = 'nucleo_f031k6'
 
 

@@ -60,3 +60,9 @@ stm32pio changelog:
         - Changed: PEP 8 conformity: variables and functions naming conventions
         - Changed: PEP 8 conformity: multi-line imports
         - Changed: 'miscs.py' module is renamed to 'util.py'
+
+    ver. 0.71 (10.02.19):
+        - New: use convenient Python project structure
+        - New: TODO list
+        - Fixed: license copyright
+        - Changed: test '.ioc' file is updated to the latest STM32CubeMX version (5.0.1 at the moment)
