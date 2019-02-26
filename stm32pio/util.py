@@ -9,6 +9,8 @@ import settings
 logger = logging.getLogger('')
 
 
+# TODO: simplify the code by dividing big routines on several smaller ones
+
 def generate_code(project_path):
     """
     Call STM32CubeMX app as a 'java -jar' file with the automatically prearranged 'cubemx-script' file
@@ -34,6 +36,7 @@ def generate_code(project_path):
         logger.debug(settings.cubemx_script_filename + " file wasn't found, creating one...")
         cubemx_script_text = settings.cubemx_script_text.format(project_path=project_path,
                                                                 cubemx_ioc_full_filename=cubemx_ioc_full_filename)
+        # TODO: wrap into try-except to catch writing errors
         with open(cubemx_script_full_filename, 'w') as cubemx_script_file:
             cubemx_script_file.write(cubemx_script_text)
         logger.debug(f"'{settings.cubemx_script_filename}' file has been successfully created")
@@ -41,7 +44,9 @@ def generate_code(project_path):
         logger.debug(f"'{settings.cubemx_script_filename}' file is already there")
 
     logger.info("starting to generate a code from the CubeMX .ioc file...")
+    # TODO: logger.debug() the captured output instead of condition
     if logger.level <= logging.DEBUG:
+        # TODO: take out all commands to the extrenal file (possibly JSON or settings.py) for easy maintaining
         result = subprocess.run([settings.java_cmd, '-jar', settings.cubemx_path, '-q', cubemx_script_full_filename])
     else:
         result = subprocess.run([settings.java_cmd, '-jar', settings.cubemx_path, '-q', cubemx_script_full_filename],
@@ -56,6 +61,7 @@ def generate_code(project_path):
     else:
         logger.info("successful code generation")
 
+    # Clean Windows-only temp files
     if settings.my_os == 'Windows':
         shutil.rmtree(os.path.join(project_path, 'MXTmpFiles'), ignore_errors=True)
 

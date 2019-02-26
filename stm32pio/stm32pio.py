@@ -16,7 +16,8 @@ if __name__ == '__main__':
                                                  "doesn't work)")
     # global arguments (there is also automatically added '-h, --help' option)
     parser.add_argument('--version', action='version', version=f"%(prog)s v{__init__.__version__}")
-    parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', required=False)
+    parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)",
+                        action='count', required=False)
 
     subparsers = parser.add_subparsers(dest='subcommand', title='subcommands',
                                        description="valid subcommands", help="modes of operation")
@@ -61,6 +62,7 @@ if __name__ == '__main__':
     else:
         import util
 
+        # TODO: take out to the util module (dedicated function and call it from every other)
         # Handle '/path/to/proj' and '/path/to/proj/', 'dot' (current directory) cases
         project_path = os.path.abspath(os.path.normpath(args.project_path))
         if not os.path.exists(project_path):
@@ -78,6 +80,7 @@ if __name__ == '__main__':
 
 
         elif args.subcommand == 'generate':
+            # TODO: check for 'platformio.ini' file, show a warning that this is not a PlatformIO project
             util.generate_code(project_path)
 
 
