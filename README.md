@@ -7,6 +7,7 @@ Small cross-platform Python app that can create and update [PlatformIO](https://
   - Update existing project after adding/changing hardware options from CubeMX
   - Clean-up the project (WARNING: it deletes ALL content of 'path' except the `.ioc` file!)
   - *[optional]* Automatically run your favorite editor in the end
+  - *[optional]* Make an initial build of the project
 
 
 ## Restrictions
@@ -36,6 +37,8 @@ Basically, you need to follow such pattern:
   4. Edit the configuration in CubeMX when necessary, then run stm32pio to regenerate the code.
 
 Refer to Example section on more detailed steps.
+
+stm32pio will create an accessory file 'cubemx-script' in your project directory that contains commands passed to CubeMX. You can safely delete it (it will be created again on the next run) or edit corresponding to your goals.
 
 Check `settings.py` to make sure that all user-specific parameters are valid. Run
 ```bash

@@ -193,6 +193,32 @@ def start_editor(dirty_path, editor):
 
 
 
+def pio_build(dirty_path):
+    """
+    Initiate a build of the PlatformIO project by the PlatformIO ('run' command)
+
+    Args:
+        dirty_path: path to the project
+    """
+
+    project_path = _get_project_path(dirty_path)
+
+
+    logger.info("starting PlatformIO build...")
+    if logger.level <= logging.DEBUG:
+        result = subprocess.run(['platformio', 'run', '-d', project_path])
+    else:
+        result = subprocess.run(['platformio', 'run', '-d', project_path, '--silent'])
+        # Or, for Python 3.7 and above:
+        # result = subprocess.run(['platformio', 'run', '-d', project_path, '--silent'], capture_output=True)
+    if result.returncode != 0:
+        logger.error("PlatformIO build error")
+        raise Exception("PlatformIO error")
+    else:
+        logger.info("successful PlatformIO build")
+
+
+
 def clean(dirty_path):
     """
     Clean-up the project folder and preserve only a '.ioc' file

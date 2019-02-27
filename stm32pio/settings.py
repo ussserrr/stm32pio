@@ -9,11 +9,11 @@ home_dir = str(pathlib.Path.home())
 logger = logging.getLogger('')
 
 
-# How you start Java from command line?
+# (default is OK) How do you start Java from command line? (edit if Java not in PATH)
 java_cmd = 'java'
 
-# We trying to guess STM32CubeMX location. You can just avoid this and hard-code it. Note that STM32CubeMX will be
-# called as 'java -jar'
+# (default is OK) We trying to guess STM32CubeMX location. You can just avoid this and hard-code it.
+# Note that STM32CubeMX will be called as 'java -jar CUBEMX'
 # macOS default: 'Applications' folder
 if my_os == 'Darwin':
     cubemx_path = "/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX"
@@ -27,7 +27,7 @@ elif my_os == 'Windows':
 # (default is OK) choose a file name in which we store the CubeMX script
 cubemx_script_filename = 'cubemx-script'
 
-# (default is OK)
+# (default is OK) see CubeMX user manual PDF to see other useful options
 cubemx_script_text = "config load {cubemx_ioc_full_filename}\n" \
                      "generate code {project_path}\n" \
                      "exit\n"

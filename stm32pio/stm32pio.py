@@ -29,6 +29,8 @@ if __name__ == '__main__':
     parser_new.add_argument('-b', '--board', dest='board', help="PlatformIO name of the board", required=True)
     parser_new.add_argument('--start-editor', dest='editor', help="use specified editor to open PlatformIO project",
                             choices=['atom', 'vscode', 'sublime'], required=False)
+    parser_new.add_argument('--with-build', action='store_true', help="initiate a build after project generation",
+                            required=False)
 
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code")
     parser_generate.add_argument('-d', '--directory', dest='project_path',
@@ -70,6 +72,8 @@ if __name__ == '__main__':
 
                 if args.editor:
                     util.start_editor(args.project_path, args.editor)
+                if args.with_build:
+                    util.pio_build(args.project_path)
 
             elif args.subcommand == 'generate':
                 util.generate_code(args.project_path)
