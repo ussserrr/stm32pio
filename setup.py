@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="stm32pio",
-    version="0.73",
+    version="0.74",
     author="ussserrr",
     author_email="andrei4.2008@gmail.com",
     description="Small cross-platform Python app that can create and update PlatformIO projects from STM32CubeMX .ioc "

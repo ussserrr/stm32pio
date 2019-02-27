@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
     # Logger instance goes through the whole program.
     # Currently only 2 levels of verbosity through the '-v' option are counted
-    logging.basicConfig(format="%(levelname)-8s %(message)s")
+    logging.basicConfig(format="%(levelname)-8s %(funcName)-16s %(message)s")
     logger = logging.getLogger('')
     if args.verbose:
         logger.setLevel(logging.DEBUG)
@@ -62,30 +62,23 @@ if __name__ == '__main__':
     else:
         import util
 
-        # TODO: take out to the util module (dedicated function and call it from every other)
-        # Handle '/path/to/proj' and '/path/to/proj/', 'dot' (current directory) cases
-        project_path = os.path.abspath(os.path.normpath(args.project_path))
-        if not os.path.exists(project_path):
-            logger.error("incorrect project path")
-            sys.exit()
+        try:
+            if args.subcommand == 'new':
+                util.generate_code(args.project_path)
+                util.pio_init(args.project_path, args.board)
+                util.patch_platformio_ini(args.project_path)
 
+                if args.editor:
+                    util.start_editor(args.project_path, args.editor)
 
-        if args.subcommand == 'new':
-            util.generate_code(project_path)
-            util.pio_init(project_path, args.board)
-            util.patch_platformio_ini(project_path)
+            elif args.subcommand == 'generate':
+                util.generate_code(args.project_path)
 
-            if args.editor:
-                util.start_editor(project_path, args.editor)
+            elif args.subcommand == 'clean':
+                util.clean(args.project_path)
 
-
-        elif args.subcommand == 'generate':
-            # TODO: check for 'platformio.ini' file, show a warning that this is not a PlatformIO project
-            util.generate_code(project_path)
-
-
-        elif args.subcommand == 'clean':
-            util.clean(project_path)
+        except Exception as e:
+            print(e.__repr__())
 
 
     logger.info("exiting...")

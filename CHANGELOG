@@ -72,3 +72,8 @@ stm32pio changelog:
         - Fixed: bug in tests that allowing to pass the test even in failure situation
         - Changed: test '.ioc' file is updated to the latest STM32CubeMX version (5.0.1 at the moment)
         - Changed: documentation improvements
+
+    ver. 0.74 (27.02.19):
+        - New: new internal _get_project_path() function (more clean main script)
+        - Changed: util.py functions now raising the exceptions instead of forcing the exit
+        - Changed: test '.ioc' file is updated to the latest STM32CubeMX version (5.1.0 at the moment)
