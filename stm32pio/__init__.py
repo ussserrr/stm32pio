@@ -1,2 +1,2 @@
 name = "stm32pio"
-__version__ = "0.74"
+__version__ = "0.8"

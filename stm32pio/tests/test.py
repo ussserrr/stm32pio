@@ -2,6 +2,7 @@
 
 
 import os
+import pathlib
 import subprocess
 import time
 import unittest
@@ -11,7 +12,7 @@ import util
 
 
 
-project_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'stm32pio-test')
+project_path = pathlib.Path('./stm32pio-test-project').resolve()
 board = 'nucleo_f031k6'
 
 
@@ -33,11 +34,11 @@ class Test(unittest.TestCase):
         """
 
         util.generate_code(project_path)
-        self.assertEqual([os.path.isfile(os.path.join(project_path, settings.cubemx_script_filename)),
-                          os.path.isfile(os.path.join(project_path, 'Src/main.c')),
-                          os.path.isfile(os.path.join(project_path, 'Inc/main.h'))],
-                         [True, True, True],
-                         msg=f"{settings.cubemx_script_filename}, /Inc/main.h, /Src/main.c haven't been created")
+        # Assuming that the presence of these files indicates a success
+        files_should_be_present = [settings.cubemx_script_filename, 'Src/main.c', 'Inc/main.h']
+        self.assertEqual([project_path.joinpath(file).is_file() for file in files_should_be_present],
+                         [True] * len(files_should_be_present),
+                         msg=f"At least one of {files_should_be_present} files haven't been created")
 
 
     @clean_run
@@ -47,7 +48,7 @@ class Test(unittest.TestCase):
         """
 
         util.pio_init(project_path, board)
-        self.assertTrue(os.path.isfile(os.path.join(project_path, 'platformio.ini')), msg="platformio.ini is not here")
+        self.assertTrue(project_path.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
 
 
     @clean_run
@@ -56,8 +57,7 @@ class Test(unittest.TestCase):
         Compare contents of the patched string and the desired patch
         """
 
-        with open(os.path.join(project_path, 'platformio.ini'), mode='w') as platformio_ini:
-            platformio_ini.write("*** TEST PLATFORMIO.INI FILE ***")
+        project_path.joinpath('platformio.ini').write_text("*** TEST PLATFORMIO.INI FILE ***")
 
         util.patch_platformio_ini(project_path)
 
@@ -104,8 +104,8 @@ class Test(unittest.TestCase):
         """
 
         util.start_editor(project_path, 'atom')
-        util.start_editor(project_path, 'vscode')
-        util.start_editor(project_path, 'sublime')
+        util.start_editor(project_path, 'code')
+        util.start_editor(project_path, 'subl')
         time.sleep(1)  # wait a little bit for apps to start
 
         if settings.my_os == 'Windows':

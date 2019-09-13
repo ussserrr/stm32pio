@@ -14,7 +14,7 @@ if __name__ == '__main__':
                                                  "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Edit "
                                                  "settings.py to set project path to the STM32CubeMX (if default "
                                                  "doesn't work)")
-    # global arguments (there is also automatically added '-h, --help' option)
+    # global arguments (there is also an automatically added '-h, --help' option)
     parser.add_argument('--version', action='version', version=f"%(prog)s v{__init__.__version__}")
     parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)",
                         action='count', required=False)
@@ -41,13 +41,14 @@ if __name__ == '__main__':
     parser_clean.add_argument('-d', '--directory', dest='project_path',
                               help="path to the project (current directory, if not given)", default=os.getcwd())
 
+
     args = parser.parse_args()
 
 
     # Logger instance goes through the whole program.
     # Currently only 2 levels of verbosity through the '-v' option are counted
     logging.basicConfig(format="%(levelname)-8s %(funcName)-16s %(message)s")
-    logger = logging.getLogger('')
+    logger = logging.getLogger('main')
     if args.verbose:
         logger.setLevel(logging.DEBUG)
         logger.debug("debug logging enabled")

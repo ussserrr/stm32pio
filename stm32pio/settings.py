@@ -1,19 +1,13 @@
-import logging
-import pathlib
 import platform
 
 
 my_os = platform.system()
-home_dir = str(pathlib.Path.home())
-
-logger = logging.getLogger('')
-
 
 # (default is OK) How do you start Java from command line? (edit if Java not in PATH)
 java_cmd = 'java'
 
 # (default is OK) We trying to guess STM32CubeMX location. You can just avoid this and hard-code it.
-# Note that STM32CubeMX will be called as 'java -jar CUBEMX'
+# Note that STM32CubeMX will be invoked as 'java -jar CUBEMX'
 # macOS default: 'Applications' folder
 if my_os == 'Darwin':
     cubemx_path = "/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX"
