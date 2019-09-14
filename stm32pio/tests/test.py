@@ -11,8 +11,7 @@ import settings
 import util
 
 
-
-project_path = pathlib.Path('./stm32pio-test-project').resolve()
+project_path = pathlib.Path('stm32pio/tests/stm32pio-test-project').resolve()
 board = 'nucleo_f031k6'
 
 
@@ -49,6 +48,9 @@ class Test(unittest.TestCase):
 
         util.pio_init(project_path, board)
         self.assertTrue(project_path.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
+        with self.assertRaisesRegex(Exception, "PlatformIO build error",
+                                    msg='Exception("PlatformIO build error") was not raised'):
+            util.pio_build(project_path)
 
 
     @clean_run
@@ -57,27 +59,19 @@ class Test(unittest.TestCase):
         Compare contents of the patched string and the desired patch
         """
 
-        project_path.joinpath('platformio.ini').write_text("*** TEST PLATFORMIO.INI FILE ***")
+        test_content = "*** TEST PLATFORMIO.INI FILE ***"
+        project_path.joinpath('platformio.ini').write_text(test_content)
 
         util.patch_platformio_ini(project_path)
 
-        with open(os.path.join(project_path, 'platformio.ini'), mode='rb') as platformio_ini:
-            # '2' in seek() means that we count from the end of the file. This feature works only in binary file mode
-            # In Windows additional '\r' is appended to every '\n' (newline differences) so we need to count them
-            # for the correct calculation
-            if settings.my_os == 'Windows':
-                platformio_ini.seek(-(len(settings.platformio_ini_patch_text) +
-                                      settings.platformio_ini_patch_text.count('\n')), 2)
-                platformio_ini_patched_str = platformio_ini.read(len(settings.platformio_ini_patch_text) +
-                                                                 settings.platformio_ini_patch_text.count('\n'))
-                platformio_ini_patched_str = platformio_ini_patched_str.replace(b'\r', b'').decode('utf-8')
-            else:
-                platformio_ini.seek(-len(settings.platformio_ini_patch_text), 2)
-                platformio_ini_patched_str = platformio_ini.read(
-                    len(settings.platformio_ini_patch_text)).decode('utf-8')
+        after_patch_content = project_path.joinpath('platformio.ini').read_text()
 
-        self.assertEqual(platformio_ini_patched_str, settings.platformio_ini_patch_text,
-                         msg="'platformio.ini' patching error")
+        # Initial content wasn't corrupted
+        self.assertEqual(after_patch_content[:len(test_content)], test_content,
+                         msg="Initial content of platformio.ini is corrupted")
+        # Patch content is as expected
+        self.assertEqual(after_patch_content[len(test_content):], settings.platformio_ini_patch_content,
+                         msg="patch content is not as expected")
 
 
     @clean_run
@@ -128,7 +122,6 @@ class Test(unittest.TestCase):
                 self.assertIn('sublime', result.stdout)
 
 
-
     @clean_run
     def test_regenerate_code(self):
         """
@@ -142,27 +135,41 @@ class Test(unittest.TestCase):
         util.patch_platformio_ini(project_path)
 
         # ... change it:
+        test_file_1 = project_path.joinpath('Src', 'main.c')
+        test_content_1 = "*** TEST STRING 1 ***\n"
+        test_file_2 = project_path.joinpath('Inc', 'my_header.h')
+        test_content_2 = "*** TEST STRING 2 ***\n"
         #   - add some sample string inside CubeMX' /* BEGIN - END */ block
-        with open(os.path.join(project_path, 'Src', 'main.c'), mode='r+') as main_c:
-            main_c_content = main_c.read()
-            pos = main_c_content.index("while (1)")
-            main_c_new_content = main_c_content[:pos] + "*** TEST STRING 1 ***\n" + main_c_content[pos:]
-            main_c.seek(0)
-            main_c.truncate()
-            main_c.write(main_c_new_content)
+        main_c_content = test_file_1.read_text()
+        pos = main_c_content.index("while (1)")
+        main_c_new_content = main_c_content[:pos] + test_content_1 + main_c_content[pos:]
+        test_file_1.write_text(main_c_new_content)
         #  - add new file inside the project
-        with open(os.path.join(project_path, 'Inc', 'my_header.h'), mode='w') as my_header_h:
-            my_header_h.write("*** TEST STRING 2 ***\n")
+        test_file_2.write_text(test_content_2)
 
         # Regenerate CubeMX project
         util.generate_code(project_path)
 
         # Check if added information is preserved
-        with open(os.path.join(project_path, 'Src', 'main.c'), mode='r') as main_c:
-            self.assertIn("*** TEST STRING 1 ***", main_c.read())
-        with open(os.path.join(project_path, 'Inc', 'my_header.h'), mode='r') as my_header_h:
-            self.assertIn("*** TEST STRING 2 ***", my_header_h.read())
+        main_c_after_regenerate_content = test_file_1.read_text()
+        my_header_h_after_regenerate_content = test_file_2.read_text()
+        self.assertIn(test_content_1, main_c_after_regenerate_content,
+                      msg=f"{test_file_1} does not preserve user content after regeneration")
+        self.assertIn(test_content_2, my_header_h_after_regenerate_content,
+                      msg=f"{test_file_2} does not preserve user content after regeneration")
 
+
+    def test_file_not_found(self):
+        """
+
+        """
+        not_existing_path = project_path.joinpath('does_not_exist')
+        with self.assertRaises(FileNotFoundError, msg="FileNotFoundError was not raised"):
+            util._get_project_path(not_existing_path)
+
+
+def tearDownModule():
+    util.clean(project_path)
 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ import subprocess
 
 import settings
 
-logger = logging.getLogger('main')
+logger = logging.getLogger()
 
 
 
@@ -50,9 +50,9 @@ def generate_code(dirty_path):
     cubemx_script_full_filename = project_path.joinpath(settings.cubemx_script_filename)
     if not cubemx_script_full_filename.is_file():
         logger.debug(f"'{settings.cubemx_script_filename}' file wasn't found, creating one...")
-        cubemx_script_text = settings.cubemx_script_text.format(project_path=project_path,
-                                                                cubemx_ioc_full_filename=cubemx_ioc_full_filename)
-        cubemx_script_full_filename.write_text(cubemx_script_text)
+        cubemx_script_content = settings.cubemx_script_content.format(project_path=project_path,
+                                                                      cubemx_ioc_full_filename=cubemx_ioc_full_filename)
+        cubemx_script_full_filename.write_text(cubemx_script_content)
         logger.debug(f"'{settings.cubemx_script_filename}' file has been successfully created")
     else:
         logger.debug(f"'{settings.cubemx_script_filename}' file is already there")
@@ -133,7 +133,7 @@ def patch_platformio_ini(dirty_path):
     platformio_ini_file = project_path.joinpath('platformio.ini')
     if platformio_ini_file.is_file():
         with platformio_ini_file.open(mode='a') as f:
-            f.write(settings.platformio_ini_patch_text)
+            f.write(settings.platformio_ini_patch_content)
         logger.info("'platformio.ini' patched")
     else:
         logger.warning("'platformio.ini' file not found")
@@ -186,7 +186,7 @@ def pio_build(dirty_path):
         logger.info("successful PlatformIO build")
     else:
         logger.error("PlatformIO build error")
-        raise Exception("PlatformIO error")
+        raise Exception("PlatformIO build error")
 
 
 
