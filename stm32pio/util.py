@@ -74,11 +74,11 @@ def generate_code(dirty_path):
         raise Exception("code generation error")
 
     # Clean Windows-only temp files
-    if settings.my_os == 'Windows':
-        MXTmpFiles = project_path.joinpath('MXTmpFiles')
-        if MXTmpFiles.exists():
-            shutil.rmtree(str(MXTmpFiles), ignore_errors=True)
-            logger.debug("del MXTmpFiles/")
+    # if settings.my_os == 'Windows':
+    #     MXTmpFiles = project_path.joinpath('MXTmpFiles')
+    #     if MXTmpFiles.exists():
+    #         shutil.rmtree(str(MXTmpFiles), ignore_errors=True)
+    #         logger.debug("del MXTmpFiles/")
 
 
 def pio_init(dirty_path, board):
@@ -94,7 +94,7 @@ def pio_init(dirty_path, board):
 
     # Check board name
     logger.debug("searching for PlatformIO board...")
-    result = subprocess.run(['platformio', 'boards'], encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run([settings.platformio_cmd, 'boards'], encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # Or, for Python 3.7 and above:
     # result = subprocess.run(['platformio', 'boards'], encoding='utf-8', capture_output=True)
     if result.returncode == 0:
@@ -106,7 +106,7 @@ def pio_init(dirty_path, board):
         raise Exception("failed to start PlatformIO")
 
     logger.info("starting PlatformIO project initialization...")
-    command_arr = ['platformio', 'init', '-d', project_path, '-b', board, '-O', 'framework=stm32cube']
+    command_arr = [settings.platformio_cmd, 'init', '-d', project_path, '-b', board, '-O', 'framework=stm32cube']
     if logger.level > logging.DEBUG:
         command_arr.append('--silent')
     result = subprocess.run(command_arr)
@@ -173,17 +173,20 @@ def pio_build(dirty_path):
 
     Args:
         dirty_path: path to the project
+    Returns:
+        0 if success, raise an exception otherwise
     """
 
     project_path = _get_project_path(dirty_path)
 
     logger.info("starting PlatformIO build...")
-    command_arr = ['platformio', 'run', '-d', str(project_path)]
+    command_arr = [settings.platformio_cmd, 'run', '-d', str(project_path)]
     if logger.level > logging.DEBUG:
         command_arr.append('--silent')
     result = subprocess.run(command_arr)
     if result.returncode == 0:
         logger.info("successful PlatformIO build")
+        return result.returncode
     else:
         logger.error("PlatformIO build error")
         raise Exception("PlatformIO build error")
@@ -192,7 +195,7 @@ def pio_build(dirty_path):
 
 def clean(dirty_path):
     """
-    Clean-up the project folder and preserve only a '.ioc' file
+    Clean-up the project folder and preserve only an '.ioc' file
 
     Args:
         dirty_path: path to the project

@@ -6,6 +6,10 @@ my_os = platform.system()
 # (default is OK) How do you start Java from command line? (edit if Java not in PATH)
 java_cmd = 'java'
 
+# (default is OK) How do you start PlatformIO from command line? (edit if not in PATH, check
+# https://docs.platformio.org/en/latest/installation.html#install-shell-commands)
+platformio_cmd = 'platformio'
+
 # (default is OK) We trying to guess STM32CubeMX location. You can just avoid this and hard-code it.
 # Note that STM32CubeMX will be invoked as 'java -jar CUBEMX'
 # macOS default: 'Applications' folder

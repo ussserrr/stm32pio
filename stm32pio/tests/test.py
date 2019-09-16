@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-
-import os
 import pathlib
 import subprocess
 import time
@@ -17,6 +15,10 @@ board = 'nucleo_f031k6'
 
 
 def clean_run(test):
+    """
+    The decorator that clean the project directory before the test (or any other function). Its functionality can also
+    be done using setUp method of unittest. Also, we assume that util.clean() does not contain any errors itself :)
+    """
     def wrapper(self):
         util.clean(project_path)
         return test(self)
@@ -31,7 +33,6 @@ class Test(unittest.TestCase):
         """
         Check whether files and folders have been created
         """
-
         util.generate_code(project_path)
         # Assuming that the presence of these files indicates a success
         files_should_be_present = [settings.cubemx_script_filename, 'Src/main.c', 'Inc/main.h']
@@ -45,12 +46,8 @@ class Test(unittest.TestCase):
         """
         Consider that existence of 'platformio.ini' file is displaying successful PlatformIO project initialization
         """
-
         util.pio_init(project_path, board)
         self.assertTrue(project_path.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
-        with self.assertRaisesRegex(Exception, "PlatformIO build error",
-                                    msg='Exception("PlatformIO build error") was not raised'):
-            util.pio_build(project_path)
 
 
     @clean_run
@@ -58,7 +55,6 @@ class Test(unittest.TestCase):
         """
         Compare contents of the patched string and the desired patch
         """
-
         test_content = "*** TEST PLATFORMIO.INI FILE ***"
         project_path.joinpath('platformio.ini').write_text(test_content)
 
@@ -75,28 +71,34 @@ class Test(unittest.TestCase):
 
 
     @clean_run
+    def test_build_should_raise(self):
+        """
+        Build an empty project so PlatformIO should return non-zero code and we should throw the exception
+        """
+        util.pio_init(project_path, board)
+        with self.assertRaisesRegex(Exception, "PlatformIO build error",
+                                    msg="Build error exception hadn't been raised"):
+            util.pio_build(project_path)
+
+
+    @clean_run
     def test_build(self):
         """
         Initialize a new project and try to build it
         """
-
         util.generate_code(project_path)
         util.pio_init(project_path, board)
         util.patch_platformio_ini(project_path)
 
-        result = subprocess.run(['platformio', 'run'],
-                                cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # Or, for Python 3.7 and above:
-        # result = subprocess.run(['platformio', 'run'], cwd=project_path, capture_output=True)
+        result = util.pio_build(project_path)
 
-        self.assertEqual(result.returncode, 0, msg="build failed")
+        self.assertEqual(result, 0, msg="Build failed")
 
 
     def test_run_editor(self):
         """
-        Call editors
+        Call the editors
         """
-
         util.start_editor(project_path, 'atom')
         util.start_editor(project_path, 'code')
         util.start_editor(project_path, 'subl')
@@ -125,8 +127,8 @@ class Test(unittest.TestCase):
     @clean_run
     def test_regenerate_code(self):
         """
-        Simulate new project creation, its changing and CubeMX regeneration (for example, after adding new hardware
-        and some new files)
+        Simulate new project creation, its changing and CubeMX code re-generation (for example, after adding new
+        hardware features and some new files)
         """
 
         # Generate a new project ...
@@ -147,7 +149,7 @@ class Test(unittest.TestCase):
         #  - add new file inside the project
         test_file_2.write_text(test_content_2)
 
-        # Regenerate CubeMX project
+        # Re-generate CubeMX project
         util.generate_code(project_path)
 
         # Check if added information is preserved
@@ -161,7 +163,7 @@ class Test(unittest.TestCase):
 
     def test_file_not_found(self):
         """
-
+        Pass non-existing path and expect the error
         """
         not_existing_path = project_path.joinpath('does_not_exist')
         with self.assertRaises(FileNotFoundError, msg="FileNotFoundError was not raised"):
@@ -169,6 +171,9 @@ class Test(unittest.TestCase):
 
 
 def tearDownModule():
+    """
+    Clean up after yourself
+    """
     util.clean(project_path)
 
 
