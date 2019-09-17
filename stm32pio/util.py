@@ -58,7 +58,6 @@ def generate_code(dirty_path):
         logger.debug(f"'{settings.cubemx_script_filename}' file is already there")
 
     logger.info("starting to generate a code from the CubeMX .ioc file...")
-    # TODO: take out all commands to the external file (possibly JSON or settings.py) for easy maintaining
     command_arr = [settings.java_cmd, '-jar', settings.cubemx_path, '-q', str(cubemx_script_full_filename)]
     if logger.level <= logging.DEBUG:
         result = subprocess.run(command_arr)
@@ -72,13 +71,6 @@ def generate_code(dirty_path):
         logger.error(f"code generation error (CubeMX return code is {result.returncode}).\n"
                      "Try to enable a verbose output or generate a code from the CubeMX itself.")
         raise Exception("code generation error")
-
-    # Clean Windows-only temp files
-    # if settings.my_os == 'Windows':
-    #     MXTmpFiles = project_path.joinpath('MXTmpFiles')
-    #     if MXTmpFiles.exists():
-    #         shutil.rmtree(str(MXTmpFiles), ignore_errors=True)
-    #         logger.debug("del MXTmpFiles/")
 
 
 def pio_init(dirty_path, board):
@@ -106,7 +98,7 @@ def pio_init(dirty_path, board):
         raise Exception("failed to start PlatformIO")
 
     logger.info("starting PlatformIO project initialization...")
-    command_arr = [settings.platformio_cmd, 'init', '-d', project_path, '-b', board, '-O', 'framework=stm32cube']
+    command_arr = [settings.platformio_cmd, 'init', '-d', str(project_path), '-b', board, '-O', 'framework=stm32cube']
     if logger.level > logging.DEBUG:
         command_arr.append('--silent')
     result = subprocess.run(command_arr)
