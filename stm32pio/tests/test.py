@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import pathlib
 import subprocess
 import time
@@ -174,9 +172,4 @@ def tearDownModule():
     """
     Clean up after yourself
     """
-    util.clean(project_path)
-
-
-if __name__ == '__main__':
-    unittest.main(exit=False)
     util.clean(project_path)

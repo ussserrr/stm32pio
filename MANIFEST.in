@@ -4,5 +4,5 @@ include MANIFEST.in
 include CHANGELOG
 include TODO.md
 include .gitignore
-include stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc
+recursive-include stm32pio/tests *
 include screenshots/*.png

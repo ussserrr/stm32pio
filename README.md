@@ -1,6 +1,8 @@
 # stm32pio
 Small cross-platform Python app that can create and update [PlatformIO](https://platformio.org) projects from [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html) `.ioc` files.
 
+![Logo](/screenshots/logo.png)
+
 
 ## Features
   - Start the new project in a single directory using only an `.ioc` file
@@ -60,22 +62,24 @@ to see help.
 4. Use copied string as a `-d` argument for stm32pio. So it is assumed that the name of the project folder matches the name of `.ioc` file. (`-d` argument can be omitted if your current working directory is already a project directory)
 5. Run `platformio boards` (`pio boards`) or go to [boards](https://docs.platformio.org/en/latest/boards) to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
 6. All done! You can now run
-```bash
-$ python3 stm32pio.py new -d /path/to/cubemx/project -b nucleo_f031k6 --start-editor=vscode --with-build
-```
-to complete generation, start the Visual Studio Code editor with opened folder and compile the project (as an example, not required). Make sure you have all tools in PATH (`java` (or set its path in `settings.py`), `python`, editor)
-
+   ```bash
+   $ python3 stm32pio.py new -d path/to/cubemx/project/ -b nucleo_f031k6 --start-editor=vscode --with-build
+   ```
+   to complete generation, start the Visual Studio Code editor with opened folder and compile the project (as an example, not required). Make sure you have all tools in PATH (`java` (or set its path in `settings.py`), `python`, editor). You can use shorter form if you are already located in the project directory (also using shebang alias):
+   ```bash
+   path/to/cubemx/project/ $   stm32pio.py new -b nucleo_f031k6
+   ```
 7. If you will be in need to update hardware configuration in the future, make all necessary stuff in CubeMX and run `generate` command in a similar way:
-```bash
-$ python3 stm32pio.py generate -d /path/to/cubemx/project
-```
+   ```bash
+   $ python3 stm32pio.py generate -d /path/to/cubemx/project
+   ```
 8. To clean-up the folder and keep only the `.ioc` file run `clean` command
 
 
 ## Testing
 Since ver. 0.45 there are some unit-tests in file `stm32pio/tests/test.py` (based on the unittest module). Run
 ```bash
-$ python3 tests.py -v
+stm32pio/ $   python3 -m unittest discover -v -s stm32pio/tests/ -t stm32pio/
 ```
 to test the app. It uses STM32F0 framework to generate and build a code from the `stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc` file. It's fine to fail an editor test as you not necessarily should have all the editors on your machine.
 
