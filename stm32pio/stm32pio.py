@@ -61,19 +61,14 @@ if __name__ == '__main__':
         import util
 
         try:
-            if args.subcommand == 'new':
+            if args.subcommand == 'new' or args.subcommand == 'generate':
                 util.generate_code(args.project_path)
-                util.pio_init(args.project_path, args.board)
-                util.patch_platformio_ini(args.project_path)
+                if args.subcommand == 'new':
+                    util.pio_init(args.project_path, args.board)
+                    util.patch_platformio_ini(args.project_path)
 
                 if args.editor:
                     util.start_editor(args.project_path, args.editor)
-                if args.with_build:
-                    util.pio_build(args.project_path)
-
-            elif args.subcommand == 'generate':
-                util.generate_code(args.project_path)
-
                 if args.with_build:
                     util.pio_build(args.project_path)
 
