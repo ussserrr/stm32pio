@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import argparse
 import logging
@@ -8,7 +9,7 @@ import pathlib
 import __init__
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
                                                  "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Edit "
                                                  "settings.py to set path to the STM32CubeMX (if default doesn't work)")
@@ -80,3 +81,7 @@ if __name__ == '__main__':
 
 
     logger.info("exiting...")
+
+
+if __name__ == '__main__':
+    main()

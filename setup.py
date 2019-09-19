@@ -24,7 +24,7 @@ setuptools.setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'stm32pio = stm32pio'
+            'stm32pio = stm32pio.stm32pio:main'
         ]
     }
 )

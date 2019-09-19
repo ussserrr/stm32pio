@@ -1,4 +1,5 @@
 import platform
+import pathlib
 
 
 my_os = platform.system()
@@ -17,7 +18,7 @@ if my_os == 'Darwin':
     cubemx_path = "/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX"
 # Linux (Ubuntu) default:
 elif my_os == 'Linux':
-    cubemx_path = "/usr/local/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX"
+    cubemx_path = pathlib.Path.home().joinpath("STM32CubeMX/STM32CubeMX")
 # Windows default:
 elif my_os == 'Windows':
     cubemx_path = "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe"
