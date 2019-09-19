@@ -40,7 +40,7 @@ Basically, you need to follow such a pattern:
 
 Refer to Example section on more detailed steps.
 
-stm32pio will create an accessory file 'cubemx-script' in your project directory that contains commands passed to CubeMX. You can safely delete it (it will be created again on the next run) or edit corresponding to your goals.
+stm32pio will create an accessory file `cubemx-script`'` in your project directory that contains commands passed to CubeMX. You can safely delete it (it will be created again on the next run) or edit corresponding to your goals.
 
 Check `settings.py` to make sure that all user-specific parameters are valid. Run
 ```bash
@@ -51,7 +51,7 @@ to see help.
 
 ## Example
 1. Run CubeMX, choose MCU/board, do all necessary stuff
-2. Select `Project Manager -> Project` tab, specify Project Name, choose Other Toolchains (GPDSC). In `Code Generator` tab check "Copy only the necessary library files" and "Generate periphery initialization as a pair of '.c/.h' files per peripheral" options
+2. Select `Project Manager -> Project` tab, specify "Project Name", choose "Other Toolchains (GPDSC)". In `Code Generator` tab check "Copy only the necessary library files" and "Generate periphery initialization as a pair of '.c/.h' files per peripheral" options
 
 ![Code Generator tab](/screenshots/tab_CodeGenerator.png)
 
@@ -59,7 +59,7 @@ to see help.
 
 ![Project tab](/screenshots/tab_Project.png)
 
-4. Use copied string as a `-d` argument for stm32pio. So it is assumed that the name of the project folder matches the name of `.ioc` file. (`-d` argument can be omitted if your current working directory is already a project directory)
+4. Use a copied string as a `-d` argument for stm32pio. So it is assumed that the name of the project folder matches the name of `.ioc` file. (`-d` argument can be omitted if your current working directory is already a project directory)
 5. Run `platformio boards` (`pio boards`) or go to [boards](https://docs.platformio.org/en/latest/boards) to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
 6. All done! You can now run
    ```bash
@@ -81,8 +81,4 @@ Since ver. 0.45 there are some unit-tests in file `stm32pio/tests/test.py` (base
 ```bash
 stm32pio/ $   python3 -m unittest discover -v -s stm32pio/tests/ -t stm32pio/
 ```
-to test the app. It uses STM32F0 framework to generate and build a code from the `stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc` file. It's fine to fail an editor test as you not necessarily should have all the editors on your machine.
-
-
-## Notes
-  - CI is hard to implement for all target OSes during the requirement to have all tools (PlatformIO, Java, CubeMX, etc.) installed during the test. For example, ST doesn't even provide a direct link to CubeMX for downloading
+to test the app. It uses STM32F0 framework to generate and build a code from the `stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc` file. It's fine to fail an editor test as you not necessarily should have all the editors on your machine. CI is hard to implement for all target OSes during the requirement to have all tools (PlatformIO, Java, CubeMX, etc.) installed during the test. For example, ST doesn't even provide a direct link to CubeMX for downloading

@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
 
     # Logger instance goes through the whole program.
-    # Currently only 2 levels of verbosity through the '-v' option are counted
+    # Currently only 2 levels of verbosity through the '-v' option are counted (INFO and DEBUG)
     logger = logging.getLogger()
     if args.verbose:
         logging.basicConfig(format="%(levelname)-8s %(funcName)-16s %(message)s")
