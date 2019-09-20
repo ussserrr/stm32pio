@@ -49,6 +49,17 @@ $ python3 stm32pio.py --help
 to see help.
 
 
+## Installation
+Starting from v0.8 it is possible to install the utility to be able to run stm32pio from anywhere. Use
+```shell script
+stm32pio-repo/ $   pip3 install .
+```
+command to launch the setup process. To uninstall run
+```shell script
+$ pip3 uninstall stm32pio
+```
+
+
 ## Example
 1. Run CubeMX, choose MCU/board, do all necessary stuff
 2. Select `Project Manager -> Project` tab, specify "Project Name", choose "Other Toolchains (GPDSC)". In `Code Generator` tab check "Copy only the necessary library files" and "Generate periphery initialization as a pair of '.c/.h' files per peripheral" options
@@ -79,6 +90,10 @@ to see help.
 ## Testing
 Since ver. 0.45 there are some unit-tests in file `stm32pio/tests/test.py` (based on the unittest module). Run
 ```bash
-stm32pio/ $   python3 -m unittest discover -v -s stm32pio/tests/ -t stm32pio/
+stm32pio-repo/ $   python3 -m unittest discover -v
+```
+or
+```bash
+stm32pio-repo/ $   python3 -m stm32pio.tests.test -v
 ```
 to test the app. It uses STM32F0 framework to generate and build a code from the `stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc` file. It's fine to fail an editor test as you not necessarily should have all the editors on your machine. CI is hard to implement for all target OSes during the requirement to have all tools (PlatformIO, Java, CubeMX, etc.) installed during the test. For example, ST doesn't even provide a direct link to CubeMX for downloading
