@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+__version__ = "0.8"
+
 import argparse
 import logging
 import sys
 import pathlib
-
-import __init__
 
 
 def main():
@@ -14,7 +14,7 @@ def main():
                                                  "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Edit "
                                                  "settings.py to set path to the STM32CubeMX (if default doesn't work)")
     # Global arguments (there is also an automatically added '-h, --help' option)
-    parser.add_argument('--version', action='version', version=f"%(prog)s v{__init__.__version__}")
+    parser.add_argument('--version', action='version', version=f"%(prog)s v{__version__}")
     parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', required=False)
 
     subparsers = parser.add_subparsers(dest='subcommand', title='subcommands',
@@ -59,22 +59,22 @@ def main():
 
     # Main routine
     else:
-        import util
+        import stm32pio.util
 
         try:
             if args.subcommand == 'new' or args.subcommand == 'generate':
-                util.generate_code(args.project_path)
+                stm32pio.util.generate_code(args.project_path)
                 if args.subcommand == 'new':
-                    util.pio_init(args.project_path, args.board)
-                    util.patch_platformio_ini(args.project_path)
+                    stm32pio.util.pio_init(args.project_path, args.board)
+                    stm32pio.util.patch_platformio_ini(args.project_path)
 
                 if args.editor:
-                    util.start_editor(args.project_path, args.editor)
+                    stm32pio.util.start_editor(args.project_path, args.editor)
                 if args.with_build:
-                    util.pio_build(args.project_path)
+                    stm32pio.util.pio_build(args.project_path)
 
             elif args.subcommand == 'clean':
-                util.clean(args.project_path)
+                stm32pio.util.clean(args.project_path)
 
         except Exception as e:
             print(e.__repr__())

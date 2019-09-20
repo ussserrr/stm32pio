@@ -1,6 +1,6 @@
 import setuptools
 
-from stm32pio import __version__
+from stm32pio.stm32pio import __version__
 
 with open("README.md", 'r') as fh:
     long_description = fh.read()
