@@ -82,15 +82,16 @@ stm32pio changelog:
 
     ver. 0.8 (09.19):
         - New: setup.py can now install executable script to run 'stm32pio' from any location
-        - New: stm32pio logo/scheme
+        - New: stm32pio logo/schematic
         - New: add PyCharm to .gitignore
         - New: add clear TODOs for the next release (some sort of a roadmap)
         - New: single __version__ reference
         - New: add some new tests (test_build_should_raise, test_file_not_found)
         - Fixed: options '--start-editor' and '--with-build' can now be used both for 'new' and 'generate' commands
+        - Fixed: import scheme is now as it should be
         - Changed: migrate from 'os.path' to 'pathlib' as much as possible for paths management (as a more high-level module)
         - Changed: 'start editor' feature is now starting an arbitrary editor (in the same way as you do it from the terminal)
-        - Changed: take out 'platformio' command outside (to 'settings')
+        - Changed: take outside 'platformio' command (to 'settings')
         - Changed: screenshots were actualized for recent CubeMX versions
         - Changed: logging output in standard (non-verbose) mode is simpler
         - Changed: move tests in new location

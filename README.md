@@ -43,7 +43,7 @@ Refer to Example section on more detailed steps.
 stm32pio will create an accessory file `cubemx-script`'` in your project directory that contains commands passed to CubeMX. You can safely delete it (it will be created again on the next run) or edit corresponding to your goals.
 
 Check `settings.py` to make sure that all user-specific parameters are valid. Run
-```bash
+```shell script
 $ python3 stm32pio.py --help
 ```
 to see help.
@@ -73,15 +73,15 @@ $ pip3 uninstall stm32pio
 4. Use a copied string as a `-d` argument for stm32pio. So it is assumed that the name of the project folder matches the name of `.ioc` file. (`-d` argument can be omitted if your current working directory is already a project directory)
 5. Run `platformio boards` (`pio boards`) or go to [boards](https://docs.platformio.org/en/latest/boards) to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
 6. All done! You can now run
-   ```bash
+   ```shell script
    $ python3 stm32pio.py new -d path/to/cubemx/project/ -b nucleo_f031k6 --start-editor=vscode --with-build
    ```
    to complete generation, start the Visual Studio Code editor with opened folder and compile the project (as an example, not required). Make sure you have all tools in PATH (`java` (or set its path in `settings.py`), `python`, editor). You can use shorter form if you are already located in the project directory (also using shebang alias):
-   ```bash
+   ```shell script
    path/to/cubemx/project/ $   stm32pio.py new -b nucleo_f031k6
    ```
 7. If you will be in need to update hardware configuration in the future, make all necessary stuff in CubeMX and run `generate` command in a similar way:
-   ```bash
+   ```shell script
    $ python3 stm32pio.py generate -d /path/to/cubemx/project
    ```
 8. To clean-up the folder and keep only the `.ioc` file run `clean` command
@@ -89,11 +89,11 @@ $ pip3 uninstall stm32pio
 
 ## Testing
 Since ver. 0.45 there are some unit-tests in file `stm32pio/tests/test.py` (based on the unittest module). Run
-```bash
+```shell script
 stm32pio-repo/ $   python3 -m unittest discover -v
 ```
 or
-```bash
+```shell script
 stm32pio-repo/ $   python3 -m stm32pio.tests.test -v
 ```
 to test the app. It uses STM32F0 framework to generate and build a code from the `stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc` file. It's fine to fail an editor test as you not necessarily should have all the editors on your machine. CI is hard to implement for all target OSes during the requirement to have all tools (PlatformIO, Java, CubeMX, etc.) installed during the test. For example, ST doesn't even provide a direct link to CubeMX for downloading
