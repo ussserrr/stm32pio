@@ -62,19 +62,21 @@ def main():
         import stm32pio.util
 
         try:
+            project = stm32pio.util.Stm32pio(args.project_path)
+
             if args.subcommand == 'new' or args.subcommand == 'generate':
-                stm32pio.util.generate_code(args.project_path)
+                project.generate_code()
                 if args.subcommand == 'new':
-                    stm32pio.util.pio_init(args.project_path, args.board)
-                    stm32pio.util.patch_platformio_ini(args.project_path)
+                    project.pio_init(args.board)
+                    project.patch_platformio_ini()
 
                 if args.with_build:
-                    stm32pio.util.pio_build(args.project_path)
+                    project.pio_build()
                 if args.editor:
-                    stm32pio.util.start_editor(args.project_path, args.editor)
+                    project.start_editor(args.editor)
 
             elif args.subcommand == 'clean':
-                stm32pio.util.clean(args.project_path)
+                project.clean()
 
         except Exception as e:
             print(e.__repr__())
