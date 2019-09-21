@@ -96,6 +96,5 @@ stm32pio changelog:
         - Changed: logging output in standard (non-verbose) mode is simpler
         - Changed: move tests in new location
         - Changed: revised and improved tests
-        - Changed: tests are now run by 'python -m unittest' and cannot be run as standalone
         - Changed: actualized .ioc file and clean-up the code according to the latest STM32CubeMX version (5.3.0 at the moment)
         - Changed: revised and improved util module
