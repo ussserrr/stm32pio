@@ -1,57 +1,54 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__version__ = "0.8"
+
+import argparse
+import logging
+import sys
+import pathlib
 
 
-if __name__ == '__main__':
-
-    import argparse
-    import logging
-    import sys
-    import os
-
-    import __init__
-
+def main():
     parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
                                                  "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Edit "
-                                                 "settings.py to set project path to the STM32CubeMX (if default "
-                                                 "doesn't work)")
-    # global arguments (there is also automatically added '-h, --help' option)
-    parser.add_argument('--version', action='version', version=f"%(prog)s v{__init__.__version__}")
-    parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)",
-                        action='count', required=False)
+                                                 "settings.py to set path to the STM32CubeMX (if default doesn't work)")
+    # Global arguments (there is also an automatically added '-h, --help' option)
+    parser.add_argument('--version', action='version', version=f"%(prog)s v{__version__}")
+    parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', required=False)
 
     subparsers = parser.add_subparsers(dest='subcommand', title='subcommands',
                                        description="valid subcommands", help="modes of operation")
 
     parser_new = subparsers.add_parser('new',
                                        help="generate CubeMX code, create PlatformIO project [and start the editor]")
-    parser_new.add_argument('-d', '--directory', dest='project_path',
-                            help="path to the project (current directory, if not given)", default=os.getcwd())
-    parser_new.add_argument('-b', '--board', dest='board', help="PlatformIO name of the board", required=True)
-    parser_new.add_argument('--start-editor', dest='editor', help="use specified editor to open PlatformIO project",
-                            choices=['atom', 'vscode', 'sublime'], required=False)
-    parser_new.add_argument('--with-build', action='store_true', help="initiate a build after project generation",
-                            required=False)
-
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code")
-    parser_generate.add_argument('-d', '--directory', dest='project_path',
-                                 help="path to the project (current directory, if not given)", default=os.getcwd())
-
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (WARNING: it deletes ALL content of "
                                                        "'path' except the .ioc file)")
-    parser_clean.add_argument('-d', '--directory', dest='project_path',
-                              help="path to the project (current directory, if not given)", default=os.getcwd())
+
+    # Common subparsers options
+    for p in [parser_new, parser_generate, parser_clean]:
+        p.add_argument('-d', '--directory', dest='project_path', help="path to the project (current directory, if not "
+                       "given)", default=pathlib.Path.cwd())
+    for p in [parser_new, parser_generate]:
+        p.add_argument('--start-editor', dest='editor', help="use specified editor to open PlatformIO project (e.g. "
+                       "subl, code, atom)", required=False)
+        p.add_argument('--with-build', action='store_true', help="build a project after generation", required=False)
+
+    parser_new.add_argument('-b', '--board', dest='board', help="PlatformIO name of the board", required=True)
 
     args = parser.parse_args()
 
 
     # Logger instance goes through the whole program.
-    # Currently only 2 levels of verbosity through the '-v' option are counted
-    logging.basicConfig(format="%(levelname)-8s %(funcName)-16s %(message)s")
-    logger = logging.getLogger('')
+    # Currently only 2 levels of verbosity through the '-v' option are counted (INFO and DEBUG)
+    logger = logging.getLogger()
     if args.verbose:
+        logging.basicConfig(format="%(levelname)-8s %(funcName)-16s %(message)s")
         logger.setLevel(logging.DEBUG)
         logger.debug("debug logging enabled")
     else:
+        logging.basicConfig(format="%(levelname)-8s %(message)s")
         logger.setLevel(logging.INFO)
 
 
@@ -62,27 +59,29 @@ if __name__ == '__main__':
 
     # Main routine
     else:
-        import util
+        import stm32pio.util
 
         try:
-            if args.subcommand == 'new':
-                util.generate_code(args.project_path)
-                util.pio_init(args.project_path, args.board)
-                util.patch_platformio_ini(args.project_path)
+            if args.subcommand == 'new' or args.subcommand == 'generate':
+                stm32pio.util.generate_code(args.project_path)
+                if args.subcommand == 'new':
+                    stm32pio.util.pio_init(args.project_path, args.board)
+                    stm32pio.util.patch_platformio_ini(args.project_path)
 
-                if args.editor:
-                    util.start_editor(args.project_path, args.editor)
                 if args.with_build:
-                    util.pio_build(args.project_path)
-
-            elif args.subcommand == 'generate':
-                util.generate_code(args.project_path)
+                    stm32pio.util.pio_build(args.project_path)
+                if args.editor:
+                    stm32pio.util.start_editor(args.project_path, args.editor)
 
             elif args.subcommand == 'clean':
-                util.clean(args.project_path)
+                stm32pio.util.clean(args.project_path)
 
         except Exception as e:
             print(e.__repr__())
 
 
     logger.info("exiting...")
+
+
+if __name__ == '__main__':
+    main()

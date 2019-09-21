@@ -1,11 +1,13 @@
 import setuptools
 
-with open("README.md", "r") as fh:
+from stm32pio.stm32pio import __version__
+
+with open("README.md", 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="stm32pio",
-    version="0.74",
+    version=__version__,
     author="ussserrr",
     author_email="andrei4.2008@gmail.com",
     description="Small cross-platform Python app that can create and update PlatformIO projects from STM32CubeMX .ioc "
@@ -19,5 +21,10 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    include_package_data=True
+    include_package_data=True,
+    entry_points={
+        'console_scripts': [
+            'stm32pio = stm32pio.stm32pio:main'
+        ]
+    }
 )

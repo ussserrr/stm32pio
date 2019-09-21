@@ -79,3 +79,23 @@ stm32pio changelog:
         - Changed: util.py functions now raising the exceptions instead of forcing the exit
         - Changed: test '.ioc' file is updated to the latest STM32CubeMX version (5.1.0 at the moment)
         - Changed: documentation improvements
+
+    ver. 0.8 (09.19):
+        - New: setup.py can now install executable script to run 'stm32pio' from any location
+        - New: stm32pio logo/schematic
+        - New: add PyCharm to .gitignore
+        - New: add clear TODOs for the next release (some sort of a roadmap)
+        - New: single __version__ reference
+        - New: add some new tests (test_build_should_raise, test_file_not_found)
+        - Fixed: options '--start-editor' and '--with-build' can now be used both for 'new' and 'generate' commands
+        - Fixed: import scheme is now as it should be
+        - Changed: migrate from 'os.path' to 'pathlib' as much as possible for paths management (as a more high-level module)
+        - Changed: 'start editor' feature is now starting an arbitrary editor (in the same way as you do it from the terminal)
+        - Changed: take outside 'platformio' command (to 'settings')
+        - Changed: screenshots were actualized for recent CubeMX versions
+        - Changed: logging output in standard (non-verbose) mode is simpler
+        - Changed: move tests in new location
+        - Changed: revised and improved tests
+        - Changed: tests are now run by 'python -m unittest' and cannot be run as standalone
+        - Changed: actualized .ioc file and clean-up the code according to the latest STM32CubeMX version (5.3.0 at the moment)
+        - Changed: revised and improved util module

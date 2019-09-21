@@ -102,6 +102,7 @@ ENV/
 
 # editors
 .vscode
+.idea
 
 # macOS-specific
 .DS_Store

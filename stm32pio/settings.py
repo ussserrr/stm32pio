@@ -1,25 +1,24 @@
-import logging
-import pathlib
 import platform
+import pathlib
 
 
 my_os = platform.system()
-home_dir = str(pathlib.Path.home())
-
-logger = logging.getLogger('')
-
 
 # (default is OK) How do you start Java from command line? (edit if Java not in PATH)
 java_cmd = 'java'
 
+# (default is OK) How do you start PlatformIO from command line? (edit if not in PATH, check
+# https://docs.platformio.org/en/latest/installation.html#install-shell-commands)
+platformio_cmd = 'platformio'
+
 # (default is OK) We trying to guess STM32CubeMX location. You can just avoid this and hard-code it.
-# Note that STM32CubeMX will be called as 'java -jar CUBEMX'
+# Note that STM32CubeMX will be invoked as 'java -jar CUBEMX'
 # macOS default: 'Applications' folder
 if my_os == 'Darwin':
     cubemx_path = "/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX"
 # Linux (Ubuntu) default:
 elif my_os == 'Linux':
-    cubemx_path = "/usr/local/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX"
+    cubemx_path = pathlib.Path.home().joinpath("STM32CubeMX/STM32CubeMX")
 # Windows default:
 elif my_os == 'Windows':
     cubemx_path = "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe"
@@ -28,11 +27,11 @@ elif my_os == 'Windows':
 cubemx_script_filename = 'cubemx-script'
 
 # (default is OK) see CubeMX user manual PDF to see other useful options
-cubemx_script_text = "config load {cubemx_ioc_full_filename}\n" \
-                     "generate code {project_path}\n" \
-                     "exit\n"
+cubemx_script_content = "config load {cubemx_ioc_full_filename}\n" \
+                        "generate code {project_path}\n" \
+                        "exit\n"
 
 # (default is OK)
-platformio_ini_patch_text = "\n[platformio]\n" \
-                            "include_dir = Inc\n" \
-                            "src_dir = Src\n"
+platformio_ini_patch_content = "\n[platformio]\n" \
+                               "include_dir = Inc\n" \
+                               "src_dir = Src\n"
