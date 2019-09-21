@@ -153,10 +153,7 @@ def start_editor(dirty_path, editor_command):
     logger.info("starting an editor...")
 
     try:
-        if stm32pio.settings.my_os == 'Windows':
-            subprocess.run([editor_command, str(project_path)], check=True, shell=True)
-        else:
-            subprocess.run([editor_command, str(project_path)], check=True)
+        subprocess.run([editor_command, str(project_path)], check=True)
     except subprocess.CalledProcessError as e:
         logger.error(f"Failed to start the editor {editor_command}: {e.stderr}")
 

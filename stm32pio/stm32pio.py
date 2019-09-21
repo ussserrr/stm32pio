@@ -68,10 +68,10 @@ def main():
                     stm32pio.util.pio_init(args.project_path, args.board)
                     stm32pio.util.patch_platformio_ini(args.project_path)
 
-                if args.editor:
-                    stm32pio.util.start_editor(args.project_path, args.editor)
                 if args.with_build:
                     stm32pio.util.pio_build(args.project_path)
+                if args.editor:
+                    stm32pio.util.start_editor(args.project_path, args.editor)
 
             elif args.subcommand == 'clean':
                 stm32pio.util.clean(args.project_path)
