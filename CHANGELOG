@@ -86,6 +86,7 @@ stm32pio changelog:
         - New: add PyCharm to .gitignore
         - New: add clear TODOs for the next release (some sort of a roadmap)
         - New: single __version__ reference
+        - New: extended shebang
         - New: add some new tests (test_build_should_raise, test_file_not_found)
         - Fixed: options '--start-editor' and '--with-build' can now be used both for 'new' and 'generate' commands
         - Fixed: import scheme is now as it should be

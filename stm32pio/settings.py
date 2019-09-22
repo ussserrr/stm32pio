@@ -1,13 +1,16 @@
+# TODO: how we will be set these parameters if the app will be run after the 'setup' process? Or even obtained by 'pip'?
+#  Maybe we should describe the config file to the user instead of this Python source.
+
 import platform
 import pathlib
 
 
 my_os = platform.system()
 
-# (default is OK) How do you start Java from command line? (edit if Java not in PATH)
+# (default is OK) How do you start Java from the command line? (edit if Java not in PATH)
 java_cmd = 'java'
 
-# (default is OK) How do you start PlatformIO from command line? (edit if not in PATH, check
+# (default is OK) How do you start PlatformIO from the command line? (edit if not in PATH, check
 # https://docs.platformio.org/en/latest/installation.html#install-shell-commands)
 platformio_cmd = 'platformio'
 

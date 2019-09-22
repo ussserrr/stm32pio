@@ -9,7 +9,7 @@ import sys
 import pathlib
 
 
-def main():
+def parse_args(args):
     parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
                                                  "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Edit "
                                                  "settings.py to set path to the STM32CubeMX (if default doesn't work)")
@@ -37,8 +37,19 @@ def main():
 
     parser_new.add_argument('-b', '--board', dest='board', help="PlatformIO name of the board", required=True)
 
-    args = parser.parse_args()
+    # Show help and exit if no arguments were given
+    if len(args) <= 1:
+        parser.print_help()
+        return None
 
+    return parser.parse_args()
+
+
+def main(sys_argv):
+    args = parse_args(sys_argv)
+    if args is None:
+        print('here')
+        return
 
     # Logger instance goes through the whole program.
     # Currently only 2 levels of verbosity through the '-v' option are counted (INFO and DEBUG)
@@ -51,39 +62,31 @@ def main():
         logging.basicConfig(format="%(levelname)-8s %(message)s")
         logger.setLevel(logging.INFO)
 
-
-    # Show help and exit if no arguments were given
-    if not len(sys.argv) > 1:
-        parser.print_help()
-        sys.exit()
-
     # Main routine
-    else:
-        import stm32pio.util
+    import stm32pio.util
 
-        try:
-            project = stm32pio.util.Stm32pio(args.project_path)
+    try:
+        project = stm32pio.util.Stm32pio(args.project_path)
 
-            if args.subcommand == 'new' or args.subcommand == 'generate':
-                project.generate_code()
-                if args.subcommand == 'new':
-                    project.pio_init(args.board)
-                    project.patch_platformio_ini()
+        if args.subcommand == 'new' or args.subcommand == 'generate':
+            project.generate_code()
+            if args.subcommand == 'new':
+                project.pio_init(args.board)
+                project.patch_platformio_ini()
 
-                if args.with_build:
-                    project.pio_build()
-                if args.editor:
-                    project.start_editor(args.editor)
+            if args.with_build:
+                project.pio_build()
+            if args.editor:
+                project.start_editor(args.editor)
 
-            elif args.subcommand == 'clean':
-                project.clean()
+        elif args.subcommand == 'clean':
+            project.clean()
 
-        except Exception as e:
-            print(e.__repr__())
-
+    except Exception as e:
+        print(e.__repr__())
 
     logger.info("exiting...")
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)

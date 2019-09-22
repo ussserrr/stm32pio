@@ -2,11 +2,31 @@ import logging
 import pathlib
 import shutil
 import subprocess
+import enum
 
 import stm32pio.settings
 
 logger = logging.getLogger()
 
+
+
+# TODO: add states and check the current state for every operation (so we can't, for example, go to build stage without
+#  a pio_init performed before). Also, it naturally helps us to construct the GUI in which we manage the list of
+#  multiple projects. (use enum for this)
+#  Also, we would probably need some method to detect a current project state on program start (or store it explicitly
+#  in the dotted system file)
+@enum.unique
+class ProjectState(enum.Enum):
+    """
+    """
+
+    INITIALIZED = enum.auto()
+    GENERATED = enum.auto()
+    PIO_INITIALIZED = enum.auto()
+    PIO_INI_PATCHED = enum.auto()
+    BUILT = enum.auto()
+
+    ERROR = enum.auto()
 
 
 class Stm32pio:

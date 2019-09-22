@@ -1,4 +1,6 @@
 import pathlib
+import platform
+import shutil
 import subprocess
 import time
 import unittest
@@ -13,13 +15,26 @@ if not project_path.is_dir() and not project_path.joinpath('stm32pio-test-projec
     raise FileNotFoundError("No test project is present")
 board = 'nucleo_f031k6'
 
+def clean():
+    """
+    Clean-up the project folder and preserve only an '.ioc' file
+    """
+    for child in project_path.iterdir():
+        if child.name != f"{project_path.name}.ioc":
+            if child.is_dir():
+                shutil.rmtree(str(child), ignore_errors=True)
+            elif child.is_file():
+                child.unlink()
 
 
-class Test(unittest.TestCase):
+
+class TestUnit(unittest.TestCase):
+    """
+
+    """
 
     def setUp(self) -> None:
-        project_to_clean = stm32pio.util.Stm32pio(project_path)
-        project_to_clean.clean()
+        clean()
 
     def test_generate_code(self):
         """
@@ -65,13 +80,70 @@ class Test(unittest.TestCase):
 
     def test_build_should_raise(self):
         """
-        Build an empty project so PlatformIO should return non-zero code and we should throw the exception
+        Build an empty project so PlatformIO should return non-zero code and we, in turn, should throw the exception
         """
         project = stm32pio.util.Stm32pio(project_path)
         project.pio_init(board)
         with self.assertRaisesRegex(Exception, "PlatformIO build error",
                                     msg="Build error exception hadn't been raised"):
             project.pio_build()
+
+
+    def test_run_editor(self):
+        """
+        Call the editors
+        """
+        project = stm32pio.util.Stm32pio(project_path)
+        editors = {
+            'atom': {
+                'Windows': 'atom.exe',
+                'Darwin': 'Atom',
+                'Linux': 'atom'
+            },
+            'code': {
+                'Windows': 'Code.exe',
+                'Darwin': 'Visual Studio Code',
+                'Linux': 'code'
+            },
+            'subl': {
+                'Windows': 'sublime_text.exe',
+                'Darwin': 'Sublime',
+                'Linux': 'sublime'
+            }
+        }
+        for command, name in editors.items():
+            with self.subTest(command=command, name=name):
+                project.start_editor(command)
+                time.sleep(1)  # wait a little bit for app to start
+                if platform.system() == 'Windows':
+                    # "encoding='utf-8'" is for "a bytes-like object is required, not 'str'" in "assertIn"
+                    result = subprocess.run(['wmic', 'process', 'get', 'description'],
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+                else:
+                    result = subprocess.run(['ps', '-A'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                            encoding='utf-8')
+                    # Or, for Python 3.7 and above:
+                    # result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
+                self.assertIn(name[platform.system()], result.stdout)
+
+
+    def test_file_not_found(self):
+        """
+        Pass non-existing path and expect the error
+        """
+        not_existing_path = project_path.joinpath('does_not_exist')
+        with self.assertRaises(FileNotFoundError, msg="FileNotFoundError was not raised"):
+            stm32pio.util.Stm32pio(not_existing_path)
+
+
+
+class TestIntegration(unittest.TestCase):
+    """
+
+    """
+
+    def setUp(self) -> None:
+        clean()
 
 
     def test_build(self):
@@ -86,37 +158,6 @@ class Test(unittest.TestCase):
         result = project.pio_build()
 
         self.assertEqual(result, 0, msg="Build failed")
-
-
-    # TODO: use subTest()
-    def test_run_editor(self):
-        """
-        Call the editors
-        """
-        project = stm32pio.util.Stm32pio(project_path)
-        project.start_editor('atom')
-        project.start_editor('code')
-        project.start_editor('subl')
-        time.sleep(1)  # wait a little bit for apps to start
-
-        if stm32pio.settings.my_os == 'Windows':
-            result = subprocess.run(['wmic', 'process', 'get', 'description'],
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
-            self.assertIn('atom.exe', result.stdout)
-            self.assertIn('Code.exe', result.stdout)
-            self.assertIn('sublime_text.exe', result.stdout)
-        else:
-            result = subprocess.run(['ps', '-A'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
-            # Or, for Python 3.7 and above:
-            # result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
-            if stm32pio.settings.my_os == 'Darwin':
-                self.assertIn('Atom', result.stdout)
-                self.assertIn('Visual Studio Code', result.stdout)
-                self.assertIn('Sublime', result.stdout)
-            if stm32pio.settings.my_os == 'Linux':
-                self.assertIn('atom', result.stdout)
-                self.assertIn('code', result.stdout)
-                self.assertIn('sublime', result.stdout)
 
 
     def test_regenerate_code(self):
@@ -157,22 +198,31 @@ class Test(unittest.TestCase):
                       msg=f"{test_file_2} does not preserve user content after regeneration")
 
 
-    # def test_file_not_found(self):
-    #     """
-    #     Pass non-existing path and expect the error
-    #     """
-    #     project = stm32pio.util.Stm32pio(project_path)
-    #     not_existing_path = project_path.joinpath('does_not_exist')
-    #     with self.assertRaises(FileNotFoundError, msg="FileNotFoundError was not raised"):
-    #         project._get_project_path(not_existing_path)
+
+class TestCLI(unittest.TestCase):
+    """
+
+    """
+
+    def setUp(self) -> None:
+        clean()
+
+    def test_new(self):
+        pass
+
+    def test_generate(self):
+        pass
+
+    def clean(self):
+        pass
+
 
 
 def tearDownModule():
     """
     Clean up after yourself
     """
-    project_to_clean = stm32pio.util.Stm32pio(project_path)
-    project_to_clean.clean()
+    clean()
 
 
 
