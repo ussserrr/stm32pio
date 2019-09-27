@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__version__ = "0.8"
+__version__ = "0.9"
 
 import argparse
 import logging
@@ -10,6 +10,10 @@ import pathlib
 
 
 def parse_args(args):
+    """
+
+    """
+
     parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
                                                  "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Edit "
                                                  "settings.py to set path to the STM32CubeMX (if default doesn't work)")
@@ -20,8 +24,7 @@ def parse_args(args):
     subparsers = parser.add_subparsers(dest='subcommand', title='subcommands',
                                        description="valid subcommands", help="modes of operation")
 
-    parser_new = subparsers.add_parser('new',
-                                       help="generate CubeMX code, create PlatformIO project [and start the editor]")
+    parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code")
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (WARNING: it deletes ALL content of "
                                                        "'path' except the .ioc file)")
@@ -42,14 +45,18 @@ def parse_args(args):
         parser.print_help()
         return None
 
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
-def main(sys_argv):
+def main(sys_argv=sys.argv[1:]):
+    """
+
+    """
+
     args = parse_args(sys_argv)
     if args is None:
-        print('here')
-        return
+        print("No arguments were given, exiting...")
+        return -1
 
     # Logger instance goes through the whole program.
     # Currently only 2 levels of verbosity through the '-v' option are counted (INFO and DEBUG)
@@ -83,10 +90,16 @@ def main(sys_argv):
             project.clean()
 
     except Exception as e:
-        print(e.__repr__())
+        if logger.level <= logging.DEBUG:  # verbose
+            raise e
+        else:
+            print(e.__repr__())
+        return -1
 
     logger.info("exiting...")
+    return 0
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    sys.path.insert(0, str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python3 stm32pio.py'
+    sys.exit(main())

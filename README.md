@@ -12,23 +12,27 @@ Small cross-platform Python app that can create and update [PlatformIO](https://
   - *[optional]* Make an initial build of the project
 
 
-## Restrictions
-  - The tool doesn't check for different parameters compatibility, e.g. CPU frequency, memory sizes and so on. It simply eases your workflow with these 2 programs (PlatformIO and STM32CubeMX) a little bit.
-  - CubeMX middlewares don't support yet because it's hard to be prepared for every possible configuration. You need to manually adjust them to build appropriately. For example, FreeRTOS can be added via PlatformIO' `lib` feature or be directly compiled in its own directory using `lib_extra_dirs` option:
-    ```ini
-    lib_extra_dirs = Middlewares/Third_Party/FreeRTOS
-    ```
-    You also need to move all `.c`/`.h` files to the `src`/`include` folders respectively. See PlatformIO documentation for more information.
-
-
 ## Requirements:
   - For this app:
     - Python 3.6+
   - For usage:
     - macOS, Linux, Windows
-    - STM32CubeMX (all recent versions) with downloaded necessary frameworks (F0, F1, etc.). Try to generate code in ordinary way (through the GUI) at least once before running stm32pio
+    - STM32CubeMX (all recent versions) with downloaded necessary frameworks (F0, F1, etc.)
     - Java CLI (JRE) (likely is already installed if STM32CubeMX works)
-    - PlatformIO CLI.
+    - PlatformIO CLI
+
+A general recommendation there would be to try to generate and build a code manually (via the CubeMX GUI and PlatformIO CLI or IDE) at least once before using stm32pio to make sure that all tools are working properly.
+
+
+## Installation
+Starting from v0.8 it is possible to install the utility to be able to run stm32pio from anywhere. Use
+```shell script
+stm32pio-repo/ $   pip3 install .
+```
+command to launch the setup process. To uninstall run
+```shell script
+$ pip3 uninstall stm32pio
+```
 
 
 ## Usage
@@ -47,17 +51,6 @@ Check `settings.py` to make sure that all user-specific parameters are valid. Ru
 $ python3 stm32pio.py --help
 ```
 to see help.
-
-
-## Installation
-Starting from v0.8 it is possible to install the utility to be able to run stm32pio from anywhere. Use
-```shell script
-stm32pio-repo/ $   pip3 install .
-```
-command to launch the setup process. To uninstall run
-```shell script
-$ pip3 uninstall stm32pio
-```
 
 
 ## Example
@@ -97,3 +90,12 @@ or
 stm32pio-repo/ $   python3 -m stm32pio.tests.test -v
 ```
 to test the app. It uses STM32F0 framework to generate and build a code from the `stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc` file. It's fine to fail an editor test as you not necessarily should have all the editors on your machine. CI is hard to implement for all target OSes during the requirement to have all tools (PlatformIO, Java, CubeMX, etc.) installed during the test. For example, ST doesn't even provide a direct link to CubeMX for downloading
+
+
+## Restrictions
+  - The tool doesn't check for different parameters compatibility, e.g. CPU frequency, memory sizes and so on. It simply eases your workflow with these 2 programs (PlatformIO and STM32CubeMX) a little bit.
+  - CubeMX middlewares don't support yet because it's hard to be prepared for every possible configuration. You need to manually adjust them to build appropriately. For example, FreeRTOS can be added via PlatformIO' `lib` feature or be directly compiled in its own directory using `lib_extra_dirs` option:
+    ```ini
+    lib_extra_dirs = Middlewares/Third_Party/FreeRTOS
+    ```
+    You also need to move all `.c`/`.h` files to the `src`/`include` folders respectively. See PlatformIO documentation for more information.

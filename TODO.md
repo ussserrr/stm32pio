@@ -6,6 +6,6 @@
  - [ ] Remade as Class (constructor `__init__(project_path)`)
  - [ ] Config file for every project instead of the `settings.py` (but we still sill be storing the default parameters there)
  - [ ] Test CLI (integration testing) (i.e. run stm32pio as subprocess)
- - [ ] Maybe move test fixtures out of the 'tests' so we can use it for multiple projects (for example CLI and GUI versions)
+ - [ ] Maybe move test fixtures out of the 'tests' so we can use it for multiple projects (for example while testing CLI and GUI versions)
  - [ ] Upload to PyPI
  - [ ] `__main__`
