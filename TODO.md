@@ -9,3 +9,4 @@
  - [ ] Maybe move test fixtures out of the 'tests' so we can use it for multiple projects (for example while testing CLI and GUI versions)
  - [ ] Upload to PyPI
  - [ ] `__main__`
+ - [ ] Abort `--with-build` if no platformio.ini file is present
