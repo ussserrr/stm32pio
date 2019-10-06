@@ -2,11 +2,11 @@
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
  - [ ] Function annotations
- - [ ] Do we need some sort of GUI? For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output
- - [ ] Remade as Class (constructor `__init__(project_path)`)
+ - [ ] GUI. For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output. At left is a list of recent projects
+ - [x] Remade as Class (constructor `__init__(project_path)`)
  - [ ] Config file for every project instead of the `settings.py` (but we still sill be storing the default parameters there)
- - [ ] Test CLI (integration testing) (i.e. run stm32pio as subprocess)
- - [ ] Maybe move test fixtures out of the 'tests' so we can use it for multiple projects (for example while testing CLI and GUI versions)
+ - [x] Test CLI (integration testing)
+ - [ ] Move test fixtures out of the 'tests' so we can use it for multiple projects (for example while testing CLI and GUI versions). Set up test folder for every single test so we make sure the .ioc file is always present and not deleted after failed test
  - [ ] Upload to PyPI
- - [ ] `__main__`
- - [ ] Abort `--with-build` if no platformio.ini file is present
+ - [x] `__main__`
+ - [x] Abort `--with-build` if no platformio.ini file is present

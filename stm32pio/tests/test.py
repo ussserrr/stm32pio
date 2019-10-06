@@ -208,14 +208,9 @@ class TestCLI(unittest.TestCase):
     def setUp(self) -> None:
         clean()
 
-    # def test_new(self):
-    #     pass
-    #
-    # def test_generate(self):
-    #     pass
-
     def test_clean(self):
         """
+        Dangerous test actually...
         """
 
         # create files and folders
@@ -239,8 +234,8 @@ class TestCLI(unittest.TestCase):
         """
         Successful build is the best indicator that all went right
         """
-        return_code = stm32pio.stm32pio.main(sys_argv=['new', '-d', 'stm32pio/tests/stm32pio-test-project/',
-                                                              '-b', 'nucleo_f031k6', '--with-build'])
+        return_code = stm32pio.stm32pio.main(sys_argv=['new', '-d', str(PROJECT_PATH), '-b', str(PROJECT_BOARD),
+                                                       '--with-build'])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         # .ioc file should be preserved
@@ -251,16 +246,31 @@ class TestCLI(unittest.TestCase):
     def test_generate(self):
         """
         """
-        return_code = stm32pio.stm32pio.main(sys_argv=['generate', '-d', 'stm32pio/tests/stm32pio-test-project/'])
+        return_code = stm32pio.stm32pio.main(sys_argv=['generate', '-d', str(PROJECT_PATH)])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
-        self.assertTrue(PROJECT_PATH.joinpath('Inc').is_dir())
-        self.assertTrue(PROJECT_PATH.joinpath('Src').is_dir())
-        self.assertFalse(len([child for child in PROJECT_PATH.joinpath('Inc').iterdir()]) == 0)
-        self.assertFalse(len([child for child in PROJECT_PATH.joinpath('Src').iterdir()]) == 0)
+        inc_dir = 'Inc'
+        src_dir = 'Src'
+
+        self.assertTrue(PROJECT_PATH.joinpath(inc_dir).is_dir(), msg=f"Missing '{inc_dir}'")
+        self.assertTrue(PROJECT_PATH.joinpath(src_dir).is_dir(), msg=f"Missing '{src_dir}'")
+        self.assertFalse(len([child for child in PROJECT_PATH.joinpath(inc_dir).iterdir()]) == 0,
+                         msg=f"'{inc_dir}' is empty")
+        self.assertFalse(len([child for child in PROJECT_PATH.joinpath(src_dir).iterdir()]) == 0,
+                         msg=f"'{src_dir}' is empty")
 
         # .ioc file should be preserved
         self.assertTrue(PROJECT_PATH.joinpath(f"{PROJECT_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
+
+    def test_relative_path(self):
+        pass
+
+    def test_incorrect_path(self):
+        pass
+
+    def test_no_ioc_file(self):
+        pass
+
 
 
 

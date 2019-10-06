@@ -177,7 +177,12 @@ class Stm32pio:
             0 if success, raise an exception otherwise
         """
 
-        logger.info("starting PlatformIO build...")
+        if self.project_path.joinpath('platformio.ini').is_file():
+            logger.info("starting PlatformIO build...")
+        else:
+            logger.error("no 'platformio.ini' file, build is impossible")
+            return -1
+
         command_arr = [stm32pio.settings.platformio_cmd, 'run', '-d', str(self.project_path)]
         if logger.level > logging.DEBUG:
             command_arr.append('--silent')

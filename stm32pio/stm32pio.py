@@ -55,7 +55,7 @@ def main(sys_argv=sys.argv[1:]):
 
     args = parse_args(sys_argv)
     if args is None:
-        print("No arguments were given, exiting...")
+        print("\nNo arguments were given, exiting...")
         return -1
 
     # Logger instance goes through the whole program.
