@@ -7,6 +7,7 @@ import argparse
 import logging
 import sys
 import pathlib
+import traceback
 
 
 def parse_args(args):
@@ -91,9 +92,9 @@ def main(sys_argv=sys.argv[1:]):
 
     except Exception as e:
         if logger.level <= logging.DEBUG:  # verbose
-            raise e
+            traceback.print_exception(*sys.exc_info())
         else:
-            print(e.__repr__())
+            print(repr(e))
         return -1
 
     logger.info("exiting...")

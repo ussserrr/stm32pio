@@ -46,7 +46,7 @@ class Stm32pio:
         Args:
             dirty_path: some directory in the filesystem
         """
-        correct_path = pathlib.Path(dirty_path).resolve()
+        correct_path = pathlib.Path(dirty_path).expanduser().resolve()
         if not correct_path.exists():
             logger.error("incorrect project path")
             raise FileNotFoundError(correct_path)

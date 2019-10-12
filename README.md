@@ -87,9 +87,18 @@ stm32pio-repo/ $   python3 -m unittest discover -v
 ```
 or
 ```shell script
-stm32pio-repo/ $   python3 -m stm32pio.tests.test -v
+stm32pio-repo/ $   python3 -m stm32pio.tests.test -b -v
 ```
-to test the app. It uses STM32F0 framework to generate and build a code from the `stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc` file. It's fine to fail an editor test as you not necessarily should have all the editors on your machine. CI is hard to implement for all target OSes during the requirement to have all tools (PlatformIO, Java, CubeMX, etc.) installed during the test. For example, ST doesn't even provide a direct link to CubeMX for downloading
+to test the app. It uses STM32F0 framework to generate and build a code from the `stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc` file.
+
+For specific test you may use
+```shell script
+stm32pio-repo/ $   python3 -m unittest stm32pio.tests.test.TestCLI -b -v
+```
+
+It's fine to fail an editor test as you not necessarily should have all the editors on your machine.
+
+CI is hard to implement for all target OSes during the requirement to have all tools (PlatformIO, Java, CubeMX, etc.) installed during the test. For example, ST doesn't even provide a direct link to CubeMX for downloading
 
 
 ## Restrictions
