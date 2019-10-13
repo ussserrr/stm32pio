@@ -19,7 +19,7 @@ def parse_args(args):
                                                  "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Edit "
                                                  "settings.py to set path to the STM32CubeMX (if default doesn't work)")
     # Global arguments (there is also an automatically added '-h, --help' option)
-    parser.add_argument('--version', action='version', version=f"%(prog)s v{__version__}")
+    parser.add_argument('--version', action='version', version=f"stm32pio v{__version__}")
     parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', required=False)
 
     subparsers = parser.add_subparsers(dest='subcommand', title='subcommands',
@@ -42,7 +42,7 @@ def parse_args(args):
     parser_new.add_argument('-b', '--board', dest='board', help="PlatformIO name of the board", required=True)
 
     # Show help and exit if no arguments were given
-    if len(args) <= 1:
+    if len(args) == 0:
         parser.print_help()
         return None
 
@@ -55,7 +55,7 @@ def main(sys_argv=sys.argv[1:]):
     """
 
     args = parse_args(sys_argv)
-    if args is None:
+    if args is None or args.subcommand is None:
         print("\nNo arguments were given, exiting...")
         return -1
 
@@ -102,5 +102,5 @@ def main(sys_argv=sys.argv[1:]):
 
 
 if __name__ == '__main__':
-    sys.path.insert(0, str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python3 stm32pio.py'
+    sys.path.insert(0, str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python3 app.py'
     sys.exit(main())

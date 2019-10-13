@@ -1,6 +1,6 @@
 import setuptools
 
-from stm32pio.stm32pio import __version__
+from stm32pio.app import __version__
 
 with open("README.md", 'r') as fh:
     long_description = fh.read()
@@ -24,7 +24,7 @@ setuptools.setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'stm32pio = stm32pio.stm32pio:main'
+            'stm32pio = stm32pio.app:main'
         ]
     }
 )

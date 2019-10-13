@@ -10,6 +10,5 @@
  - [ ] Upload to PyPI
  - [x] `__main__`
  - [x] Abort `--with-build` if no platformio.ini file is present
- - [ ] Rename 'stm32pio.py' -> 'app.py'
+ - [x] Rename 'stm32pio.py' -> 'app.py'
  - [ ] Rename 'util.py' -> 'lib.py' ('util' probably is for 'clean', for example, that we can use in tests)
- - [ ] Return codes for all methods

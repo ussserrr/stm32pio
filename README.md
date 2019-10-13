@@ -48,7 +48,7 @@ stm32pio will create an accessory file `cubemx-script`'` in your project directo
 
 Check `settings.py` to make sure that all user-specific parameters are valid. Run
 ```shell script
-$ python3 stm32pio.py --help
+$ python3 app.py --help
 ```
 to see help.
 
@@ -75,7 +75,7 @@ to see help.
    ```
 7. If you will be in need to update hardware configuration in the future, make all necessary stuff in CubeMX and run `generate` command in a similar way:
    ```shell script
-   $ python3 stm32pio.py generate -d /path/to/cubemx/project
+   $ python3 app.py generate -d /path/to/cubemx/project
    ```
 8. To clean-up the folder and keep only the `.ioc` file run `clean` command
 

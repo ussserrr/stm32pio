@@ -7,7 +7,7 @@ import inspect
 import sys
 import unittest
 
-import stm32pio.stm32pio
+import stm32pio.app
 import stm32pio.settings
 import stm32pio.util
 
@@ -30,7 +30,6 @@ def clean():
                 child.unlink()
 
 
-
 class TestUnit(unittest.TestCase):
     """
 
@@ -51,7 +50,6 @@ class TestUnit(unittest.TestCase):
                          [True] * len(files_should_be_present),
                          msg=f"At least one of {files_should_be_present} files haven't been created")
 
-
     def test_pio_init(self):
         """
         Consider that existence of 'platformio.ini' file is displaying successful PlatformIO project initialization
@@ -59,7 +57,6 @@ class TestUnit(unittest.TestCase):
         project = stm32pio.util.Stm32pio(PROJECT_PATH)
         project.pio_init(PROJECT_BOARD)
         self.assertTrue(PROJECT_PATH.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
-
 
     def test_patch_platformio_ini(self):
         """
@@ -78,8 +75,7 @@ class TestUnit(unittest.TestCase):
                          msg="Initial content of platformio.ini is corrupted")
         # Patch content is as expected
         self.assertEqual(after_patch_content[len(test_content):], stm32pio.settings.platformio_ini_patch_content,
-                         msg="patch content is not as expected")
-
+                         msg="Patch content is not as expected")
 
     def test_build_should_raise(self):
         """
@@ -90,7 +86,6 @@ class TestUnit(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "PlatformIO build error",
                                     msg="Build error exception hadn't been raised"):
             project.pio_build()
-
 
     def test_run_editor(self):
         """
@@ -129,7 +124,6 @@ class TestUnit(unittest.TestCase):
                     # result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
                 self.assertIn(name[platform.system()], result.stdout)
 
-
     def test_file_not_found(self):
         """
         Pass non-existing path and expect the error
@@ -139,7 +133,6 @@ class TestUnit(unittest.TestCase):
             stm32pio.util.Stm32pio(not_existing_path)
 
 
-
 class TestIntegration(unittest.TestCase):
     """
 
@@ -147,7 +140,6 @@ class TestIntegration(unittest.TestCase):
 
     def setUp(self) -> None:
         clean()
-
 
     def test_build(self):
         """
@@ -161,7 +153,6 @@ class TestIntegration(unittest.TestCase):
         result = project.pio_build()
 
         self.assertEqual(result, 0, msg="Build failed")
-
 
     def test_regenerate_code(self):
         """
@@ -196,10 +187,9 @@ class TestIntegration(unittest.TestCase):
         main_c_after_regenerate_content = test_file_1.read_text()
         my_header_h_after_regenerate_content = test_file_2.read_text()
         self.assertIn(test_content_1, main_c_after_regenerate_content,
-                      msg=f"{test_file_1} does not preserve user content after regeneration")
+                      msg=f"User content hasn't been preserved after regeneration in {test_file_1}")
         self.assertIn(test_content_2, my_header_h_after_regenerate_content,
-                      msg=f"{test_file_2} does not preserve user content after regeneration")
-
+                      msg=f"User content hasn't been preserved after regeneration in {test_file_2}")
 
 
 class TestCLI(unittest.TestCase):
@@ -222,7 +212,7 @@ class TestCLI(unittest.TestCase):
         dir_should_be_deleted.mkdir(exist_ok=False)
 
         # Clean
-        return_code = stm32pio.stm32pio.main(sys_argv=['clean', '-d', str(PROJECT_PATH)])
+        return_code = stm32pio.app.main(sys_argv=['clean', '-d', str(PROJECT_PATH)])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         # Look for remaining items
@@ -236,7 +226,7 @@ class TestCLI(unittest.TestCase):
         """
         Successful build is the best indicator that all went right so we use '--with-build' option
         """
-        return_code = stm32pio.stm32pio.main(sys_argv=['new', '-d', str(PROJECT_PATH), '-b', str(PROJECT_BOARD),
+        return_code = stm32pio.app.main(sys_argv=['new', '-d', str(PROJECT_PATH), '-b', str(PROJECT_BOARD),
                                                        '--with-build'])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
@@ -246,7 +236,7 @@ class TestCLI(unittest.TestCase):
     def test_generate(self):
         """
         """
-        return_code = stm32pio.stm32pio.main(sys_argv=['generate', '-d', str(PROJECT_PATH)])
+        return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(PROJECT_PATH)])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         inc_dir = 'Inc'
@@ -265,7 +255,7 @@ class TestCLI(unittest.TestCase):
     def test_incorrect_path(self):
         """
         """
-        return_code = stm32pio.stm32pio.main(sys_argv=['generate', '-d', '~/path/does/not/exist'])
+        return_code = stm32pio.app.main(sys_argv=['generate', '-d', '~/path/does/not/exist'])
         self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
 
     def test_no_ioc_file(self):
@@ -275,7 +265,7 @@ class TestCLI(unittest.TestCase):
         dir_with_no_ioc_file = PROJECT_PATH.joinpath('dir.with.no.ioc.file')
         dir_with_no_ioc_file.mkdir(exist_ok=False)
 
-        return_code = stm32pio.stm32pio.main(sys_argv=['generate', '-d', str(dir_with_no_ioc_file)])
+        return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(dir_with_no_ioc_file)])
         self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
 
     def test_verbose(self):
@@ -283,7 +273,7 @@ class TestCLI(unittest.TestCase):
         Run as subprocess
         """
 
-        stm32pio_exec = inspect.getfile(stm32pio.stm32pio)  # get the path to the main stm32pio script
+        stm32pio_exec = inspect.getfile(stm32pio.app)  # get the path to the main stm32pio script
         # Get the path of the current python executable (no need to guess python or python3) (can probably use another
         # approach to retrieve the executable)
         python_exec = sys.executable
@@ -294,13 +284,11 @@ class TestCLI(unittest.TestCase):
         self.assertIn('DEBUG', result.stderr.split(), msg="Verbose logging output has not been enabled")
 
 
-
 def tearDownModule():
     """
     Clean up after yourself
     """
     clean()
-
 
 
 if __name__ == '__main__':
