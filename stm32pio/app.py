@@ -8,9 +8,12 @@ import logging
 import sys
 import pathlib
 import traceback
+from typing import Optional
+
+import stm32pio.util
 
 
-def parse_args(args):
+def parse_args(args: list) -> Optional[argparse.Namespace]:
     """
 
     """
@@ -49,7 +52,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def main(sys_argv=sys.argv[1:]):
+def main(sys_argv: list = sys.argv[1:]) -> int:
     """
 
     """
@@ -71,8 +74,6 @@ def main(sys_argv=sys.argv[1:]):
         logger.setLevel(logging.INFO)
 
     # Main routine
-    import stm32pio.util
-
     try:
         project = stm32pio.util.Stm32pio(args.project_path)
 
@@ -90,6 +91,7 @@ def main(sys_argv=sys.argv[1:]):
         elif args.subcommand == 'clean':
             project.clean()
 
+    # util library is designed to throw the exception in bad cases so we catch here globally
     except Exception as e:
         if logger.level <= logging.DEBUG:  # verbose
             traceback.print_exception(*sys.exc_info())

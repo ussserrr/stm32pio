@@ -2,6 +2,7 @@ import pathlib
 import platform
 import shutil
 import subprocess
+import tempfile
 import time
 import inspect
 import sys
@@ -13,21 +14,14 @@ import stm32pio.util
 
 
 # Test data
-PROJECT_PATH = pathlib.Path('stm32pio/tests/stm32pio-test-project').resolve()
-if not PROJECT_PATH.is_dir() and not PROJECT_PATH.joinpath('stm32pio-test-project.ioc').is_file():
+TEST_PROJECT_PATH = pathlib.Path('stm32pio-test-project').resolve()
+if not TEST_PROJECT_PATH.is_dir() or not TEST_PROJECT_PATH.joinpath('stm32pio-test-project.ioc').is_file():
     raise FileNotFoundError("No test project is present")
 PROJECT_BOARD = 'nucleo_f031k6'
 
-def clean():
-    """
-    Clean-up the project folder and preserve only an '.ioc' file
-    """
-    for child in PROJECT_PATH.iterdir():
-        if child.name != f"{PROJECT_PATH.name}.ioc":
-            if child.is_dir():
-                shutil.rmtree(str(child), ignore_errors=True)
-            elif child.is_file():
-                child.unlink()
+
+temp_dir = tempfile.TemporaryDirectory()
+fixture_path = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
 
 
 class TestUnit(unittest.TestCase):
@@ -36,17 +30,21 @@ class TestUnit(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        clean()
+        self.tearDown()
+        shutil.copytree(str(TEST_PROJECT_PATH), str(fixture_path))
+
+    def tearDown(self) -> None:
+        shutil.rmtree(str(fixture_path), ignore_errors=True)
 
     def test_generate_code(self):
         """
         Check whether files and folders have been created
         """
-        project = stm32pio.util.Stm32pio(PROJECT_PATH)
+        project = stm32pio.util.Stm32pio(fixture_path)
         project.generate_code()
         # Assuming that the presence of these files indicates a success
         files_should_be_present = [stm32pio.settings.cubemx_script_filename, 'Src/main.c', 'Inc/main.h']
-        self.assertEqual([PROJECT_PATH.joinpath(file).is_file() for file in files_should_be_present],
+        self.assertEqual([fixture_path.joinpath(file).is_file() for file in files_should_be_present],
                          [True] * len(files_should_be_present),
                          msg=f"At least one of {files_should_be_present} files haven't been created")
 
@@ -54,21 +52,21 @@ class TestUnit(unittest.TestCase):
         """
         Consider that existence of 'platformio.ini' file is displaying successful PlatformIO project initialization
         """
-        project = stm32pio.util.Stm32pio(PROJECT_PATH)
+        project = stm32pio.util.Stm32pio(fixture_path)
         project.pio_init(PROJECT_BOARD)
-        self.assertTrue(PROJECT_PATH.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
+        self.assertTrue(fixture_path.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
 
     def test_patch_platformio_ini(self):
         """
         Compare contents of the patched string and the desired patch
         """
-        project = stm32pio.util.Stm32pio(PROJECT_PATH)
+        project = stm32pio.util.Stm32pio(fixture_path)
         test_content = "*** TEST PLATFORMIO.INI FILE ***"
-        PROJECT_PATH.joinpath('platformio.ini').write_text(test_content)
+        fixture_path.joinpath('platformio.ini').write_text(test_content)
 
         project.patch_platformio_ini()
 
-        after_patch_content = PROJECT_PATH.joinpath('platformio.ini').read_text()
+        after_patch_content = fixture_path.joinpath('platformio.ini').read_text()
 
         # Initial content wasn't corrupted
         self.assertEqual(after_patch_content[:len(test_content)], test_content,
@@ -81,7 +79,7 @@ class TestUnit(unittest.TestCase):
         """
         Build an empty project so PlatformIO should return non-zero code and we, in turn, should throw the exception
         """
-        project = stm32pio.util.Stm32pio(PROJECT_PATH)
+        project = stm32pio.util.Stm32pio(fixture_path)
         project.pio_init(PROJECT_BOARD)
         with self.assertRaisesRegex(Exception, "PlatformIO build error",
                                     msg="Build error exception hadn't been raised"):
@@ -91,7 +89,7 @@ class TestUnit(unittest.TestCase):
         """
         Call the editors
         """
-        project = stm32pio.util.Stm32pio(PROJECT_PATH)
+        project = stm32pio.util.Stm32pio(fixture_path)
         editors = {
             'atom': {
                 'Windows': 'atom.exe',
@@ -128,7 +126,7 @@ class TestUnit(unittest.TestCase):
         """
         Pass non-existing path and expect the error
         """
-        not_existing_path = PROJECT_PATH.joinpath('does_not_exist')
+        not_existing_path = fixture_path.joinpath('does_not_exist')
         with self.assertRaises(FileNotFoundError, msg="FileNotFoundError was not raised"):
             stm32pio.util.Stm32pio(not_existing_path)
 
@@ -139,13 +137,17 @@ class TestIntegration(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        clean()
+        self.tearDown()
+        shutil.copytree(str(TEST_PROJECT_PATH), str(fixture_path))
+
+    def tearDown(self) -> None:
+        shutil.rmtree(str(fixture_path), ignore_errors=True)
 
     def test_build(self):
         """
         Initialize a new project and try to build it
         """
-        project = stm32pio.util.Stm32pio(PROJECT_PATH)
+        project = stm32pio.util.Stm32pio(fixture_path)
         project.generate_code()
         project.pio_init(PROJECT_BOARD)
         project.patch_platformio_ini()
@@ -160,7 +162,7 @@ class TestIntegration(unittest.TestCase):
         hardware features and some new files)
         """
 
-        project = stm32pio.util.Stm32pio(PROJECT_PATH)
+        project = stm32pio.util.Stm32pio(fixture_path)
 
         # Generate a new project ...
         project.generate_code()
@@ -168,9 +170,9 @@ class TestIntegration(unittest.TestCase):
         project.patch_platformio_ini()
 
         # ... change it:
-        test_file_1 = PROJECT_PATH.joinpath('Src', 'main.c')
+        test_file_1 = fixture_path.joinpath('Src', 'main.c')
         test_content_1 = "*** TEST STRING 1 ***\n"
-        test_file_2 = PROJECT_PATH.joinpath('Inc', 'my_header.h')
+        test_file_2 = fixture_path.joinpath('Inc', 'my_header.h')
         test_content_2 = "*** TEST STRING 2 ***\n"
         #   - add some sample string inside CubeMX' /* BEGIN - END */ block
         main_c_content = test_file_1.read_text()
@@ -198,7 +200,11 @@ class TestCLI(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        clean()
+        self.tearDown()
+        shutil.copytree(str(TEST_PROJECT_PATH), str(fixture_path))
+
+    def tearDown(self) -> None:
+        shutil.rmtree(str(fixture_path), ignore_errors=True)
 
     def test_clean(self):
         """
@@ -206,13 +212,13 @@ class TestCLI(unittest.TestCase):
         """
 
         # Create files and folders
-        file_should_be_deleted = PROJECT_PATH.joinpath('file.should.be.deleted')
-        dir_should_be_deleted = PROJECT_PATH.joinpath('dir.should.be.deleted')
+        file_should_be_deleted = fixture_path.joinpath('file.should.be.deleted')
+        dir_should_be_deleted = fixture_path.joinpath('dir.should.be.deleted')
         file_should_be_deleted.touch(exist_ok=False)
         dir_should_be_deleted.mkdir(exist_ok=False)
 
         # Clean
-        return_code = stm32pio.app.main(sys_argv=['clean', '-d', str(PROJECT_PATH)])
+        return_code = stm32pio.app.main(sys_argv=['clean', '-d', str(fixture_path)])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         # Look for remaining items
@@ -220,37 +226,37 @@ class TestCLI(unittest.TestCase):
         self.assertFalse(dir_should_be_deleted.is_dir(), msg=f"{dir_should_be_deleted} is still there")
 
         # And .ioc file should be preserved
-        self.assertTrue(PROJECT_PATH.joinpath(f"{PROJECT_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
+        self.assertTrue(fixture_path.joinpath(f"{fixture_path.name}.ioc").is_file(), msg="Missing .ioc file")
 
     def test_new(self):
         """
         Successful build is the best indicator that all went right so we use '--with-build' option
         """
-        return_code = stm32pio.app.main(sys_argv=['new', '-d', str(PROJECT_PATH), '-b', str(PROJECT_BOARD),
-                                                       '--with-build'])
+        return_code = stm32pio.app.main(sys_argv=['new', '-d', str(fixture_path), '-b', str(PROJECT_BOARD),
+                                                  '--with-build'])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         # .ioc file should be preserved
-        self.assertTrue(PROJECT_PATH.joinpath(f"{PROJECT_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
+        self.assertTrue(fixture_path.joinpath(f"{fixture_path.name}.ioc").is_file(), msg="Missing .ioc file")
 
     def test_generate(self):
         """
         """
-        return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(PROJECT_PATH)])
+        return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(fixture_path)])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         inc_dir = 'Inc'
         src_dir = 'Src'
 
-        self.assertTrue(PROJECT_PATH.joinpath(inc_dir).is_dir(), msg=f"Missing '{inc_dir}'")
-        self.assertTrue(PROJECT_PATH.joinpath(src_dir).is_dir(), msg=f"Missing '{src_dir}'")
-        self.assertFalse(len([child for child in PROJECT_PATH.joinpath(inc_dir).iterdir()]) == 0,
+        self.assertTrue(fixture_path.joinpath(inc_dir).is_dir(), msg=f"Missing '{inc_dir}'")
+        self.assertTrue(fixture_path.joinpath(src_dir).is_dir(), msg=f"Missing '{src_dir}'")
+        self.assertFalse(len([child for child in fixture_path.joinpath(inc_dir).iterdir()]) == 0,
                          msg=f"'{inc_dir}' is empty")
-        self.assertFalse(len([child for child in PROJECT_PATH.joinpath(src_dir).iterdir()]) == 0,
+        self.assertFalse(len([child for child in fixture_path.joinpath(src_dir).iterdir()]) == 0,
                          msg=f"'{src_dir}' is empty")
 
         # .ioc file should be preserved
-        self.assertTrue(PROJECT_PATH.joinpath(f"{PROJECT_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
+        self.assertTrue(fixture_path.joinpath(f"{fixture_path.name}.ioc").is_file(), msg="Missing .ioc file")
 
     def test_incorrect_path(self):
         """
@@ -262,7 +268,7 @@ class TestCLI(unittest.TestCase):
         """
         """
 
-        dir_with_no_ioc_file = PROJECT_PATH.joinpath('dir.with.no.ioc.file')
+        dir_with_no_ioc_file = fixture_path.joinpath('dir.with.no.ioc.file')
         dir_with_no_ioc_file.mkdir(exist_ok=False)
 
         return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(dir_with_no_ioc_file)])
@@ -277,7 +283,7 @@ class TestCLI(unittest.TestCase):
         # Get the path of the current python executable (no need to guess python or python3) (can probably use another
         # approach to retrieve the executable)
         python_exec = sys.executable
-        result = subprocess.run([python_exec, stm32pio_exec, '-v', 'clean', '-d', str(PROJECT_PATH)], encoding='utf-8',
+        result = subprocess.run([python_exec, stm32pio_exec, '-v', 'clean', '-d', str(fixture_path)], encoding='utf-8',
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
         # Somehow stderr contains actual output
@@ -288,7 +294,7 @@ def tearDownModule():
     """
     Clean up after yourself
     """
-    clean()
+    temp_dir.cleanup()
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ import logging
 import pathlib
 import shutil
 import subprocess
-import enum
+# import enum
 
 import stm32pio.settings
 
@@ -15,18 +15,18 @@ logger = logging.getLogger()
 #  multiple projects. (use enum for this)
 #  Also, we would probably need some method to detect a current project state on program start (or store it explicitly
 #  in the dotted system file)
-@enum.unique
-class ProjectState(enum.Enum):
-    """
-    """
-
-    INITIALIZED = enum.auto()
-    GENERATED = enum.auto()
-    PIO_INITIALIZED = enum.auto()
-    PIO_INI_PATCHED = enum.auto()
-    BUILT = enum.auto()
-
-    ERROR = enum.auto()
+# @enum.unique
+# class ProjectState(enum.Enum):
+#     """
+#     """
+#
+#     INITIALIZED = enum.auto()
+#     GENERATED = enum.auto()
+#     PIO_INITIALIZED = enum.auto()
+#     PIO_INI_PATCHED = enum.auto()
+#     BUILT = enum.auto()
+#
+#     ERROR = enum.auto()
 
 
 class Stm32pio:
@@ -34,12 +34,12 @@ class Stm32pio:
     Main class
     """
 
-    def __init__(self, dirty_path):
+    def __init__(self, dirty_path: str):
         self.project_path = self._resolve_project_path(dirty_path)
 
 
     @staticmethod
-    def _resolve_project_path(dirty_path):
+    def _resolve_project_path(dirty_path: str) -> pathlib.Path:
         """
         Handle 'path/to/proj' and 'path/to/proj/', '.' (current directory) and other cases
 
@@ -54,7 +54,7 @@ class Stm32pio:
             return correct_path
 
 
-    def generate_code(self):
+    def generate_code(self) -> None:
         """
         Call STM32CubeMX app as a 'java -jar' file with the automatically prearranged 'cubemx-script' file
         """
@@ -98,7 +98,7 @@ class Stm32pio:
             raise Exception("code generation error")
 
 
-    def pio_init(self, board):
+    def pio_init(self, board: str) -> None:
         """
         Call PlatformIO CLI to initialize a new project
 
@@ -133,7 +133,7 @@ class Stm32pio:
             raise Exception("PlatformIO error")
 
 
-    def patch_platformio_ini(self):
+    def patch_platformio_ini(self) -> None:
         """
         Patch platformio.ini file to use created earlier by CubeMX 'Src' and 'Inc' folders as sources
         """
@@ -153,7 +153,7 @@ class Stm32pio:
             shutil.rmtree(str(self.project_path.joinpath('src')), ignore_errors=True)
 
 
-    def start_editor(self, editor_command):
+    def start_editor(self, editor_command: str) -> None:
         """
         Start the editor specified by 'editor_command' with the project opened
 
@@ -169,7 +169,7 @@ class Stm32pio:
             logger.error(f"Failed to start the editor {editor_command}: {e.stderr}")
 
 
-    def pio_build(self):
+    def pio_build(self) -> int:
         """
         Initiate a build of the PlatformIO project by the PlatformIO ('run' command)
 
@@ -195,7 +195,7 @@ class Stm32pio:
             raise Exception("PlatformIO build error")
 
 
-    def clean(self):
+    def clean(self) -> None:
         """
         Clean-up the project folder and preserve only an '.ioc' file
         """
