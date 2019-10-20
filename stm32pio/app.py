@@ -10,8 +10,6 @@ import pathlib
 import traceback
 from typing import Optional
 
-import stm32pio.util
-
 
 def parse_args(args: list) -> Optional[argparse.Namespace]:
     """
@@ -74,6 +72,8 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
         logger.setLevel(logging.INFO)
 
     # Main routine
+    import stm32pio.util  # as we modify sys.path we should import the module there (i.e. after modification)
+
     try:
         project = stm32pio.util.Stm32pio(args.project_path)
 

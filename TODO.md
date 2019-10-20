@@ -1,4 +1,5 @@
 # TODOs
+
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
  - [x] Function annotations
@@ -10,7 +11,10 @@
  - [ ] Upload to PyPI
  - [x] `__main__`
  - [x] Abort `--with-build` if no platformio.ini file is present
- - [x] Rename 'stm32pio.py' -> 'app.py'
- - [ ] Rename 'util.py' -> 'lib.py'
- - [ ] Do not require matching of the project folder and .ioc file names
- - [ ] Remove casts to string when we can use path-like objects
+ - [x] Rename `stm32pio.py` -> `app.py`
+ - [ ] Rename `util.py` -> `lib.py` (maybe)
+ - [ ] Do not require matching of the project folder and .ioc file names (use first .ioc file found)
+ - [x] Remove casts to string where we can use path-like objects
+ - [x] Settings string templates and multi line
+ - [ ] Smart `start_editor` test (detect in system, maybe use unittest `skipIf` decorator)
+ - [ ] Maybe split tests to avoid long names (e.g. => `stm32pio.tests.test_unit` (but then we will have `stm32pio.tests.test_unit.Test` or so...)

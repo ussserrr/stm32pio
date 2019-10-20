@@ -31,10 +31,10 @@ class TestUnit(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tearDown()
-        shutil.copytree(str(TEST_PROJECT_PATH), str(fixture_path))
+        shutil.copytree(TEST_PROJECT_PATH, fixture_path)
 
     def tearDown(self) -> None:
-        shutil.rmtree(str(fixture_path), ignore_errors=True)
+        shutil.rmtree(fixture_path, ignore_errors=True)
 
     def test_generate_code(self):
         """
@@ -42,6 +42,7 @@ class TestUnit(unittest.TestCase):
         """
         project = stm32pio.util.Stm32pio(fixture_path)
         project.generate_code()
+
         # Assuming that the presence of these files indicates a success
         files_should_be_present = [stm32pio.settings.cubemx_script_filename, 'Src/main.c', 'Inc/main.h']
         self.assertEqual([fixture_path.joinpath(file).is_file() for file in files_should_be_present],
@@ -54,6 +55,7 @@ class TestUnit(unittest.TestCase):
         """
         project = stm32pio.util.Stm32pio(fixture_path)
         project.pio_init(PROJECT_BOARD)
+
         self.assertTrue(fixture_path.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
 
     def test_patch_platformio_ini(self):
@@ -68,10 +70,8 @@ class TestUnit(unittest.TestCase):
 
         after_patch_content = fixture_path.joinpath('platformio.ini').read_text()
 
-        # Initial content wasn't corrupted
         self.assertEqual(after_patch_content[:len(test_content)], test_content,
                          msg="Initial content of platformio.ini is corrupted")
-        # Patch content is as expected
         self.assertEqual(after_patch_content[len(test_content):], stm32pio.settings.platformio_ini_patch_content,
                          msg="Patch content is not as expected")
 
@@ -81,6 +81,7 @@ class TestUnit(unittest.TestCase):
         """
         project = stm32pio.util.Stm32pio(fixture_path)
         project.pio_init(PROJECT_BOARD)
+
         with self.assertRaisesRegex(Exception, "PlatformIO build error",
                                     msg="Build error exception hadn't been raised"):
             project.pio_build()
@@ -138,10 +139,10 @@ class TestIntegration(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tearDown()
-        shutil.copytree(str(TEST_PROJECT_PATH), str(fixture_path))
+        shutil.copytree(TEST_PROJECT_PATH, fixture_path)
 
     def tearDown(self) -> None:
-        shutil.rmtree(str(fixture_path), ignore_errors=True)
+        shutil.rmtree(fixture_path, ignore_errors=True)
 
     def test_build(self):
         """
@@ -201,10 +202,10 @@ class TestCLI(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tearDown()
-        shutil.copytree(str(TEST_PROJECT_PATH), str(fixture_path))
+        shutil.copytree(TEST_PROJECT_PATH, fixture_path)
 
     def tearDown(self) -> None:
-        shutil.rmtree(str(fixture_path), ignore_errors=True)
+        shutil.rmtree(fixture_path, ignore_errors=True)
 
     def test_clean(self):
         """
@@ -232,8 +233,7 @@ class TestCLI(unittest.TestCase):
         """
         Successful build is the best indicator that all went right so we use '--with-build' option
         """
-        return_code = stm32pio.app.main(sys_argv=['new', '-d', str(fixture_path), '-b', str(PROJECT_BOARD),
-                                                  '--with-build'])
+        return_code = stm32pio.app.main(sys_argv=['new', '-d', str(fixture_path), '-b', PROJECT_BOARD, '--with-build'])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         # .ioc file should be preserved
@@ -250,10 +250,8 @@ class TestCLI(unittest.TestCase):
 
         self.assertTrue(fixture_path.joinpath(inc_dir).is_dir(), msg=f"Missing '{inc_dir}'")
         self.assertTrue(fixture_path.joinpath(src_dir).is_dir(), msg=f"Missing '{src_dir}'")
-        self.assertFalse(len([child for child in fixture_path.joinpath(inc_dir).iterdir()]) == 0,
-                         msg=f"'{inc_dir}' is empty")
-        self.assertFalse(len([child for child in fixture_path.joinpath(src_dir).iterdir()]) == 0,
-                         msg=f"'{src_dir}' is empty")
+        self.assertFalse(len(list(fixture_path.joinpath(inc_dir).iterdir())) == 0, msg=f"'{inc_dir}' is empty")
+        self.assertFalse(len(list(fixture_path.joinpath(src_dir).iterdir())) == 0, msg=f"'{src_dir}' is empty")
 
         # .ioc file should be preserved
         self.assertTrue(fixture_path.joinpath(f"{fixture_path.name}.ioc").is_file(), msg="Missing .ioc file")
@@ -280,13 +278,11 @@ class TestCLI(unittest.TestCase):
         """
 
         stm32pio_exec = inspect.getfile(stm32pio.app)  # get the path to the main stm32pio script
-        # Get the path of the current python executable (no need to guess python or python3) (can probably use another
-        # approach to retrieve the executable)
-        python_exec = sys.executable
-        result = subprocess.run([python_exec, stm32pio_exec, '-v', 'clean', '-d', str(fixture_path)], encoding='utf-8',
+        python_exec = sys.executable  # get the current python executable (no need to guess python or python3)
+        result = subprocess.run([python_exec, stm32pio_exec, '-v', 'clean', '-d', fixture_path], encoding='utf-8',
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
-        # Somehow stderr contains actual output
+        # Somehow stderr and not stdout contains the actual output
         self.assertIn('DEBUG', result.stderr.split(), msg="Verbose logging output has not been enabled")
 
 

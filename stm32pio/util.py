@@ -74,7 +74,7 @@ class Stm32pio:
         cubemx_script_full_filename = self.project_path.joinpath(stm32pio.settings.cubemx_script_filename)
         if not cubemx_script_full_filename.is_file():
             logger.debug(f"'{stm32pio.settings.cubemx_script_filename}' file wasn't found, creating one...")
-            cubemx_script_content = stm32pio.settings.cubemx_script_content.format(
+            cubemx_script_content = stm32pio.settings.cubemx_script_content.substitute(
                 project_path=self.project_path, cubemx_ioc_full_filename=cubemx_ioc_full_filename)
             cubemx_script_full_filename.write_text(cubemx_script_content)
             logger.debug(f"'{stm32pio.settings.cubemx_script_filename}' file has been successfully created")
@@ -83,7 +83,7 @@ class Stm32pio:
 
         logger.info("starting to generate a code from the CubeMX .ioc file...")
         command_arr = [stm32pio.settings.java_cmd, '-jar', stm32pio.settings.cubemx_path, '-q',
-                       str(cubemx_script_full_filename)]
+                       cubemx_script_full_filename]
         if logger.level <= logging.DEBUG:
             result = subprocess.run(command_arr)
         else:
@@ -121,7 +121,7 @@ class Stm32pio:
             raise Exception("failed to start PlatformIO")
 
         logger.info("starting PlatformIO project initialization...")
-        command_arr = [stm32pio.settings.platformio_cmd, 'init', '-d', str(self.project_path), '-b', board,
+        command_arr = [stm32pio.settings.platformio_cmd, 'init', '-d', self.project_path, '-b', board,
                        '-O', 'framework=stm32cube']
         if logger.level > logging.DEBUG:
             command_arr.append('--silent')
@@ -148,9 +148,9 @@ class Stm32pio:
         else:
             logger.warning("'platformio.ini' file not found")
 
-        shutil.rmtree(str(self.project_path.joinpath('include')), ignore_errors=True)
+        shutil.rmtree(self.project_path.joinpath('include'), ignore_errors=True)
         if not self.project_path.joinpath('SRC').is_dir():  # case sensitive file system
-            shutil.rmtree(str(self.project_path.joinpath('src')), ignore_errors=True)
+            shutil.rmtree(self.project_path.joinpath('src'), ignore_errors=True)
 
 
     def start_editor(self, editor_command: str) -> None:
@@ -164,7 +164,7 @@ class Stm32pio:
         logger.info("starting an editor...")
 
         try:
-            subprocess.run([editor_command, str(self.project_path)], check=True)
+            subprocess.run([editor_command, self.project_path], check=True)
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to start the editor {editor_command}: {e.stderr}")
 
@@ -183,7 +183,7 @@ class Stm32pio:
             logger.error("no 'platformio.ini' file, build is impossible")
             return -1
 
-        command_arr = [stm32pio.settings.platformio_cmd, 'run', '-d', str(self.project_path)]
+        command_arr = [stm32pio.settings.platformio_cmd, 'run', '-d', self.project_path]
         if logger.level > logging.DEBUG:
             command_arr.append('--silent')
         result = subprocess.run(command_arr)
@@ -203,7 +203,7 @@ class Stm32pio:
         for child in self.project_path.iterdir():
             if child.name != f"{self.project_path.name}.ioc":
                 if child.is_dir():
-                    shutil.rmtree(str(child), ignore_errors=True)
+                    shutil.rmtree(child, ignore_errors=True)
                     logger.debug(f"del {child}/")
                 elif child.is_file():
                     child.unlink()
