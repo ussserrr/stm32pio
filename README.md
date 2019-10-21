@@ -67,7 +67,7 @@ to see help.
 5. Run `platformio boards` (`pio boards`) or go to [boards](https://docs.platformio.org/en/latest/boards) to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
 6. All done! You can now run
    ```shell script
-   $ python3 stm32pio.py new -d path/to/cubemx/project/ -b nucleo_f031k6 --start-editor=vscode --with-build
+   $ python3 stm32pio.py new -d path/to/cubemx/project/ -b nucleo_f031k6 --start-editor=code --with-build
    ```
    to complete generation, start the Visual Studio Code editor with opened folder and compile the project (as an example, not required). Make sure you have all tools in PATH (`java` (or set its path in `settings.py`), `python`, editor). You can use shorter form if you are already located in the project directory (also using shebang alias):
    ```shell script

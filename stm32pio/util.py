@@ -44,12 +44,17 @@ class Stm32pio:
 
         project_content = [item.name for item in self.project_path.iterdir()]
         print('project_content', project_content)
-        # if 'Src' in project_content and 'Inc' in project_content and self.project_path.joinpath(stm32pio.settings.cubemx_script_filename).is_file():
-        #     print('CubeMX generated')
-        # if 'platformio.ini' in project_content:
-        #     print('PlatformIO initialized')
-        # if '.pioenvs' in project_content:
-        #     print('Built')
+
+        # generate:    ['Inc', 'Src', 'cubemx-script', 'stm32pio-test-project.ioc']
+        # pio init:    ['test', 'include', 'Inc', 'platformio.ini', '.gitignore', 'Src', 'cubemx-script', 'lib', 'stm32pio-test-project.ioc', '.travis.yml', 'src']
+        # pio patched: ['test', 'Inc', 'platformio.ini', '.gitignore', 'Src', 'cubemx-script', 'lib', 'stm32pio-test-project.ioc', '.travis.yml']
+        # pio built:   ['.pio', 'test', 'Inc', 'platformio.ini', '.gitignore', 'Src', 'cubemx-script', 'lib', 'stm32pio-test-project.ioc', '.travis.yml'] +
+        #              .pio/build/nucleo_f031k6/firmware.bin .pio/build/nucleo_f031k6/firmware.elf
+
+        # can use
+        # print(self.project_path.joinpath('Src').is_dir())
+        # or
+        # 'in' inclusion checks
 
 
     @staticmethod
