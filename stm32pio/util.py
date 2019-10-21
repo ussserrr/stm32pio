@@ -38,6 +38,20 @@ class Stm32pio:
         self.project_path = self._resolve_project_path(dirty_path)
 
 
+    def get_state(self):
+        """
+        """
+
+        project_content = [item.name for item in self.project_path.iterdir()]
+        print('project_content', project_content)
+        # if 'Src' in project_content and 'Inc' in project_content and self.project_path.joinpath(stm32pio.settings.cubemx_script_filename).is_file():
+        #     print('CubeMX generated')
+        # if 'platformio.ini' in project_content:
+        #     print('PlatformIO initialized')
+        # if '.pioenvs' in project_content:
+        #     print('Built')
+
+
     @staticmethod
     def _resolve_project_path(dirty_path: str) -> pathlib.Path:
         """

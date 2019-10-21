@@ -18,3 +18,4 @@
  - [x] Settings string templates and multi line
  - [ ] Smart `start_editor` test (detect in system, maybe use unittest `skipIf` decorator)
  - [ ] Maybe split tests to avoid long names (e.g. => `stm32pio.tests.test_unit` (but then we will have `stm32pio.tests.test_unit.Test` or so...)
+ - [ ] Clean only related stuff, not the entire folder content

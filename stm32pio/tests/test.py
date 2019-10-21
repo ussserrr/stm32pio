@@ -109,7 +109,7 @@ class TestUnit(unittest.TestCase):
             }
         }
         for command, name in editors.items():
-            with self.subTest(command=command, name=name):
+            with self.subTest(command=command, name=name[platform.system()]):
                 project.start_editor(command)
                 time.sleep(1)  # wait a little bit for app to start
                 if platform.system() == 'Windows':
@@ -121,7 +121,7 @@ class TestUnit(unittest.TestCase):
                                             encoding='utf-8')
                     # Or, for Python 3.7 and above:
                     # result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
-                self.assertIn(name[platform.system()], result.stdout)
+                self.assertIn(name, result.stdout)
 
     def test_file_not_found(self):
         """
