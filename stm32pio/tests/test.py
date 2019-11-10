@@ -44,7 +44,8 @@ class TestUnit(unittest.TestCase):
         project.generate_code()
 
         # Assuming that the presence of these files indicates a success
-        files_should_be_present = [stm32pio.settings.cubemx_script_filename, 'Src/main.c', 'Inc/main.h']
+        # TODO: remake as subTest
+        files_should_be_present = ['Src/main.c', 'Inc/main.h']
         self.assertEqual([fixture_path.joinpath(file).is_file() for file in files_should_be_present],
                          [True] * len(files_should_be_present),
                          msg=f"At least one of {files_should_be_present} files haven't been created")
@@ -66,13 +67,15 @@ class TestUnit(unittest.TestCase):
         test_content = "*** TEST PLATFORMIO.INI FILE ***"
         fixture_path.joinpath('platformio.ini').write_text(test_content)
 
-        project.patch_platformio_ini()
+        project.patch()
+        # TODO: check 'include' deletion
 
         after_patch_content = fixture_path.joinpath('platformio.ini').read_text()
 
         self.assertEqual(after_patch_content[:len(test_content)], test_content,
                          msg="Initial content of platformio.ini is corrupted")
-        self.assertEqual(after_patch_content[len(test_content):], stm32pio.settings.platformio_ini_patch_content,
+        self.assertEqual(after_patch_content[len(test_content):],
+                         stm32pio.settings.config_default['project']['platformio_ini_patch_content'],
                          msg="Patch content is not as expected")
 
     def test_build_should_raise(self):
@@ -121,7 +124,7 @@ class TestUnit(unittest.TestCase):
                                             encoding='utf-8')
                     # Or, for Python 3.7 and above:
                     # result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
-                self.assertIn(name, result.stdout)
+                self.assertIn(name[platform.system()], result.stdout)
 
     def test_file_not_found(self):
         """
@@ -151,7 +154,7 @@ class TestIntegration(unittest.TestCase):
         project = stm32pio.util.Stm32pio(fixture_path)
         project.generate_code()
         project.pio_init(PROJECT_BOARD)
-        project.patch_platformio_ini()
+        project.patch()
 
         result = project.pio_build()
 
@@ -168,7 +171,7 @@ class TestIntegration(unittest.TestCase):
         # Generate a new project ...
         project.generate_code()
         project.pio_init(PROJECT_BOARD)
-        project.patch_platformio_ini()
+        project.patch()
 
         # ... change it:
         test_file_1 = fixture_path.joinpath('Src', 'main.c')
@@ -278,7 +281,8 @@ class TestCLI(unittest.TestCase):
         """
 
         stm32pio_exec = inspect.getfile(stm32pio.app)  # get the path to the main stm32pio script
-        python_exec = sys.executable  # get the current python executable (no need to guess python or python3)
+        # get the current python executable (no need to guess whether it's python or python3 and so on)
+        python_exec = sys.executable
         result = subprocess.run([python_exec, stm32pio_exec, '-v', 'clean', '-d', fixture_path], encoding='utf-8',
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")

@@ -1,6 +1,7 @@
 # TODOs
 
  - [ ] Middleware support (FreeRTOS, etc.)
+ - [ ] Arduino framework support
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
  - [x] Function annotations
  - [ ] GUI. For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output. At left is a list of recent projects
@@ -13,10 +14,9 @@
  - [x] Abort `--with-build` if no platformio.ini file is present
  - [x] Rename `stm32pio.py` -> `app.py`
  - [ ] Rename `util.py` -> `lib.py` (maybe)
- - [ ] Do not require matching of the project folder and .ioc file names (use first .ioc file found)
+ - [x] Do not require matching of the project folder and .ioc file names (use first .ioc file found)
  - [x] Remove casts to string where we can use path-like objects
  - [x] Settings string templates and multi line
- - [ ] Smart `start_editor` test (detect in system, maybe use unittest `skipIf` decorator)
+ - [ ] Smart `start_editor` test (detect editors in system, maybe use unittest `skipIf` decorator)
  - [ ] Maybe split tests to avoid long names (e.g. => `stm32pio.tests.test_unit` (but then we will have `stm32pio.tests.test_unit.Test` or so...)
- - [ ] Clean only related stuff, not the entire folder content
- - [ ] rename `patch_platformio_ini()`
+ - [ ] For GUI: indicate progress as states goes forward (see `scratch.py`)

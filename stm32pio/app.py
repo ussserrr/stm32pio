@@ -62,14 +62,14 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
 
     # Logger instance goes through the whole program.
     # Currently only 2 levels of verbosity through the '-v' option are counted (INFO and DEBUG)
-    logger = logging.getLogger()
+    logger = logging.getLogger('stm32pio')
     if args.verbose:
-        logging.basicConfig(format="%(levelname)-8s %(funcName)-16s %(message)s")
-        logger.setLevel(logging.DEBUG)
+        logging.basicConfig(format="%(levelname)-8s %(funcName)-16s %(message)s", level=logging.DEBUG)
+        # logger.setLevel(logging.DEBUG)
         logger.debug("debug logging enabled")
     else:
-        logging.basicConfig(format="%(levelname)-8s %(message)s")
-        logger.setLevel(logging.INFO)
+        logging.basicConfig(format="%(levelname)-8s %(message)s", level=logging.INFO)
+        # logger.setLevel(logging.INFO)
 
     # Main routine
     import stm32pio.util  # as we modify sys.path we should import the module there (i.e. after modification)
@@ -81,7 +81,7 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
             project.generate_code()
             if args.subcommand == 'new':
                 project.pio_init(args.board)
-                project.patch_platformio_ini()
+                project.patch()
 
             if args.with_build:
                 project.pio_build()
