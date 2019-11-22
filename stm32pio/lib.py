@@ -6,22 +6,19 @@ import enum
 import configparser
 import string
 import tempfile
+# import weakref
 
 import stm32pio.settings
 
 logger = logging.getLogger('stm32pio.util')
 
 
-# TODO: add states and check the current state for every operation (so we can't, for example, go to build stage without
-#  a pio_init performed before). Also, it naturally helps us to construct the GUI in which we manage the list of
-#  multiple projects. (use enum for this)
-#  Also, we would probably need some method to detect a current project state on program start (or store it explicitly
-#  in the dotted system file)
 @enum.unique
 class ProjectState(enum.IntEnum):
     """
     """
     UNDEFINED = enum.auto()
+    INITIALIZED = enum.auto()
     GENERATED = enum.auto()
     PIO_INITIALIZED = enum.auto()
     PIO_INI_PATCHED = enum.auto()
@@ -43,17 +40,27 @@ class Stm32pio:
         ioc_file = self._find_ioc_file()
         self.config.set('project', 'ioc_file', str(ioc_file))
 
-        # self.config.set('project', 'state', str(self.get_state().value))
+        # self._finalizer = weakref.finalize(self, self.save_config)
 
+
+    def init(self, **kwargs):
         cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
         cubemx_script_content = cubemx_script_template.substitute(project_path=self.project_path,
-                                                                  cubemx_ioc_full_filename=str(ioc_file))
+            cubemx_ioc_full_filename=self.config.get('project', 'ioc_file'))
         self.config.set('project', 'cubemx_script_content', cubemx_script_content)
 
-        self._save_config()
+        board = ''
+        if 'board' in kwargs and kwargs['board'] is not None:
+            try:
+                board = self._resolve_board(kwargs['board'])
+            except Exception as e:
+                logger.warning(e)
+            self.config.set('project', 'board', board)
+        elif self.config.get('project', 'board', fallback=None) is None:
+            self.config.set('project', 'board', board)
 
 
-    def _save_config(self):
+    def save_config(self):
         with self.project_path.joinpath('stm32pio.ini').open(mode='w') as config_file:
             self.config.write(config_file)
 
@@ -73,14 +80,18 @@ class Stm32pio:
 
         states_conditions = {
             ProjectState.UNDEFINED: [True],
-            ProjectState.GENERATED: [self.project_path.joinpath('Inc').is_dir(),
-                                     self.project_path.joinpath('Src').is_dir()],
-            ProjectState.PIO_INITIALIZED: [self.project_path.joinpath('platformio.ini').is_file()],
-            ProjectState.PIO_INI_PATCHED: [not self.project_path.joinpath('include').is_dir(),
-                                           self.project_path.joinpath('platformio.ini').is_file() and
-                                           self.config.get('project', 'platformio_ini_patch_content') in self.project_path.joinpath('platformio.ini').read_text()],
-            ProjectState.BUILT: [self.project_path.joinpath('.pio').is_dir(),
-                                 any([path.is_file() for path in self.project_path.joinpath('.pio').rglob('*firmware*')])]
+            ProjectState.INITIALIZED: [self.project_path.joinpath('stm32pio.ini').is_file()],
+            ProjectState.GENERATED: [self.project_path.joinpath('Inc').is_dir() and
+                                     len(list(self.project_path.joinpath('Inc').iterdir())) > 0,
+                                     self.project_path.joinpath('Src').is_dir() and
+                                     len(list(self.project_path.joinpath('Src').iterdir())) > 0],
+            ProjectState.PIO_INITIALIZED: [self.project_path.joinpath('platformio.ini').is_file() and
+                                           len(self.project_path.joinpath('platformio.ini').read_text()) > 0],
+            ProjectState.PIO_INI_PATCHED: [self.project_path.joinpath('platformio.ini').is_file() and
+                                           self.config.get('project', 'platformio_ini_patch_content') in
+                                           self.project_path.joinpath('platformio.ini').read_text()],
+            ProjectState.BUILT: [self.project_path.joinpath('.pio').is_dir() and
+                                 any([item.is_file() for item in self.project_path.joinpath('.pio').rglob('*firmware*')])]
         }
 
         # Use (1,0) instead of (True,False) because on debug printing it looks cleaner
@@ -88,19 +99,20 @@ class Stm32pio:
                               for state in ProjectState]
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
-        if logger.level <= logging.DEBUG:
+        if logger.getEffectiveLevel() <= logging.DEBUG:
             states_info_str = '\n'.join(f"{state.name:20}{conditions_results[state.value-1]}" for state in ProjectState)
             logger.debug(f"Determined states: {states_info_str}")
 
-        last_true_index = 0
+        last_true_index = 0  # UNDEFINED is always True
         for index, value in enumerate(conditions_results):
             if value == 1:
                 last_true_index = index
             else:
                 break
 
-        project_state = ProjectState(last_true_index + 1) if 1 not in conditions_results[last_true_index + 1:] \
-            else ProjectState.UNDEFINED  # edit there to get first approach from second
+        project_state = ProjectState.UNDEFINED
+        if 1 not in conditions_results[last_true_index + 1:]:
+            project_state = ProjectState(last_true_index + 1)
 
         return project_state
 
@@ -135,7 +147,7 @@ class Stm32pio:
 
         # Fill with default values
         config.read_dict(stm32pio.settings.config_default)
-
+        # Then override by user values (if exist)
         config.read(str(stm32pio_ini))
 
         # for section in config.sections():
@@ -154,12 +166,29 @@ class Stm32pio:
         Args:
             dirty_path: some directory in the filesystem
         """
-        correct_path = pathlib.Path(dirty_path).expanduser().resolve()
-        if not correct_path.exists():
-            logger.error("incorrect project path")
-            raise FileNotFoundError(correct_path)
+        resolved_path = pathlib.Path(dirty_path).expanduser().resolve()
+        if not resolved_path.exists():
+            raise FileNotFoundError(resolved_path)
         else:
-            return correct_path
+            return resolved_path
+
+
+    def _resolve_board(self, board: str) -> str:
+        """
+
+        """
+        logger.debug("searching for PlatformIO board...")
+        result = subprocess.run([self.config.get('app', 'platformio_cmd'), 'boards'], encoding='utf-8',
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Or, for Python 3.7 and above:
+        # result = subprocess.run(['platformio', 'boards'], encoding='utf-8', capture_output=True)
+        if result.returncode == 0:
+            if board not in result.stdout.split():
+                raise Exception("wrong STM32 board. Run 'platformio boards' for possible names")
+            else:
+                return board
+        else:
+            raise Exception("failed to search for PlatformIO boards")
 
 
     def generate_code(self) -> None:
@@ -173,8 +202,8 @@ class Stm32pio:
 
             logger.info("starting to generate a code from the CubeMX .ioc file...")
             command_arr = [self.config.get('app', 'java_cmd'), '-jar', self.config.get('app', 'cubemx_cmd'), '-q',
-                           cubemx_script.name]
-            if logger.level <= logging.DEBUG:
+                           cubemx_script.name, '-s']
+            if logger.getEffectiveLevel() <= logging.DEBUG:
                 result = subprocess.run(command_arr)
             else:
                 result = subprocess.run(command_arr, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -188,7 +217,7 @@ class Stm32pio:
                 raise Exception("code generation error")
 
 
-    def pio_init(self, board: str) -> None:
+    def pio_init(self) -> int:
         """
         Call PlatformIO CLI to initialize a new project
 
@@ -196,31 +225,28 @@ class Stm32pio:
             board: string displaying PlatformIO name of MCU/board (from 'pio boards' command)
         """
 
-        # Check board name
-        logger.debug("searching for PlatformIO board...")
-        result = subprocess.run([self.config.get('app', 'platformio_cmd'), 'boards'], encoding='utf-8',
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # Or, for Python 3.7 and above:
-        # result = subprocess.run(['platformio', 'boards'], encoding='utf-8', capture_output=True)
-        if result.returncode == 0:
-            if board not in result.stdout.split():
-                logger.error("wrong STM32 board. Run 'platformio boards' for possible names")
-                raise Exception("wrong STM32 board")
-        else:
-            logger.error("failed to start PlatformIO")
-            raise Exception("failed to start PlatformIO")
-
         logger.info("starting PlatformIO project initialization...")
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', self.project_path, '-b', board,
+
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', self.project_path, '-b', self.config.get('project', 'board'),
                        '-O', 'framework=stm32cube']
-        if logger.level > logging.DEBUG:
+        if logger.getEffectiveLevel() > logging.DEBUG:
             command_arr.append('--silent')
-        result = subprocess.run(command_arr)
+
+        error_msg = "PlatformIO project initialization error"
+
+        result = subprocess.run(command_arr, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode == 0:
+            # PlatformIO returns 0 even on some errors ('platformio.ini' wasn't created, e.g. no '--board' argument)
+            if 'ERROR' in result.stdout.upper():
+                print(result.stdout)
+                raise Exception(error_msg)
+            if 'ERROR' in result.stderr.upper():
+                print(result.stderr)
+                raise Exception(error_msg)
             logger.info("successful PlatformIO project initialization")
+            return result.returncode
         else:
-            logger.error("PlatformIO project initialization error")
-            raise Exception("PlatformIO error")
+            raise Exception(error_msg)
 
 
     def patch(self) -> None:
@@ -233,7 +259,7 @@ class Stm32pio:
         platformio_ini_file = self.project_path.joinpath('platformio.ini')
         if platformio_ini_file.is_file():
             with platformio_ini_file.open(mode='a') as f:
-                f.write(self.config.get('project', 'platformio_ini_patch_content'))
+                f.write(self.config.get('project', 'platformio_ini_patch_content') + '\n')
             logger.info("'platformio.ini' patched")
         else:
             logger.warning("'platformio.ini' file not found")
@@ -274,7 +300,7 @@ class Stm32pio:
             return -1
 
         command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', self.project_path]
-        if logger.level > logging.DEBUG:
+        if logger.getEffectiveLevel() > logging.DEBUG:
             command_arr.append('--silent')
         result = subprocess.run(command_arr)
         if result.returncode == 0:
@@ -283,6 +309,7 @@ class Stm32pio:
         else:
             logger.error("PlatformIO build error")
             raise Exception("PlatformIO build error")
+
 
     def clean(self) -> None:
         """

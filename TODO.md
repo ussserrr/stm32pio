@@ -6,17 +6,21 @@
  - [x] Function annotations
  - [ ] GUI. For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output. At left is a list of recent projects
  - [x] Remade as Class (constructor `__init__(project_path)`)
- - [ ] Config file for every project instead of the `settings.py` (but we still sill be storing the default parameters there)
+ - [x] Config file for every project instead of the `settings.py` (but we still sill be storing the default parameters there)
  - [x] Test CLI (integration testing)
  - [x] Move test fixtures out of the 'tests' so we can use it for multiple projects (for example while testing CLI and GUI versions). Set up test folder for every single test so we make sure the .ioc file is always present and not deleted after failed test
  - [ ] Upload to PyPI
  - [x] `__main__`
  - [x] Abort `--with-build` if no platformio.ini file is present
  - [x] Rename `stm32pio.py` -> `app.py`
- - [ ] Rename `util.py` -> `lib.py` (maybe)
+ - [x] Rename `util.py` -> `lib.py` (maybe)
  - [x] Do not require matching of the project folder and .ioc file names (use first .ioc file found)
  - [x] Remove casts to string where we can use path-like objects
  - [x] Settings string templates and multi line
  - [ ] Smart `start_editor` test (detect editors in system, maybe use unittest `skipIf` decorator)
  - [ ] Maybe split tests to avoid long names (e.g. => `stm32pio.tests.test_unit` (but then we will have `stm32pio.tests.test_unit.Test` or so...)
  - [ ] For GUI: indicate progress as states goes forward (see `scratch.py`)
+ - [x] `init` command
+ - [x] New argparse algo cause now we have config file
+ - [ ] Update `.ioc` file
+ - [ ] `str(path)` -> `path` were possible

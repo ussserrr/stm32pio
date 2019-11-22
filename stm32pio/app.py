@@ -30,17 +30,19 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code")
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (WARNING: it deletes ALL content of "
                                                        "'path' except the .ioc file)")
+    parser_init = subparsers.add_parser('init', help="create config .ini file so you can tweak parameters before "
+                                                     "proceeding")
 
     # Common subparsers options
-    for p in [parser_new, parser_generate, parser_clean]:
-        p.add_argument('-d', '--directory', dest='project_path', help="path to the project (current directory, if not "
-                       "given)", default=pathlib.Path.cwd())
+    for p in [parser_new, parser_generate, parser_clean, parser_init]:
+        p.add_argument('-d', '--directory', dest='project_path', default=pathlib.Path.cwd(),
+                       help="path to the project (current directory, if not given)")
+    for p in [parser_new, parser_init]:
+        p.add_argument('-b', '--board', dest='board', help="PlatformIO name of the board", required=False)
     for p in [parser_new, parser_generate]:
         p.add_argument('--start-editor', dest='editor', help="use specified editor to open PlatformIO project (e.g. "
-                       "subl, code, atom)", required=False)
+                       "subl, code, atom, etc.)", required=False)
         p.add_argument('--with-build', action='store_true', help="build a project after generation", required=False)
-
-    parser_new.add_argument('-b', '--board', dest='board', help="PlatformIO name of the board", required=True)
 
     # Show help and exit if no arguments were given
     if len(args) == 0:
@@ -58,45 +60,53 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
     args = parse_args(sys_argv)
     if args is None or args.subcommand is None:
         print("\nNo arguments were given, exiting...")
-        return -1
+        return 0
 
     # Logger instance goes through the whole program.
     # Currently only 2 levels of verbosity through the '-v' option are counted (INFO and DEBUG)
     logger = logging.getLogger('stm32pio')
     if args.verbose:
-        logging.basicConfig(format="%(levelname)-8s %(funcName)-16s %(message)s", level=logging.DEBUG)
-        # logger.setLevel(logging.DEBUG)
+        logging.basicConfig(format="%(levelname)-8s %(funcName)-26s %(message)s", level=logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
         logger.debug("debug logging enabled")
     else:
         logging.basicConfig(format="%(levelname)-8s %(message)s", level=logging.INFO)
-        # logger.setLevel(logging.INFO)
+        logger.setLevel(logging.INFO)
 
     # Main routine
-    import stm32pio.util  # as we modify sys.path we should import the module there (i.e. after modification)
+    import stm32pio.lib  # import the module after sys.path modification
 
     try:
-        project = stm32pio.util.Stm32pio(args.project_path)
+        project = stm32pio.lib.Stm32pio(args.project_path)
+
+        if args.subcommand == 'init' or args.subcommand == 'new' or args.subcommand == 'generate':
+            project.init(board=args.board if 'board' in args else None)
+            if (args.subcommand == 'init' or args.subcommand == 'new') and project.config.get('project', 'board') == '':
+                logger.warning("STM32 board is not specified, it will be needed on PlatformIO project creation")
+            if args.subcommand == 'init':
+                logger.info('stm32pio project has been initialized. You can now edit parameters in stm32pio.ini file')
+                project.save_config()
 
         if args.subcommand == 'new' or args.subcommand == 'generate':
             project.generate_code()
             if args.subcommand == 'new':
-                project.pio_init(args.board)
+                project.pio_init()
                 project.patch()
+                project.save_config()
 
             if args.with_build:
                 project.pio_build()
             if args.editor:
                 project.start_editor(args.editor)
 
-        elif args.subcommand == 'clean':
+        if args.subcommand == 'clean':
             project.clean()
 
-    # util library is designed to throw the exception in bad cases so we catch here globally
+    # library is designed to throw the exception in bad cases so we catch here globally
     except Exception as e:
+        logger.error(repr(e))
         if logger.level <= logging.DEBUG:  # verbose
             traceback.print_exception(*sys.exc_info())
-        else:
-            print(repr(e))
         return -1
 
     logger.info("exiting...")
