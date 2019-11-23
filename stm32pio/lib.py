@@ -5,8 +5,10 @@ import subprocess
 import enum
 import configparser
 import string
+import sys
 import tempfile
-# import weakref
+import traceback
+import weakref
 
 import stm32pio.settings
 
@@ -25,44 +27,65 @@ class ProjectState(enum.IntEnum):
     BUILT = enum.auto()
 
 
-# NUM_OF_STATES = len(list(ProjectState))
-
-
 class Stm32pio:
     """
     Main class
     """
 
-    def __init__(self, dirty_path: str):
+    def __init__(self, dirty_path: str, parameters=None, save_on_destruction=True):
+        if parameters is None:
+            parameters = {}
+
         self.project_path = self._resolve_project_path(dirty_path)
         self.config = self._load_settings_file()
 
         ioc_file = self._find_ioc_file()
         self.config.set('project', 'ioc_file', str(ioc_file))
 
-        # self._finalizer = weakref.finalize(self, self.save_config)
-
-
-    def init(self, **kwargs):
         cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
         cubemx_script_content = cubemx_script_template.substitute(project_path=self.project_path,
             cubemx_ioc_full_filename=self.config.get('project', 'ioc_file'))
         self.config.set('project', 'cubemx_script_content', cubemx_script_content)
 
         board = ''
-        if 'board' in kwargs and kwargs['board'] is not None:
+        if 'board' in parameters and parameters['board'] is not None:
             try:
-                board = self._resolve_board(kwargs['board'])
+                board = self._resolve_board(parameters['board'])
             except Exception as e:
                 logger.warning(e)
             self.config.set('project', 'board', board)
         elif self.config.get('project', 'board', fallback=None) is None:
             self.config.set('project', 'board', board)
 
+        if save_on_destruction:
+            self._finalizer = weakref.finalize(self, self.save_config)
+
+
+    # def init(self, **kwargs):
+    #     cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
+    #     cubemx_script_content = cubemx_script_template.substitute(project_path=self.project_path,
+    #         cubemx_ioc_full_filename=self.config.get('project', 'ioc_file'))
+    #     self.config.set('project', 'cubemx_script_content', cubemx_script_content)
+    #
+    #     board = ''
+    #     if 'board' in kwargs and kwargs['board'] is not None:
+    #         try:
+    #             board = self._resolve_board(kwargs['board'])
+    #         except Exception as e:
+    #             logger.warning(e)
+    #         self.config.set('project', 'board', board)
+    #     elif self.config.get('project', 'board', fallback=None) is None:
+    #         self.config.set('project', 'board', board)
+
 
     def save_config(self):
-        with self.project_path.joinpath('stm32pio.ini').open(mode='w') as config_file:
-            self.config.write(config_file)
+        try:
+            with self.project_path.joinpath('stm32pio.ini').open(mode='w') as config_file:
+                self.config.write(config_file)
+        except Exception as e:
+            logger.warning(f"Cannot save config: {e}")
+            if logger.getEffectiveLevel() <= logging.DEBUG:
+                traceback.print_exception(*sys.exc_info())
 
 
     def get_state(self) -> ProjectState:
@@ -128,7 +151,7 @@ class Stm32pio:
             logger.debug("Searching for any .ioc file...")
             candidates = list(self.project_path.glob('*.ioc'))
             if len(candidates) == 0:
-                raise FileNotFoundError("CubeMX project .ioc file")
+                raise FileNotFoundError("Not found: CubeMX project .ioc file")
             elif len(candidates) == 1:
                 logger.debug(f"{candidates[0].name} is selected")
                 return candidates[0]
@@ -168,7 +191,7 @@ class Stm32pio:
         """
         resolved_path = pathlib.Path(dirty_path).expanduser().resolve()
         if not resolved_path.exists():
-            raise FileNotFoundError(resolved_path)
+            raise FileNotFoundError(f"Not found: {resolved_path}")
         else:
             return resolved_path
 
@@ -259,8 +282,8 @@ class Stm32pio:
         platformio_ini_file = self.project_path.joinpath('platformio.ini')
         if platformio_ini_file.is_file():
             with platformio_ini_file.open(mode='a') as f:
-                f.write(self.config.get('project', 'platformio_ini_patch_content') + '\n')
-            logger.info("'platformio.ini' patched")
+                f.write(self.config.get('project', 'platformio_ini_patch_content'))
+            logger.info("'platformio.ini' has been patched")
         else:
             logger.warning("'platformio.ini' file not found")
 

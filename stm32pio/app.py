@@ -34,10 +34,10 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
                                                      "proceeding")
 
     # Common subparsers options
-    for p in [parser_new, parser_generate, parser_clean, parser_init]:
+    for p in [parser_init, parser_new, parser_generate, parser_clean]:
         p.add_argument('-d', '--directory', dest='project_path', default=pathlib.Path.cwd(),
                        help="path to the project (current directory, if not given)")
-    for p in [parser_new, parser_init]:
+    for p in [parser_init, parser_new]:
         p.add_argument('-b', '--board', dest='board', help="PlatformIO name of the board", required=False)
     for p in [parser_new, parser_generate]:
         p.add_argument('--start-editor', dest='editor', help="use specified editor to open PlatformIO project (e.g. "
@@ -77,35 +77,40 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
     import stm32pio.lib  # import the module after sys.path modification
 
     try:
-        project = stm32pio.lib.Stm32pio(args.project_path)
-
-        if args.subcommand == 'init' or args.subcommand == 'new' or args.subcommand == 'generate':
-            project.init(board=args.board if 'board' in args else None)
-            if (args.subcommand == 'init' or args.subcommand == 'new') and project.config.get('project', 'board') == '':
+        if args.subcommand == 'init':
+            stm32pio.lib.Stm32pio(args.project_path, parameters={'board': args.board if 'board' in args else None})
+            if 'board' not in args:
                 logger.warning("STM32 board is not specified, it will be needed on PlatformIO project creation")
-            if args.subcommand == 'init':
-                logger.info('stm32pio project has been initialized. You can now edit parameters in stm32pio.ini file')
-                project.save_config()
 
-        if args.subcommand == 'new' or args.subcommand == 'generate':
+        elif args.subcommand == 'new':
+            if 'board' in args:
+                project = stm32pio.lib.Stm32pio(args.project_path, parameters={'board': args.board})
+            else:
+                raise Exception("STM32 board is not specified, it is needed for PlatformIO project creation")
             project.generate_code()
-            if args.subcommand == 'new':
-                project.pio_init()
-                project.patch()
-                project.save_config()
-
+            project.pio_init()
+            project.patch()
             if args.with_build:
                 project.pio_build()
             if args.editor:
                 project.start_editor(args.editor)
 
-        if args.subcommand == 'clean':
+        elif args.subcommand == 'generate':
+            project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
+            project.generate_code()
+            if args.with_build:
+                project.pio_build()
+            if args.editor:
+                project.start_editor(args.editor)
+
+        elif args.subcommand == 'clean':
+            project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
             project.clean()
 
     # library is designed to throw the exception in bad cases so we catch here globally
     except Exception as e:
-        logger.error(repr(e))
-        if logger.level <= logging.DEBUG:  # verbose
+        logger.error(e)
+        if logger.getEffectiveLevel() <= logging.DEBUG:  # verbose
             traceback.print_exception(*sys.exc_info())
         return -1
 

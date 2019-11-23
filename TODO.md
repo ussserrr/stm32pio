@@ -24,3 +24,4 @@
  - [x] New argparse algo cause now we have config file
  - [ ] Update `.ioc` file
  - [ ] `str(path)` -> `path` were possible
+ - [ ] Check `start_editor()` for different input

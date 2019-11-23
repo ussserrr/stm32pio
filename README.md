@@ -83,7 +83,7 @@ to see help.
 ## Testing
 Since ver. 0.45 there are some unit-tests in file `stm32pio/tests/test.py` (based on the unittest module). Run
 ```shell script
-stm32pio-repo/ $   python3 -m unittest discover -v
+stm32pio-repo/ $   python3 -m unittest -b -v
 ```
 or
 ```shell script
