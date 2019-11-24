@@ -1,3 +1,4 @@
+import collections
 import logging
 import pathlib
 import shutil
@@ -61,23 +62,6 @@ class Stm32pio:
             self._finalizer = weakref.finalize(self, self.save_config)
 
 
-    # def init(self, **kwargs):
-    #     cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
-    #     cubemx_script_content = cubemx_script_template.substitute(project_path=self.project_path,
-    #         cubemx_ioc_full_filename=self.config.get('project', 'ioc_file'))
-    #     self.config.set('project', 'cubemx_script_content', cubemx_script_content)
-    #
-    #     board = ''
-    #     if 'board' in kwargs and kwargs['board'] is not None:
-    #         try:
-    #             board = self._resolve_board(kwargs['board'])
-    #         except Exception as e:
-    #             logger.warning(e)
-    #         self.config.set('project', 'board', board)
-    #     elif self.config.get('project', 'board', fallback=None) is None:
-    #         self.config.set('project', 'board', board)
-
-
     def save_config(self):
         try:
             with self.project_path.joinpath('stm32pio.ini').open(mode='w') as config_file:
@@ -101,30 +85,35 @@ class Stm32pio:
         logger.debug("Calculating project state...")
         logger.debug(f"Project content: {[item.name for item in self.project_path.iterdir()]}")
 
-        states_conditions = {
-            ProjectState.UNDEFINED: [True],
-            ProjectState.INITIALIZED: [self.project_path.joinpath('stm32pio.ini').is_file()],
-            ProjectState.GENERATED: [self.project_path.joinpath('Inc').is_dir() and
-                                     len(list(self.project_path.joinpath('Inc').iterdir())) > 0,
-                                     self.project_path.joinpath('Src').is_dir() and
-                                     len(list(self.project_path.joinpath('Src').iterdir())) > 0],
-            ProjectState.PIO_INITIALIZED: [self.project_path.joinpath('platformio.ini').is_file() and
-                                           len(self.project_path.joinpath('platformio.ini').read_text()) > 0],
-            ProjectState.PIO_INI_PATCHED: [self.project_path.joinpath('platformio.ini').is_file() and
-                                           self.config.get('project', 'platformio_ini_patch_content') in
-                                           self.project_path.joinpath('platformio.ini').read_text()],
-            ProjectState.BUILT: [self.project_path.joinpath('.pio').is_dir() and
-                                 any([item.is_file() for item in self.project_path.joinpath('.pio').rglob('*firmware*')])]
-        }
+        states_conditions = collections.OrderedDict()
+        states_conditions[ProjectState.UNDEFINED] = [True]
+        states_conditions[ProjectState.INITIALIZED] = [self.project_path.joinpath('stm32pio.ini').is_file()]
+        states_conditions[ProjectState.GENERATED] = [self.project_path.joinpath('Inc').is_dir() and
+                                                     len(list(self.project_path.joinpath('Inc').iterdir())) > 0,
+                                                     self.project_path.joinpath('Src').is_dir() and
+                                                     len(list(self.project_path.joinpath('Src').iterdir())) > 0]
+        states_conditions[ProjectState.PIO_INITIALIZED] = [
+            self.project_path.joinpath('platformio.ini').is_file() and
+            len(self.project_path.joinpath('platformio.ini').read_text()) > 0]
+        states_conditions[ProjectState.PIO_INI_PATCHED] = [
+            self.project_path.joinpath('platformio.ini').is_file() and
+            self.config.get('project', 'platformio_ini_patch_content') in
+            self.project_path.joinpath('platformio.ini').read_text(),
+            not self.project_path.joinpath('include').is_dir()]
+        states_conditions[ProjectState.BUILT] = [
+            self.project_path.joinpath('.pio').is_dir() and
+            any([item.is_file() for item in self.project_path.joinpath('.pio').rglob('*firmware*')])]
 
-        # Use (1,0) instead of (True,False) because on debug printing it looks cleaner
-        conditions_results = [1 if all(conditions is True for conditions in states_conditions[state]) else 0
-                              for state in ProjectState]
+        # Use (1,0) instead of (True,False) because on debug printing it looks better
+        conditions_results = []
+        for state, conditions in states_conditions.items():
+            conditions_results.append(1 if all(condition is True for condition in conditions) else 0)
+
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
         if logger.getEffectiveLevel() <= logging.DEBUG:
             states_info_str = '\n'.join(f"{state.name:20}{conditions_results[state.value-1]}" for state in ProjectState)
-            logger.debug(f"Determined states: {states_info_str}")
+            logger.debug(f"Determined states:\n{states_info_str}")
 
         last_true_index = 0  # UNDEFINED is always True
         for index, value in enumerate(conditions_results):
@@ -207,7 +196,7 @@ class Stm32pio:
         # result = subprocess.run(['platformio', 'boards'], encoding='utf-8', capture_output=True)
         if result.returncode == 0:
             if board not in result.stdout.split():
-                raise Exception("wrong STM32 board. Run 'platformio boards' for possible names")
+                raise Exception("wrong PlatformIO STM32 board. Run 'platformio boards' for possible names")
             else:
                 return board
         else:
@@ -250,7 +239,7 @@ class Stm32pio:
 
         logger.info("starting PlatformIO project initialization...")
 
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', self.project_path, '-b', self.config.get('project', 'board'),
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', str(self.project_path), '-b', self.config.get('project', 'board'),
                        '-O', 'framework=stm32cube']
         if logger.getEffectiveLevel() > logging.DEBUG:
             command_arr.append('--silent')
@@ -300,7 +289,7 @@ class Stm32pio:
             editor_command: editor command (as we start in the terminal)
         """
 
-        logger.info("starting an editor...")
+        logger.info(f"starting an editor '{editor_command}'...")
 
         try:
             subprocess.run([editor_command, self.project_path], check=True)
