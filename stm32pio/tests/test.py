@@ -180,7 +180,7 @@ class TestIntegration(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(FIXTURE_PATH, ignore_errors=True)
 
-    def test_config_prioritites(self):
+    def test_config_priorities(self):
         custom_content = "SOME CUSTOM CONTENT"
 
         config = configparser.ConfigParser()
@@ -315,10 +315,12 @@ class TestCLI(unittest.TestCase):
     def test_incorrect_path(self):
         """
         """
+        path_not_exist = pathlib.Path('path/does/not/exist')
+
         with self.assertLogs(level='ERROR') as logs:
-            return_code = stm32pio.app.main(sys_argv=['init', '-d', '~/path/does/not/exist'])
+            return_code = stm32pio.app.main(sys_argv=['init', '-d', str(path_not_exist)])
             self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
-            self.assertTrue(next(True for item in logs.output if 'path/does/not/exist' in item),
+            self.assertTrue(next(True for item in logs.output if str(path_not_exist) in item),  # TODO: fix to not raise on not found
                             msg="ERROR logging message hasn't been printed")
 
     def test_no_ioc_file(self):
@@ -343,7 +345,7 @@ class TestCLI(unittest.TestCase):
         # get the current python executable (no need to guess whether it's python or python3 and so on)
         python_exec = sys.executable
 
-        result = subprocess.run([python_exec, stm32pio_exec, '-v', 'generate', '-d', FIXTURE_PATH], encoding='utf-8',
+        result = subprocess.run([python_exec, stm32pio_exec, '-v', 'generate', '-d', str(FIXTURE_PATH)], encoding='utf-8',
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
@@ -355,7 +357,7 @@ class TestCLI(unittest.TestCase):
         """
         """
 
-        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', FIXTURE_PATH], encoding='utf-8',
+        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(FIXTURE_PATH)], encoding='utf-8',
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
@@ -364,7 +366,7 @@ class TestCLI(unittest.TestCase):
         self.assertNotIn('Starting STM32CubeMX', result.stdout, msg="STM32CubeMX printed its logs")
 
     def test_init(self):
-        subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', FIXTURE_PATH, '-b', TEST_PROJECT_BOARD])
+        subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD])
 
         self.assertTrue(FIXTURE_PATH.joinpath('stm32pio.ini').is_file(), msg="'stm32pio.ini' file hasn't been created")
 

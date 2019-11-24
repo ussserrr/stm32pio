@@ -87,9 +87,8 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'new':
-            if 'board' in args and args.board is not None:
-                project = stm32pio.lib.Stm32pio(args.project_path, parameters={'board': args.board})
-            else:
+            project = stm32pio.lib.Stm32pio(args.project_path, parameters={'board': args.board})
+            if project.config.get('project', 'board') == '':
                 raise Exception("STM32 PlatformIO board is not specified, it is needed for PlatformIO project creation")
             project.generate_code()
             project.pio_init()

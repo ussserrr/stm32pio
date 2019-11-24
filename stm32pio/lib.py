@@ -208,13 +208,15 @@ class Stm32pio:
         Call STM32CubeMX app as a 'java -jar' file with the automatically prearranged 'cubemx-script' file
         """
 
+        cubemx_script_file, cubemx_script_name = tempfile.mkstemp()
+
         # buffering=0 leads to the immediate flushing on writing
-        with tempfile.NamedTemporaryFile(buffering=0) as cubemx_script:
+        with open(cubemx_script_file, mode='w+b', buffering=0) as cubemx_script:
             cubemx_script.write(self.config.get('project', 'cubemx_script_content').encode())
 
             logger.info("starting to generate a code from the CubeMX .ioc file...")
             command_arr = [self.config.get('app', 'java_cmd'), '-jar', self.config.get('app', 'cubemx_cmd'), '-q',
-                           cubemx_script.name, '-s']
+                           cubemx_script_name, '-s']
             if logger.getEffectiveLevel() <= logging.DEBUG:
                 result = subprocess.run(command_arr)
             else:
@@ -228,6 +230,7 @@ class Stm32pio:
                              "Try to enable a verbose output or generate a code from the CubeMX itself.")
                 raise Exception("code generation error")
 
+        pathlib.Path(cubemx_script_name).unlink()
 
     def pio_init(self) -> int:
         """
@@ -292,7 +295,7 @@ class Stm32pio:
         logger.info(f"starting an editor '{editor_command}'...")
 
         try:
-            subprocess.run([editor_command, self.project_path], check=True)
+            subprocess.run([editor_command, str(self.project_path)], check=True)
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to start the editor {editor_command}: {e.stderr}")
 
@@ -311,7 +314,7 @@ class Stm32pio:
             logger.error("no 'platformio.ini' file, build is impossible")
             return -1
 
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', self.project_path]
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', str(self.project_path)]
         if logger.getEffectiveLevel() > logging.DEBUG:
             command_arr.append('--silent')
         result = subprocess.run(command_arr)
