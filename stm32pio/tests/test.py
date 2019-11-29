@@ -14,31 +14,44 @@ import stm32pio.settings
 import stm32pio.lib
 
 
+STM32PIO_MAIN_SCRIPT = inspect.getfile(stm32pio.app)  # absolute path to the main stm32pio script
+# absolute path to the Python executable (no need to guess whether it's python or python3 and so on)
+PYTHON_EXEC = sys.executable
+
 # Test data
 TEST_PROJECT_PATH = pathlib.Path('stm32pio-test-project').resolve()
 if not TEST_PROJECT_PATH.is_dir() or not TEST_PROJECT_PATH.joinpath('stm32pio-test-project.ioc').is_file():
     raise FileNotFoundError("No test project is present")
+# Make sure you have F0 framework installed (try to run code generation from STM32CubeMX manually at least once before
+# proceeding)
 TEST_PROJECT_BOARD = 'nucleo_f031k6'
 
 
+# Instantiate a temporary folder on every fixture run. It is used across all tests and is deleted on shutdown
 temp_dir = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
 
-STM32PIO_MAIN_SCRIPT = inspect.getfile(stm32pio.app)
-PYTHON_EXEC = sys.executable
 
-
-class TestUnit(unittest.TestCase):
-    """
-
-    """
-
-    def setUp(self) -> None:
-        self.tearDown()
+class CustomTestCase(unittest.TestCase):
+    def setUp(self):
+        """
+        Copy the test project from the repo to our temp directory
+        """
+        shutil.rmtree(FIXTURE_PATH, ignore_errors=True)
         shutil.copytree(TEST_PROJECT_PATH, FIXTURE_PATH)
 
-    def tearDown(self) -> None:
+    def tearDown(self):
+        """
+        Clean the temp directory
+        """
         shutil.rmtree(FIXTURE_PATH, ignore_errors=True)
+
+
+class TestUnit(CustomTestCase):
+    """
+    Test the single method. As we at some point decided to use a class instead of the set of scattered functions we need
+    to do some preparations for almost every test (e.g. instantiate the class, create the PlatformIO project, etc.)
+    """
 
     def test_generate_code(self):
         """
@@ -47,7 +60,7 @@ class TestUnit(unittest.TestCase):
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD})
         project.generate_code()
 
-        # Assuming that the presence of these files indicates a success
+        # Assuming that the presence of these files indicating a success
         files_should_be_present = ['Src/main.c', 'Inc/main.h']
         for file in files_should_be_present:
             with self.subTest(file_should_be_present=file, msg=f"{file} hasn't been created"):
@@ -55,7 +68,7 @@ class TestUnit(unittest.TestCase):
 
     def test_pio_init(self):
         """
-        Consider that existence of 'platformio.ini' file is displaying successful PlatformIO project initialization
+        Consider that existence of 'platformio.ini' file showing a successful PlatformIO project initialization
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD})
         result = project.pio_init()
@@ -65,12 +78,12 @@ class TestUnit(unittest.TestCase):
 
     def test_patch(self):
         """
-        Compare contents of the patched string and the desired patch
+        Compare contents of the patched string and the patch itself
         """
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH)
         test_content = "*** TEST PLATFORMIO.INI FILE ***"
         FIXTURE_PATH.joinpath('platformio.ini').write_text(test_content)
 
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH)
         project.patch()
 
         self.assertFalse(FIXTURE_PATH.joinpath('include').is_dir(), msg="'include' has not been deleted")
@@ -90,8 +103,7 @@ class TestUnit(unittest.TestCase):
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD})
         project.pio_init()
 
-        with self.assertRaisesRegex(Exception, "PlatformIO build error",
-                                    msg="Build error exception hadn't been raised"):
+        with self.assertRaisesRegex(Exception, "PlatformIO build error", msg="Build exception hadn't been raised"):
             project.pio_build()
 
     def test_run_editor(self):
@@ -119,41 +131,52 @@ class TestUnit(unittest.TestCase):
         }
 
         for command, name in editors.items():
+            # Look for the command presence in the system so we test only installed editors
             if platform.system() == 'Windows':
                 command_str = f"where {command} /q"
             else:
                 command_str = f"command -v {command}"
-            editor_exists = True if subprocess.run(command_str, shell=True, stdout=subprocess.PIPE,
-                                                   stderr=subprocess.PIPE).returncode == 0\
-                            else False
+            editor_exists = False
+            if subprocess.run(command_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode == 0:
+                editor_exists = True
+
             if editor_exists:
                 with self.subTest(command=command, name=name[platform.system()]):
                     project.start_editor(command)
+
                     time.sleep(1)  # wait a little bit for app to start
+
+                    command_arr = ['ps', '-A']
                     if platform.system() == 'Windows':
-                        # "encoding='utf-8'" is for "a bytes-like object is required, not 'str'" in "assertIn"
-                        result = subprocess.run(['wmic', 'process', 'get', 'description'],
-                                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
-                    else:
-                        result = subprocess.run(['ps', '-A'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                                encoding='utf-8')
-                        # Or, for Python 3.7 and above:
-                        # result = subprocess.run(['ps', '-A'], capture_output=True, encoding='utf-8')
+                        command_arr = ['wmic', 'process', 'get', 'description']
+                    # "encoding='utf-8'" is for "a bytes-like object is required, not 'str'" in "assertIn"
+                    result = subprocess.run(command_arr, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                            encoding='utf-8')
+                    # Or, for Python 3.7 and above:
+                    # result = subprocess.run(command_arr, capture_output=True, encoding='utf-8')
                     self.assertIn(name[platform.system()], result.stdout)
 
     def test_init_path_not_found_should_raise(self):
         """
         Pass non-existing path and expect the error
         """
-        path_does_not_exist = 'does_not_exist'
+        path_does_not_exist_name = 'does_not_exist'
 
-        not_existing_path = FIXTURE_PATH.joinpath(path_does_not_exist)
+        path_does_not_exist = FIXTURE_PATH.joinpath(path_does_not_exist_name)
+        # 'cm' is for context manager
         with self.assertRaises(FileNotFoundError, msg="FileNotFoundError was not raised") as cm:
-            stm32pio.lib.Stm32pio(not_existing_path)
-            self.assertIn(path_does_not_exist, str(cm.exception), msg="Exception doesn't contain a description")
+            stm32pio.lib.Stm32pio(path_does_not_exist)
+            self.assertIn(path_does_not_exist_name, str(cm.exception), msg="Exception doesn't contain a description")
 
     def test_save_config(self):
+        """
+        Explicitly save the config to file and look did that actually happen and whether all the information was
+        preserved
+        """
+
+        # 'board' is non-default, 'project'-section parameter
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD})
+
         project.save_config()
 
         self.assertTrue(FIXTURE_PATH.joinpath('stm32pio.ini').is_file(), msg="'stm32pio.ini' file hasn't been created")
@@ -168,36 +191,36 @@ class TestUnit(unittest.TestCase):
                          msg="'board' has not been set")
 
 
-class TestIntegration(unittest.TestCase):
+class TestIntegration(CustomTestCase):
     """
-
+    Sequence of methods that should work seamlessly
     """
-
-    def setUp(self) -> None:
-        self.tearDown()
-        shutil.copytree(TEST_PROJECT_PATH, FIXTURE_PATH)
-
-    def tearDown(self) -> None:
-        shutil.rmtree(FIXTURE_PATH, ignore_errors=True)
 
     def test_config_priorities(self):
+        """
+        Test the compliance with priorities when reading the parameters
+        """
+
         custom_content = "SOME CUSTOM CONTENT"
 
+        # Create test config
         config = configparser.ConfigParser()
         config.read_dict({
             'project': {
                 'platformio_ini_patch_content': custom_content
             }
         })
+        # ... save it
         with FIXTURE_PATH.joinpath('stm32pio.ini').open(mode='w') as config_file:
             config.write(config_file)
 
+        # On project creation we should get the CLI-provided value as superseding to the saved one
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD})
         project.pio_init()
         project.patch()
 
         after_patch_content = FIXTURE_PATH.joinpath('platformio.ini').read_text()
-        self.assertIn(custom_content, after_patch_content, msg="Patch content is not from user config")
+        self.assertIn(custom_content, after_patch_content, msg="Patch content is not from CLI argument")
 
     def test_build(self):
         """
@@ -250,23 +273,13 @@ class TestIntegration(unittest.TestCase):
                       msg=f"User content hasn't been preserved after regeneration in {test_file_2}")
 
 
-class TestCLI(unittest.TestCase):
+class TestCLI(CustomTestCase):
     """
-
+    Some tests to mimic the behavior of end-user tasks (CLI commands such as 'new', 'clean', etc.). Run main function
+    passing the arguments to it but sometimes even run as subprocess (to capture actual STDOUT/STDERR output)
     """
-
-    def setUp(self) -> None:
-        self.tearDown()
-        shutil.copytree(TEST_PROJECT_PATH, FIXTURE_PATH)
-
-    def tearDown(self) -> None:
-        shutil.rmtree(FIXTURE_PATH, ignore_errors=True)
 
     def test_clean(self):
-        """
-        Dangerous test actually...
-        """
-
         # Create files and folders
         file_should_be_deleted = FIXTURE_PATH.joinpath('file.should.be.deleted')
         dir_should_be_deleted = FIXTURE_PATH.joinpath('dir.should.be.deleted')
@@ -296,8 +309,6 @@ class TestCLI(unittest.TestCase):
         self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
 
     def test_generate(self):
-        """
-        """
         return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(FIXTURE_PATH)])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
@@ -312,21 +323,16 @@ class TestCLI(unittest.TestCase):
         # .ioc file should be preserved
         self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
 
-    def test_incorrect_path(self):
-        """
-        """
+    def test_incorrect_path_should_log_error(self):
         path_not_exist = pathlib.Path('path/does/not/exist')
 
         with self.assertLogs(level='ERROR') as logs:
             return_code = stm32pio.app.main(sys_argv=['init', '-d', str(path_not_exist)])
             self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
             self.assertTrue(next(True for item in logs.output if str(path_not_exist) in item),  # TODO: fix to not raise on not found
-                            msg="ERROR logging message hasn't been printed")
+                            msg="'ERROR' logging message hasn't been printed")
 
-    def test_no_ioc_file(self):
-        """
-        """
-
+    def test_no_ioc_file_should_log_error(self):
         dir_with_no_ioc_file = FIXTURE_PATH.joinpath('dir.with.no.ioc.file')
         dir_with_no_ioc_file.mkdir(exist_ok=False)
 
@@ -334,18 +340,14 @@ class TestCLI(unittest.TestCase):
             return_code = stm32pio.app.main(sys_argv=['init', '-d', str(dir_with_no_ioc_file)])
             self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
             self.assertTrue(next(True for item in logs.output if "CubeMX project .ioc file" in item),
-                            msg="ERROR logging message hasn't been printed")
+                            msg="'ERROR' logging message hasn't been printed")
 
     def test_verbose(self):
         """
-        Run as subprocess (can be done as assertLogs(), see above)
+        Run as subprocess to capture the full output. Check for both 'DEBUG' logging messages and STM32CubeMX CLI output
         """
 
-        stm32pio_exec = inspect.getfile(stm32pio.app)  # get the path to the main stm32pio script
-        # get the current python executable (no need to guess whether it's python or python3 and so on)
-        python_exec = sys.executable
-
-        result = subprocess.run([python_exec, stm32pio_exec, '-v', 'generate', '-d', str(FIXTURE_PATH)], encoding='utf-8',
+        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'generate', '-d', str(FIXTURE_PATH)], encoding='utf-8',
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
