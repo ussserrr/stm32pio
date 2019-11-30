@@ -13,12 +13,19 @@ from typing import Optional
 
 def parse_args(args: list) -> Optional[argparse.Namespace]:
     """
+    Dedicated function to parse the arguments given via the CLI
 
+    Args:
+        args: list of strings
+
+    Returns:
+        argparse.Namespace or None if no arguments were given
     """
 
     parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
-                                                 "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Edit "
-                                                 "settings.py to set path to the STM32CubeMX (if default doesn't work)")
+                                                 "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Run "
+                                                 "'init' command to create settings file and set the path to "
+                                                 "STM32CubeMX and other tools (if defaults doesn't work)")
     # Global arguments (there is also an automatically added '-h, --help' option)
     parser.add_argument('--version', action='version', version=f"stm32pio v{__version__}")
     parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', required=False)
@@ -26,12 +33,12 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     subparsers = parser.add_subparsers(dest='subcommand', title='subcommands', description="valid subcommands",
                                        help="modes of operation")
 
+    parser_init = subparsers.add_parser('init', help="create config .ini file so you can tweak parameters before "
+                                                     "proceeding")
     parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code")
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (WARNING: it deletes ALL content of "
                                                        "'path' except the .ioc file)")
-    parser_init = subparsers.add_parser('init', help="create config .ini file so you can tweak parameters before "
-                                                     "proceeding")
 
     # Common subparsers options
     for p in [parser_init, parser_new, parser_generate, parser_clean]:
@@ -45,7 +52,6 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     for p in [parser_new, parser_generate]:
         p.add_argument('--with-build', action='store_true', required=False, help="build a project after generation")
 
-    # Show help and exit if no arguments were given
     if len(args) == 0:
         parser.print_help()
         return None
@@ -55,24 +61,34 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
 
 def main(sys_argv: list = sys.argv[1:]) -> int:
     """
+    Can be used as high-level wrapper to do complete tasks
 
+    Example:
+        ret_code = stm32pio.app.main(sys_argv=['new', '-d', '~/path/to/project', '-b', 'nucleo_f031k6', '--with-build'])
+
+    Args:
+        sys_argv: list of strings
     """
 
     args = parse_args(sys_argv)
+    # Show help and exit if no arguments were given
     if args is None or args.subcommand is None:
         print("\nNo arguments were given, exiting...")
         return 0
 
     # Logger instance goes through the whole program.
-    # Currently only 2 levels of verbosity through the '-v' option are counted (INFO and DEBUG)
+    # Currently only 2 levels of verbosity through the '-v' option are counted (INFO (default) and DEBUG (-v))
     logger = logging.getLogger('stm32pio')
+    handler = logging.StreamHandler()
     if args.verbose:
-        logging.basicConfig(format="%(levelname)-8s %(funcName)-26s %(message)s", level=logging.DEBUG)
         logger.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter("%(levelname)-8s %(funcName)-26s %(message)s"))
+        logger.addHandler(handler)
         logger.debug("debug logging enabled")
     else:
-        logging.basicConfig(format="%(levelname)-8s %(message)s", level=logging.INFO)
         logger.setLevel(logging.INFO)
+        handler.setFormatter(logging.Formatter("%(levelname)-8s %(message)s"))
+        logger.addHandler(handler)
 
     # Main routine
     import stm32pio.lib  # import the module after sys.path modification

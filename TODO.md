@@ -26,5 +26,5 @@
  - [ ] `str(path)` -> `path` were possible
  - [ ] Check `start_editor()` for different input
  - [ ] Test on Python 3.6
- - [ ] Test `get_state()` (as sequence of states)
+ - [ ] Test `get_state()` (as sequence of states (see scratch.py))
  - [ ] Remake `get_state()` as property value (read-only getter)
