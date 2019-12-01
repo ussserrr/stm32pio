@@ -100,5 +100,5 @@ stm32pio changelog:
         - Changed: actualized .ioc file and clean-up the code according to the latest STM32CubeMX version (5.3.0 at the moment)
         - Changed: revised and improved util module
 
-    ver. 0.9 (11.19):
+    ver. 0.9 (12.19):
         - New: tested with Python3 version of PlatformIO

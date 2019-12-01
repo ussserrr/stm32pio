@@ -32,3 +32,5 @@ config_default = collections.OrderedDict(
         'platformio_ini_patch_content': "[platformio]\ninclude_dir = Inc\nsrc_dir = Src\n"
     }
 )
+
+config_file_name = 'stm32pio.ini'

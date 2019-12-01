@@ -1,3 +1,8 @@
+"""
+Note: pyenv is recommended to use for testing with different Python versions
+https://www.tecmint.com/pyenv-install-and-manage-multiple-python-versions-in-linux/
+"""
+
 import unittest
 import configparser
 import pathlib
@@ -31,8 +36,15 @@ TEST_PROJECT_BOARD = 'nucleo_f031k6'
 temp_dir = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
 
+def tearDownModule():
+    temp_dir.cleanup()
+
 
 class CustomTestCase(unittest.TestCase):
+    """
+    These pre- and post-tasks are common for all test cases
+    """
+
     def setUp(self):
         """
         Copy the test project from the repo to our temp directory
@@ -45,13 +57,6 @@ class CustomTestCase(unittest.TestCase):
         Clean the temp directory
         """
         shutil.rmtree(FIXTURE_PATH, ignore_errors=True)
-
-
-def tearDownModule():
-    """
-    Clean up after yourself
-    """
-    temp_dir.cleanup()
 
 
 class TestUnit(CustomTestCase):
@@ -190,10 +195,11 @@ class TestUnit(CustomTestCase):
 
         project.save_config()
 
-        self.assertTrue(FIXTURE_PATH.joinpath('stm32pio.ini').is_file(), msg="'stm32pio.ini' file hasn't been created")
+        self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
+                        msg=f"{stm32pio.settings.config_file_name} file hasn't been created")
 
         config = configparser.ConfigParser()
-        config.read(str(FIXTURE_PATH.joinpath('stm32pio.ini')))
+        config.read(str(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name)))
         for section, parameters in stm32pio.settings.config_default.items():
             for option, value in parameters.items():
                 with self.subTest(section=section, option=option, msg="Section/key is not found in saved config file"):
@@ -222,7 +228,7 @@ class TestIntegration(CustomTestCase):
             }
         })
         # ... save it
-        with FIXTURE_PATH.joinpath('stm32pio.ini').open(mode='w') as config_file:
+        with FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
             config.write(config_file)
 
         # On project creation we should get the CLI-provided value as superseding to the saved one
@@ -390,10 +396,10 @@ class TestCLI(CustomTestCase):
 
         subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD])
 
-        self.assertTrue(FIXTURE_PATH.joinpath('stm32pio.ini').is_file(), msg="'stm32pio.ini' file hasn't been created")
+        self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(), msg=f"{stm32pio.settings.config}_file_name file hasn't been created")
 
         config = configparser.ConfigParser()
-        config.read(str(FIXTURE_PATH.joinpath('stm32pio.ini')))
+        config.read(str(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name)))
         for section, parameters in stm32pio.settings.config_default.items():
             for option, value in parameters.items():
                 with self.subTest(section=section, option=option, msg="Section/key is not found in saved config file"):

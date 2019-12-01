@@ -5,6 +5,7 @@
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
  - [x] Function annotations
  - [ ] GUI. For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output. At left is a list of recent projects
+ - [ ] GUI. Indicate the progress as states goes forward during the run (see `scratch.py`)
  - [x] Remade as Class (constructor `__init__(project_path)`)
  - [x] Config file for every project instead of the `settings.py` (but we still sill be storing the default parameters there)
  - [x] Test CLI (integration testing)
@@ -17,14 +18,12 @@
  - [x] Do not require matching of the project folder and .ioc file names (use first .ioc file found)
  - [x] Remove casts to string where we can use path-like objects
  - [x] Settings string templates and multi line
- - [ ] Smart `start_editor` test (detect editors in system, maybe use unittest `skipIf` decorator)
- - [ ] Maybe split tests to avoid long names (e.g. => `stm32pio.tests.test_unit` (but then we will have `stm32pio.tests.test_unit.Test` or so...)
- - [ ] For GUI: indicate progress as states goes forward (see `scratch.py`)
+ - [x] Smart `start_editor` test (detect editors in system, maybe use unittest `skipIf` decorator)
  - [x] `init` command
  - [x] New argparse algo cause now we have config file
  - [ ] Update `.ioc` file
- - [ ] `str(path)` -> `path` were possible
- - [ ] Check `start_editor()` for different input
- - [ ] Test on Python 3.6
- - [ ] Test `get_state()` (as sequence of states (see scratch.py))
- - [ ] Remake `get_state()` as property value (read-only getter)
+ - [x] `str(path)` -> `path` were possible
+ - [x] Check `start_editor()` for different input
+ - [x] Test on Python 3.6
+ - [ ] Test for `get_state()` (as sequence of states (see scratch.py))
+ - [ ] Remake `get_state()` as property value (read-only getter with decorator)
