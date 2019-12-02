@@ -110,7 +110,7 @@ class TestUnit(CustomTestCase):
                          stm32pio.settings.config_default['project']['platformio_ini_patch_content'],
                          msg="Patch content is not as expected")
 
-    def test_build_should_raise(self):
+    def test_build_should_handle_error(self):
         """
         Build an empty project so PlatformIO should return non-zero code and we, in turn, should throw the exception
         """
@@ -118,8 +118,9 @@ class TestUnit(CustomTestCase):
                                         save_on_destruction=False)
         project.pio_init()
 
-        with self.assertRaisesRegex(Exception, "PlatformIO build error", msg="Build exception hadn't been raised"):
-            project.pio_build()
+        self.assertEqual(project.pio_build(), -1, msg="Build error was not been indicated")
+        # with self.assertRaisesRegex(Exception, "PlatformIO build error", msg="Build exception hadn't been raised"):
+        #     project.pio_build()
 
     def test_run_editor(self):
         """
@@ -396,7 +397,8 @@ class TestCLI(CustomTestCase):
 
         subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD])
 
-        self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(), msg=f"{stm32pio.settings.config}_file_name file hasn't been created")
+        self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
+                        msg=f"{stm32pio.settings.config_file_name} file hasn't been created")
 
         config = configparser.ConfigParser()
         config.read(str(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name)))

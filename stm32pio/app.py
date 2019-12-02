@@ -73,7 +73,7 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
     args = parse_args(sys_argv)
     # Show help and exit if no arguments were given
     if args is None or args.subcommand is None:
-        print("\nNo arguments were given, exiting...")
+        print("\nNo arguments were given, exiting...")  # TODO: replace 'print' with 'logger.info'
         return 0
 
     # Logger instance goes through the whole program.

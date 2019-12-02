@@ -1,15 +1,17 @@
 # stm32pio
 Small cross-platform Python app that can create and update [PlatformIO](https://platformio.org) projects from [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html) `.ioc` files.
 
+It uses STM32CubeMX to generate a HAL-framework based code and creates PlatformIO project with the compatible `stm32cube` framework specified.
+
 ![Logo](/screenshots/logo.png)
 
 
 ## Features
   - Start the new project in a single directory using only an `.ioc` file
   - Update existing project after changing hardware options from CubeMX
-  - Clean-up the project (WARNING: it deletes ALL content of 'path' except the `.ioc` file!)
+  - Clean-up the project (WARNING: it deletes ALL content of project path except the `.ioc` file!)
   - *[optional]* Automatically run your favorite editor in the end
-  - *[optional]* Make an initial build of the project
+  - *[optional]* Automatically make an initial build of the project
 
 
 ## Requirements:
@@ -17,9 +19,9 @@ Small cross-platform Python app that can create and update [PlatformIO](https://
     - Python 3.6+
   - For usage:
     - macOS, Linux, Windows
-    - STM32CubeMX (all recent versions) with downloaded necessary frameworks (F0, F1, etc.)
+    - STM32CubeMX (all recent versions) with desired downloaded frameworks (F0, F1, etc.)
     - Java CLI (JRE) (likely is already installed if STM32CubeMX works)
-    - PlatformIO CLI
+    - PlatformIO CLI (already presented if you have installed PlatformIO via some package manager or need to be installed as the command line extension from IDE)
 
 A general recommendation there would be to try to generate and build a code manually (via the CubeMX GUI and PlatformIO CLI or IDE) at least once before using stm32pio to make sure that all tools are working properly.
 
@@ -37,20 +39,24 @@ $ pip3 uninstall stm32pio
 
 ## Usage
 Basically, you need to follow such a pattern:
-  1. Create CubeMX project, set-up hardware configuration
-  2. Run stm32pio that automatically invoke CubeMX to generate the code, create PlatformIO project, patch an '.ini' file and so on
-  3. Work on the project in your editor, compile/upload/debug it
+  1. Create CubeMX project, set-up your hardware configuration
+  2. Run stm32pio that automatically invoke CubeMX to generate the code, create PlatformIO project, patch a 'platformio.ini' file and so on
+  3. Work on the project in your editor, compile/upload/debug etc.
   4. Edit the configuration in CubeMX when necessary, then run stm32pio to regenerate the code.
 
 Refer to Example section on more detailed steps.
 
-stm32pio will create an accessory file `cubemx-script`'` in your project directory that contains commands passed to CubeMX. You can safely delete it (it will be created again on the next run) or edit corresponding to your goals.
+On the first run stm32pio will create a config file `stm32pio.ini`, syntax of which is similar to the `platformio.ini`. You can also create this config without any following operations by initializing the project:
+```shell script
+$ stm32pio init -d path/to/project
+```
+It may be useful to tweak some parameters before proceeding. The structure of the config is separated in two sections: `app` and `project`. Options of the first one is related to the global settings such as commands to invoke different instruments though they can be adjusted on the per-project base while the second section contains of project-related parameters.
 
-Check `settings.py` to make sure that all user-specific parameters are valid. Run
+You can always run
 ```shell script
 $ python3 app.py --help
 ```
-to see help.
+to see help on available commands.
 
 
 ## Example
@@ -67,11 +73,11 @@ to see help.
 5. Run `platformio boards` (`pio boards`) or go to [boards](https://docs.platformio.org/en/latest/boards) to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
 6. All done! You can now run
    ```shell script
-   $ python3 stm32pio.py new -d path/to/cubemx/project/ -b nucleo_f031k6 --start-editor=code --with-build
+   $ python3 app.py new -d path/to/cubemx/project/ -b nucleo_f031k6 --start-editor=code --with-build
    ```
-   to complete generation, start the Visual Studio Code editor with opened folder and compile the project (as an example, not required). Make sure you have all tools in PATH (`java` (or set its path in `settings.py`), `python`, editor). You can use shorter form if you are already located in the project directory (also using shebang alias):
+   to complete generation, start the Visual Studio Code editor with opened folder and compile the project (as an example, not required). Make sure you have all tools in PATH (`java` (or set its path in `stm32pio.ini`), `platformio`, `python`, editor). You can use shorter form if you are already located in the project directory (also using shebang alias):
    ```shell script
-   path/to/cubemx/project/ $   stm32pio.py new -b nucleo_f031k6
+   path/to/cubemx/project/ $   stm32pio new -b nucleo_f031k6
    ```
 7. If you will be in need to update hardware configuration in the future, make all necessary stuff in CubeMX and run `generate` command in a similar way:
    ```shell script
@@ -89,16 +95,14 @@ or
 ```shell script
 stm32pio-repo/ $   python3 -m stm32pio.tests.test -b -v
 ```
-to test the app. It uses STM32F0 framework to generate and build a code from the `stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc` file.
+to test the app. It uses STM32F0 framework to generate and build a code from the test `stm32pio/tests/stm32pio-test-project/stm32pio-test-project.ioc` project file.
 
 For specific test you may use
 ```shell script
 stm32pio-repo/ $   python3 -m unittest stm32pio.tests.test.TestCLI -b -v
 ```
 
-It's fine to fail an editor test as you not necessarily should have all the editors on your machine.
-
-CI is hard to implement for all target OSes during the requirement to have all tools (PlatformIO, Java, CubeMX, etc.) installed during the test. For example, ST doesn't even provide a direct link to CubeMX for downloading
+CI is hard to implement for all target OSes during the requirement to have all tools (PlatformIO, Java, CubeMX, etc.) installed during the test. For example, ST doesn't even provide a direct link to the CubeMX for downloading.
 
 
 ## Restrictions

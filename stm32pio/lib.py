@@ -218,7 +218,7 @@ class Stm32pio:
         if logger.getEffectiveLevel() <= logging.DEBUG:
             debug_str = 'Resolved config:'
             for section in config.sections():
-                debug_str += (f"\n=========== {section} ===========\n")
+                debug_str += f"\n=========== {section} ===========\n"
                 for value in config.items(section):
                     debug_str += f"{value}\n"
             logger.debug(debug_str)
@@ -349,20 +349,26 @@ class Stm32pio:
             shutil.rmtree(self.project_path.joinpath('src'), ignore_errors=True)
 
 
-    def start_editor(self, editor_command: str) -> None:
+    def start_editor(self, editor_command: str) -> int:
         """
         Start the editor specified by 'editor_command' with the project opened
 
         Args:
-            editor_command: editor command (as we start in the terminal)
+            editor_command: editor command as we start it in the terminal. Note that only single-word command is
+            currently supported
+
+        Returns:
+            return code of the editor on success, -1 otherwise
         """
 
         logger.info(f"starting an editor '{editor_command}'...")
 
         try:
-            subprocess.run([editor_command, str(self.project_path)], check=True)
+            result = subprocess.run([editor_command, str(self.project_path)], check=True)
+            return result.returncode if result.returncode != -1 else 0
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to start the editor {editor_command}: {e.stderr}")
+            return -1
 
 
     def pio_build(self) -> int:
@@ -373,6 +379,7 @@ class Stm32pio:
             0 if success, raise an exception otherwise
         """
 
+        # TODO: do we need this check? PlatformIO can handle it by itself
         if self.project_path.joinpath('platformio.ini').is_file():
             logger.info("starting PlatformIO build...")
         else:
@@ -382,13 +389,13 @@ class Stm32pio:
         command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', str(self.project_path)]
         if logger.getEffectiveLevel() > logging.DEBUG:
             command_arr.append('--silent')
+
         result = subprocess.run(command_arr)
         if result.returncode == 0:
             logger.info("successful PlatformIO build")
-            return result.returncode
         else:
             logger.error("PlatformIO build error")
-            raise Exception("PlatformIO build error")
+        return result.returncode
 
 
     def clean(self) -> None:
