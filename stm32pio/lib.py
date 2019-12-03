@@ -109,7 +109,7 @@ class Stm32pio:
             logger.debug("stm32pio.ini config file has been saved")
             return 0
         except Exception as e:
-            logger.warning(f"Cannot save config: {e}")
+            logger.warning(f"cannot save config: {e}")
             if logger.getEffectiveLevel() <= logging.DEBUG:
                 traceback.print_exception(*sys.exc_info())
             return -1
@@ -121,8 +121,8 @@ class Stm32pio:
         Property returning the current state of the project. Calculated at every request.
         """
 
-        logger.debug("Calculating the project state...")
-        logger.debug(f"Project content: {[item.name for item in self.project_path.iterdir()]}")
+        logger.debug("calculating the project state...")
+        logger.debug(f"project content: {[item.name for item in self.project_path.iterdir()]}")
 
         # Fill the ordered dictionary with conditions results
         states_conditions = collections.OrderedDict()
@@ -154,7 +154,7 @@ class Stm32pio:
         # propagation of this message
         if logger.getEffectiveLevel() <= logging.DEBUG:
             states_info_str = '\n'.join(f"{state.name:20}{conditions_results[state.value-1]}" for state in ProjectState)
-            logger.debug(f"Determined states:\n{states_info_str}")
+            logger.debug(f"determined states:\n{states_info_str}")
 
         # Search for a consecutive raw of 1's and find the last of them. For example, if the array is
         #   [1,1,0,1,0,0]
@@ -185,7 +185,7 @@ class Stm32pio:
         if ioc_file:
             return pathlib.Path(ioc_file).resolve()
         else:
-            logger.debug("Searching for any .ioc file...")
+            logger.debug("searching for any .ioc file...")
             candidates = list(self.project_path.glob('*.ioc'))
             if len(candidates) == 0:
                 raise FileNotFoundError("Not found: CubeMX project .ioc file")
@@ -193,7 +193,7 @@ class Stm32pio:
                 logger.debug(f"{candidates[0].name} is selected")
                 return candidates[0]
             else:
-                logger.warning(f"There are multiple .ioc files, {candidates[0].name} is selected")
+                logger.warning(f"there are multiple .ioc files, {candidates[0].name} is selected")
                 return candidates[0]
 
 
@@ -203,7 +203,7 @@ class Stm32pio:
         ones
         """
 
-        logger.debug(f"Searching for {stm32pio.settings.config_file_name}...")
+        logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
         stm32pio_ini = self.project_path.joinpath(stm32pio.settings.config_file_name)
 
         config = configparser.ConfigParser()
@@ -216,7 +216,7 @@ class Stm32pio:
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
         if logger.getEffectiveLevel() <= logging.DEBUG:
-            debug_str = 'Resolved config:'
+            debug_str = 'resolved config:'
             for section in config.sections():
                 debug_str += f"\n=========== {section} ===========\n"
                 for value in config.items(section):
@@ -236,7 +236,7 @@ class Stm32pio:
         """
         resolved_path = pathlib.Path(dirty_path).expanduser().resolve()
         if not resolved_path.exists():
-            raise FileNotFoundError(f"Not found: {resolved_path}")
+            raise FileNotFoundError(f"not found: {resolved_path}")
         else:
             return resolved_path
 
@@ -258,6 +258,7 @@ class Stm32pio:
             if board not in result.stdout.split():
                 raise Exception("wrong PlatformIO STM32 board. Run 'platformio boards' for possible names")
             else:
+                logger.debug(f"PlatformIO board {board} was found")
                 return board
         else:
             raise Exception("failed to search for PlatformIO boards")
@@ -305,7 +306,7 @@ class Stm32pio:
 
         # TODO: check whether there is already a platformio.ini file and warn in this case
 
-        # TODO: move out to settings a 'framework' option
+        # TODO: move out to config a 'framework' option and to settings a 'platformio.ini' file name
         command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', str(self.project_path), '-b',
                        self.config.get('project', 'board'), '-O', 'framework=stm32cube']
         if logger.getEffectiveLevel() > logging.DEBUG:
@@ -333,11 +334,10 @@ class Stm32pio:
 
         logger.debug("patching 'platformio.ini' file...")
 
-        # TODO: check whether there is already a patched platformio.ini file, warn in this case and do not proceed
-
         platformio_ini_file = self.project_path.joinpath('platformio.ini')
         if platformio_ini_file.is_file():
             with platformio_ini_file.open(mode='a') as f:
+                # TODO: check whether there is already a patched platformio.ini file, warn in this case and do not proceed
                 f.write(self.config.get('project', 'platformio_ini_patch_content'))
             logger.info("'platformio.ini' has been patched")
         else:
@@ -364,27 +364,23 @@ class Stm32pio:
         logger.info(f"starting an editor '{editor_command}'...")
 
         try:
-            result = subprocess.run([editor_command, str(self.project_path)], check=True)
+            # result = subprocess.run([editor_command, str(self.project_path)], check=True)
+            # TODO: need to clarify
+            result = subprocess.run(f"{editor_command} {str(self.project_path)}", check=True, shell=True)
             return result.returncode if result.returncode != -1 else 0
         except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to start the editor {editor_command}: {e.stderr}")
+            logger.error(f"failed to start the editor {editor_command}: {e.stderr}")
             return -1
 
 
     def pio_build(self) -> int:
         """
-        Initiate a build of the PlatformIO project by the PlatformIO ('run' command)
+        Initiate a build of the PlatformIO project by the PlatformIO ('run' command). PlatformIO prints error message
+        by itself to the STDERR so there is a no need to catch it and outputs by us
 
         Returns:
             0 if success, raise an exception otherwise
         """
-
-        # TODO: do we need this check? PlatformIO can handle it by itself
-        if self.project_path.joinpath('platformio.ini').is_file():
-            logger.info("starting PlatformIO build...")
-        else:
-            logger.error("no 'platformio.ini' file, build is impossible")
-            return -1
 
         command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', str(self.project_path)]
         if logger.getEffectiveLevel() > logging.DEBUG:
@@ -400,7 +396,7 @@ class Stm32pio:
 
     def clean(self) -> None:
         """
-        Clean-up the project folder and preserve only an '.ioc' file
+        Clean-up the project folder preserving only an '.ioc' file
         """
 
         for child in self.project_path.iterdir():

@@ -110,6 +110,7 @@ stm32pio changelog:
         - New: STM32CubeMX is now started more silently (without a splash screen)
         - New: add integration and CLI tests (sort of)
         - New: testing with different Python versions using pyenv (3.6+ target)
+        - New: 'run_editor' test is now preliminary automatically check whether an editor is installed on the machine
         - New: more typing annotations
         - Fixed: the app has been failed to start as 'python app.py' (modify sys.path to fix)
         - Changed: 'main' function is now fully modular: can be run from anywhere with given CLI arguments (will be piped forward to be parsed via 'argparse')
@@ -119,7 +120,8 @@ stm32pio changelog:
         - Changed: more clear description of steps to do for each user subcommand by the code
         - Changed: get rid of 'print' calls leaving only logging messages (easy to turn on/off the console output in the outer code)
         - Changed: re-imagined API behavior: where to raise exceptions, where to return values and so on
-        - Changed: more clean API, e.g. move out the board resolving procedure and so on
-        - Changed: test fixture is now moved out from the repo and is created temporarily on every test run
-        - Changed: actualized .ioc file for the latest STM32CubeMX version (5.3.0 at the moment)
+        - Changed: more clean API, e.g. move out the board resolving procedure from the 'pio_init' method and so on
+        - Changed: test fixture is now moved out from the repo and is deployed temporarily on every test run
+        - Changed: set-up and tear-down stages are now done using 'unittest' API
+        - Changed: actualized .ioc file for the latest STM32CubeMX version (5.4.0 at the moment)
         - Changed: improved help, docs, comments

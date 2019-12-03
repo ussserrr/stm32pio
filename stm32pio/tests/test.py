@@ -35,9 +35,10 @@ TEST_PROJECT_BOARD = 'nucleo_f031k6'
 # Instantiate a temporary folder on every fixture run. It is used across all tests and is deleted on shutdown
 temp_dir = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
+print(f"Temp fixture path: {FIXTURE_PATH}")
 
-def tearDownModule():
-    temp_dir.cleanup()
+# def tearDownModule():
+#     temp_dir.cleanup()
 
 
 class CustomTestCase(unittest.TestCase):
@@ -47,7 +48,8 @@ class CustomTestCase(unittest.TestCase):
 
     def setUp(self):
         """
-        Copy the test project from the repo to our temp directory
+        Copy the test project from the repo to our temp directory. WARNING: make sure the test project folder is clean
+        (i.e. contains only an .ioc file) before running the test
         """
         shutil.rmtree(FIXTURE_PATH, ignore_errors=True)
         shutil.copytree(TEST_PROJECT_PATH, FIXTURE_PATH)
@@ -112,15 +114,16 @@ class TestUnit(CustomTestCase):
 
     def test_build_should_handle_error(self):
         """
-        Build an empty project so PlatformIO should return non-zero code and we, in turn, should throw the exception
+        Build an empty project so PlatformIO should return the error
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
         project.pio_init()
 
-        self.assertEqual(project.pio_build(), -1, msg="Build error was not been indicated")
-        # with self.assertRaisesRegex(Exception, "PlatformIO build error", msg="Build exception hadn't been raised"):
-        #     project.pio_build()
+        with self.assertLogs(level='ERROR') as logs:
+            self.assertNotEqual(project.pio_build(), 0, msg="Build error was not been indicated")
+            self.assertTrue(next((True for item in logs.output if "PlatformIO build error" in item), False),
+                            msg="Error message does not match")
 
     def test_run_editor(self):
         """
@@ -179,10 +182,9 @@ class TestUnit(CustomTestCase):
         path_does_not_exist_name = 'does_not_exist'
 
         path_does_not_exist = FIXTURE_PATH.joinpath(path_does_not_exist_name)
-        # 'cm' is for context manager
-        with self.assertRaises(FileNotFoundError, msg="FileNotFoundError was not raised") as cm:
+        with self.assertRaisesRegex(FileNotFoundError, path_does_not_exist_name,
+                                    msg="FileNotFoundError was not raised or doesn't contain a description"):
             stm32pio.lib.Stm32pio(path_does_not_exist, save_on_destruction=False)
-            self.assertIn(path_does_not_exist_name, str(cm.exception), msg="Exception doesn't contain a description")
 
     def test_save_config(self):
         """
@@ -219,27 +221,34 @@ class TestIntegration(CustomTestCase):
         Test the compliance with priorities when reading the parameters
         """
 
-        custom_content = "SOME CUSTOM CONTENT"
+        config_parameter_user_value = "SOME CUSTOM CONTENT"
+        cli_parameter_user_value = 'nucleo_f429zi'
 
         # Create test config
         config = configparser.ConfigParser()
         config.read_dict({
             'project': {
-                'platformio_ini_patch_content': custom_content
+                'platformio_ini_patch_content': config_parameter_user_value,
+                'board': TEST_PROJECT_BOARD
             }
         })
         # ... save it
         with FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
             config.write(config_file)
 
-        # On project creation we should get the CLI-provided value as superseding to the saved one
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
+        # On project creation we should interpret the CLI-provided values as superseding to the saved ones and
+        # saved ones as superseding to the default ones
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': cli_parameter_user_value},
                                         save_on_destruction=False)
         project.pio_init()
         project.patch()
 
+        # Actually, we can parse platformio.ini via configparser but this is simpler
         after_patch_content = FIXTURE_PATH.joinpath('platformio.ini').read_text()
-        self.assertIn(custom_content, after_patch_content, msg="Patch content is not from CLI argument")
+        self.assertIn(config_parameter_user_value, after_patch_content,
+                      msg="User config parameter has not been prioritized over the default one")
+        self.assertIn(cli_parameter_user_value, after_patch_content,
+                      msg="User CLI parameter has not been prioritized over the saved one")
 
     def test_build(self):
         """
@@ -362,6 +371,15 @@ class TestCLI(CustomTestCase):
             self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
             self.assertTrue(next((True for item in logs.output if "CubeMX project .ioc file" in item), False),
                             msg="'ERROR' logging message hasn't been printed")
+
+    # TODO: test logs format
+    # non-verbose:
+    #     ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} [^ ])
+    #
+    # verbose:
+    #     ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} .{26} [^ ])
+    #
+    # we can actually get possible function names in that 26-width block
 
     def test_verbose(self):
         """

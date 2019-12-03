@@ -71,24 +71,24 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
     """
 
     args = parse_args(sys_argv)
-    # Show help and exit if no arguments were given
-    if args is None or args.subcommand is None:
-        print("\nNo arguments were given, exiting...")  # TODO: replace 'print' with 'logger.info'
-        return 0
 
     # Logger instance goes through the whole program.
     # Currently only 2 levels of verbosity through the '-v' option are counted (INFO (default) and DEBUG (-v))
     logger = logging.getLogger('stm32pio')
     handler = logging.StreamHandler()
-    if args.verbose:
+    logger.addHandler(handler)
+    if args is not None and args.verbose:
         logger.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter("%(levelname)-8s %(funcName)-26s %(message)s"))
-        logger.addHandler(handler)
         logger.debug("debug logging enabled")
-    else:
+    elif args is not None:
         logger.setLevel(logging.INFO)
         handler.setFormatter(logging.Formatter("%(levelname)-8s %(message)s"))
-        logger.addHandler(handler)
+    else:
+        logger.setLevel(logging.INFO)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.info("\nNo arguments were given, exiting...")
+        return 0
 
     # Main routine
     import stm32pio.lib  # import the module after sys.path modification
@@ -99,6 +99,7 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
             if not args.board:
                 logger.warning("STM32 PlatformIO board is not specified, it will be needed on PlatformIO project "
                                "creation")
+            logger.info('project has been initialized. You can now edit stm32pio.ini config file')
             if args.editor:
                 project.start_editor(args.editor)
 
