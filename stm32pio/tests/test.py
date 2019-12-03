@@ -31,14 +31,11 @@ if not TEST_PROJECT_PATH.is_dir() or not TEST_PROJECT_PATH.joinpath('stm32pio-te
 # proceeding)
 TEST_PROJECT_BOARD = 'nucleo_f031k6'
 
-
 # Instantiate a temporary folder on every fixture run. It is used across all tests and is deleted on shutdown
 temp_dir = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
-print(f"Temp fixture path: {FIXTURE_PATH}")
+print(f"Temp test fixture path: {FIXTURE_PATH}")
 
-# def tearDownModule():
-#     temp_dir.cleanup()
 
 
 class CustomTestCase(unittest.TestCase):

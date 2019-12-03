@@ -364,9 +364,9 @@ class Stm32pio:
         logger.info(f"starting an editor '{editor_command}'...")
 
         try:
-            # result = subprocess.run([editor_command, str(self.project_path)], check=True)
+            result = subprocess.run([editor_command, str(self.project_path)], check=True)
             # TODO: need to clarify
-            result = subprocess.run(f"{editor_command} {str(self.project_path)}", check=True, shell=True)
+            # result = subprocess.run(f"{editor_command} {str(self.project_path)}", check=True, shell=True)
             return result.returncode if result.returncode != -1 else 0
         except subprocess.CalledProcessError as e:
             logger.error(f"failed to start the editor {editor_command}: {e.stderr}")
