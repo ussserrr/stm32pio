@@ -1,6 +1,10 @@
 """
-Note: pyenv is recommended to use for testing with different Python versions
+Note: 'pyenv' is recommended to use for testing with different Python versions
 https://www.tecmint.com/pyenv-install-and-manage-multiple-python-versions-in-linux/
+
+To get test coverage use 'coverage':
+    $  coverage run -m stm32pio.tests.test -b
+    $  coverage html
 """
 
 import unittest
