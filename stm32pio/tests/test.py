@@ -1,5 +1,5 @@
 """
-Note: 'pyenv' is recommended to use for testing with different Python versions
+'pyenv' is recommended to use for testing with different Python versions
 https://www.tecmint.com/pyenv-install-and-manage-multiple-python-versions-in-linux/
 
 To get test coverage use 'coverage':
@@ -65,12 +65,13 @@ class CustomTestCase(unittest.TestCase):
 class TestUnit(CustomTestCase):
     """
     Test the single method. As we at some point decided to use a class instead of the set of scattered functions we need
-    to do some preparations for almost every test (e.g. instantiate the class, create the PlatformIO project, etc.)
+    to do some preparations for almost every test (e.g. instantiate the class, create the PlatformIO project, etc.),
+    though
     """
 
     def test_generate_code(self):
         """
-        Check whether files and folders have been created
+        Check whether files and folders have been created by STM32CubeMX
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
@@ -84,7 +85,8 @@ class TestUnit(CustomTestCase):
 
     def test_pio_init(self):
         """
-        Consider that existence of 'platformio.ini' file showing a successful PlatformIO project initialization
+        Consider that existence of 'platformio.ini' file showing a successful PlatformIO project initialization. The
+        last one has another traces those can be checked too but we are interested only in a 'platformio.ini' anyway
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
@@ -92,6 +94,7 @@ class TestUnit(CustomTestCase):
 
         self.assertEqual(result, 0, msg="Non-zero return code")
         self.assertTrue(FIXTURE_PATH.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
+        # TODO: check that platformio.ini is a correct configparser file and is not empty
 
     def test_patch(self):
         """
@@ -122,7 +125,7 @@ class TestUnit(CustomTestCase):
         project.pio_init()
 
         with self.assertLogs(level='ERROR') as logs:
-            self.assertNotEqual(project.pio_build(), 0, msg="Build error was not been indicated")
+            self.assertNotEqual(project.pio_build(), 0, msg="Build error was not indicated")
             self.assertTrue(next((True for item in logs.output if "PlatformIO build error" in item), False),
                             msg="Error message does not match")
 
@@ -192,7 +195,6 @@ class TestUnit(CustomTestCase):
         Explicitly save the config to file and look did that actually happen and whether all the information was
         preserved
         """
-
         # 'board' is non-default, 'project'-section parameter
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
@@ -267,10 +269,9 @@ class TestIntegration(CustomTestCase):
 
     def test_regenerate_code(self):
         """
-        Simulate new project creation, its changing and CubeMX code re-generation (for example, after adding new
-        hardware features and some new files)
+        Simulate a new project creation, its changing and CubeMX code re-generation (for example, after adding new
+        hardware features and some new files by a user)
         """
-
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
 
@@ -332,10 +333,11 @@ class TestCLI(CustomTestCase):
         """
         Successful build is the best indicator that all went right so we use '--with-build' option
         """
+
         return_code = stm32pio.app.main(sys_argv=['new', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD,
                                                   '--with-build'])
-
         self.assertEqual(return_code, 0, msg="Non-zero return code")
+
         # .ioc file should be preserved
         self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
 
@@ -355,6 +357,10 @@ class TestCLI(CustomTestCase):
         self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
 
     def test_incorrect_path_should_log_error(self):
+        """
+        We should see an error log message and non-zero return code
+        """
+
         path_not_exist = pathlib.Path('path/does/not/exist')
 
         with self.assertLogs(level='ERROR') as logs:
@@ -364,6 +370,10 @@ class TestCLI(CustomTestCase):
                             msg="'ERROR' logging message hasn't been printed")
 
     def test_no_ioc_file_should_log_error(self):
+        """
+        We should see an error log message and non-zero return code
+        """
+
         dir_with_no_ioc_file = FIXTURE_PATH.joinpath('dir.with.no.ioc.file')
         dir_with_no_ioc_file.mkdir(exist_ok=False)
 
@@ -374,7 +384,7 @@ class TestCLI(CustomTestCase):
                             msg="'ERROR' logging message hasn't been printed")
 
     # TODO: test logs format
-    # non-verbose:
+    # non-verbose should satisfy:
     #     ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} [^ ])
     #
     # verbose:
@@ -391,8 +401,9 @@ class TestCLI(CustomTestCase):
                                 encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
-        # Somehow stderr and not stdout contains the actual output
-        self.assertIn('DEBUG', result.stderr, msg="Verbose logging output hasn't been enabled on stderr")
+        # Somehow stderr and not stdout contains the actual output but we check both
+        self.assertTrue('DEBUG' in result.stderr or 'DEBUG' in result.stdout,
+                        msg="Verbose logging output hasn't been enabled on stderr")
         self.assertIn('Starting STM32CubeMX', result.stdout, msg="STM32CubeMX didn't print its logs")
 
     def test_non_verbose(self):
@@ -414,7 +425,9 @@ class TestCLI(CustomTestCase):
         Check for config creation and parameters presence
         """
 
-        subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD])
+        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(FIXTURE_PATH),
+                                 '-b', TEST_PROJECT_BOARD])
+        self.assertEqual(result.returncode, 0, msg="Non-zero return code")
 
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
                         msg=f"{stm32pio.settings.config_file_name} file hasn't been created")

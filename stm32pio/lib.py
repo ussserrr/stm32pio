@@ -100,7 +100,7 @@ class Stm32pio:
 
     def save_config(self) -> int:
         """
-        Tries to save the configparser config to file and gently log if error occurs
+        Tries to save the configparser config to file and gently log if any error occurs
         """
 
         try:
@@ -109,7 +109,7 @@ class Stm32pio:
             logger.debug("stm32pio.ini config file has been saved")
             return 0
         except Exception as e:
-            logger.warning(f"cannot save config: {e}")
+            logger.warning(f"cannot save the config: {e}")
             if logger.getEffectiveLevel() <= logging.DEBUG:
                 traceback.print_exception(*sys.exc_info())
             return -1
@@ -187,7 +187,7 @@ class Stm32pio:
         else:
             logger.debug("searching for any .ioc file...")
             candidates = list(self.project_path.glob('*.ioc'))
-            if len(candidates) == 0:
+            if len(candidates) == 0:  # good candidate for the new Python 3.8 assignment expressions feature :)
                 raise FileNotFoundError("Not found: CubeMX project .ioc file")
             elif len(candidates) == 1:
                 logger.debug(f"{candidates[0].name} is selected")
@@ -337,7 +337,8 @@ class Stm32pio:
         platformio_ini_file = self.project_path.joinpath('platformio.ini')
         if platformio_ini_file.is_file():
             with platformio_ini_file.open(mode='a') as f:
-                # TODO: check whether there is already a patched platformio.ini file, warn in this case and do not proceed
+                # TODO: check whether there is already a patched platformio.ini file, warn in this case and do not
+                #  proceed
                 f.write(self.config.get('project', 'platformio_ini_patch_content'))
             logger.info("'platformio.ini' has been patched")
         else:
@@ -354,8 +355,7 @@ class Stm32pio:
         Start the editor specified by 'editor_command' with the project opened
 
         Args:
-            editor_command: editor command as we start it in the terminal. Note that only single-word command is
-            currently supported
+            editor_command: editor command as we start it in the terminal
 
         Returns:
             return code of the editor on success, -1 otherwise
@@ -364,9 +364,9 @@ class Stm32pio:
         logger.info(f"starting an editor '{editor_command}'...")
 
         try:
-            result = subprocess.run([editor_command, str(self.project_path)], check=True)
-            # TODO: need to clarify
-            # result = subprocess.run(f"{editor_command} {str(self.project_path)}", check=True, shell=True)
+            # Works unstable on some Windows 7 systems, but correct on latest Win7 and Win10...
+            # result = subprocess.run([editor_command, str(self.project_path)], check=True)
+            result = subprocess.run(f"{editor_command} {str(self.project_path)}", check=True, shell=True)
             return result.returncode if result.returncode != -1 else 0
         except subprocess.CalledProcessError as e:
             logger.error(f"failed to start the editor {editor_command}: {e.stderr}")
@@ -376,7 +376,7 @@ class Stm32pio:
     def pio_build(self) -> int:
         """
         Initiate a build of the PlatformIO project by the PlatformIO ('run' command). PlatformIO prints error message
-        by itself to the STDERR so there is a no need to catch it and outputs by us
+        by itself to the STDERR so there is no need to catch it and outputs by us
 
         Returns:
             0 if success, raise an exception otherwise
