@@ -1,7 +1,34 @@
 # TODOs
+
  - [ ] Middleware support (FreeRTOS, etc.)
+ - [ ] Arduino framework support
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
- - [ ] Do we need some sort of GUI? For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output
- - [ ] remade as Class (constructor init(project_path))
- - [ ] test CLI (i.e. run stm32pio as subprocess)
- - [ ] upload to PyPI
+ - [x] Function annotations
+ - [ ] GUI. For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output. At left is a list of recent projects
+ - [ ] GUI. Indicate the progress as states goes forward during the run (see `scratch.py`)
+ - [x] Remade as Class (constructor `__init__(project_path)`)
+ - [x] Config file for every project instead of the `settings.py` (but we still sill be storing the default parameters there)
+ - [x] Test CLI (integration testing)
+ - [x] Move test fixtures out of the 'tests' so we can use it for multiple projects (for example while testing CLI and GUI versions). Set up test folder for every single test so we make sure the .ioc file is always present and not deleted after failed test
+ - [ ] Upload to PyPI
+ - [x] `__main__`
+ - [x] Abort `--with-build` if no platformio.ini file is present
+ - [x] Rename `stm32pio.py` -> `app.py`
+ - [x] Rename `util.py` -> `lib.py` (maybe)
+ - [x] Do not require matching of the project folder and .ioc file names (use first .ioc file found)
+ - [x] Remove casts to string where we can use path-like objects
+ - [x] Settings string templates and multi line
+ - [x] Smart `start_editor` test (detect editors in system, maybe use unittest `skipIf` decorator)
+ - [x] `init` command
+ - [x] New argparse algo cause now we have config file
+ - [x] Update `.ioc` file
+ - [x] `str(path)` -> `path` were possible
+ - [x] Check `start_editor()` for different input
+ - [x] Test on Python 3.6 (pyenv)
+ - [ ] Test for `get_state()` (as sequence of states (see scratch.py))
+ - [x] Remake `get_state()` as property value (read-only getter with decorator)
+ - [ ] If the project path is a unique identifier of the project in our code maybe we can remake `Stm32pio` class as a subclass of `pathlib.Path` and then reference it like `self` and not `self.project_path`. It would be more consistent also, as now `project_path` is perceived like any other config parameter that somehow is appeared to exist outside of a config instance but then it will be a core identifier, a truly `self` value.
+ - [x] Try to invoke stm32pio as module (-m), from different paths...
+ - [ ] Logs format test (see prepared regular expressions)
+ - [ ] Some non-intrusive installation test (may be some sort of temp virtualenv...)
+ - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good
