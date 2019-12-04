@@ -332,13 +332,19 @@ class Stm32pio:
         Patch platformio.ini file to use created earlier by CubeMX 'Src' and 'Inc' folders as sources
         """
 
+        # TODO: we can patch as native configparser object actually, to the [platformio] section
+
         logger.debug("patching 'platformio.ini' file...")
 
         platformio_ini_file = self.project_path.joinpath('platformio.ini')
         if platformio_ini_file.is_file():
             with platformio_ini_file.open(mode='a') as f:
                 # TODO: check whether there is already a patched platformio.ini file, warn in this case and do not
-                #  proceed
+                #  proceed. After second patch:
+                #  Error: Invalid
+                #  C:\Users\chufyrev\Documents\GitHub\stm32pio\stm32pio-test-project\platformio.ini' (project configuration file):
+                #  While reading from 'C:\Users\chufyrev\Documents\GitHub\stm32pio\stm32pio-test-project\platformio.ini
+                #  [line 19]: section 'platformio' already exists
                 f.write(self.config.get('project', 'platformio_ini_patch_content'))
             logger.info("'platformio.ini' has been patched")
         else:

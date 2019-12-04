@@ -6,7 +6,8 @@ To get test coverage use 'coverage':
     $  coverage run -m stm32pio.tests.test -b
     $  coverage html
 """
-
+import logging
+import re
 import unittest
 import configparser
 import pathlib
@@ -383,12 +384,32 @@ class TestCLI(CustomTestCase):
             self.assertTrue(next((True for item in logs.output if "CubeMX project .ioc file" in item), False),
                             msg="'ERROR' logging message hasn't been printed")
 
+    def test_logs_format(self):
+        logger = logging.getLogger('stm32pio')
+        handler = logging.StreamHandler()
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter("%(levelname)-8s %(funcName)-26s %(message)s"))
+
+        with self.assertLogs(level='DEBUG') as logs:
+            return_code = stm32pio.app.main(sys_argv=['-v', 'new', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD,
+                                                      '--with-build'])
+            print('\n\n\n\n' + '\n\n'.join(logs.output))
+            # print([entry.msg for entry in logs.records])
+            self.assertEqual(return_code, 0, msg="Non-zero return code")
+            # self.assertRegex(logs.)
+
+        # with self.assertLogs(level='INFO') as logs:
+        #     return_code = stm32pio.app.main(sys_argv=['new', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD,
+        #                                               '--with-build'])
+        #     self.assertEqual(return_code, 0, msg="Non-zero return code")
+
     # TODO: test logs format
     # non-verbose should satisfy:
-    #     ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} [^ ])
+    #     ^(?=(INFO) {0,4})(?=.{8} ((?!( |pio_build|pio_init))))
     #
     # verbose:
-    #     ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} .{26} [^ ])
+    #     ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} (?=(pio_build|pio_init) {0,26})(?=.{26} [^ ]))
     #
     # we can actually get possible function names in that 26-width block
 
@@ -397,6 +418,10 @@ class TestCLI(CustomTestCase):
         Run as subprocess to capture the full output. Check for both 'DEBUG' logging messages and STM32CubeMX CLI output
         """
 
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
+        methods = [method[0] for method in inspect.getmembers(project, predicate=inspect.ismethod)]
+        methods.append('main')
+
         result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'generate', '-d', str(FIXTURE_PATH)],
                                 encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -404,6 +429,12 @@ class TestCLI(CustomTestCase):
         # Somehow stderr and not stdout contains the actual output but we check both
         self.assertTrue('DEBUG' in result.stderr or 'DEBUG' in result.stdout,
                         msg="Verbose logging output hasn't been enabled on stderr")
+        regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" +
+                           '|'.join(methods) +
+                           ") {0,26})(?=.{26} [^ ]))", flags=re.MULTILINE)
+        self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1,
+                                msg="Logs messages doesn't match the format")
+
         self.assertIn('Starting STM32CubeMX', result.stdout, msg="STM32CubeMX didn't print its logs")
 
     def test_non_verbose(self):
@@ -412,12 +443,23 @@ class TestCLI(CustomTestCase):
         output
         """
 
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
+        methods = [method[0] for method in inspect.getmembers(project, predicate=inspect.ismethod)]
+        methods.append('main')
+
         result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(FIXTURE_PATH)],
                                 encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
         self.assertNotIn('DEBUG', result.stderr, msg="Verbose logging output has been enabled on stderr")
         self.assertNotIn('DEBUG', result.stdout, msg="Verbose logging output has been enabled on stdout")
+
+        regex = re.compile("^(?=(INFO) {0,4})(?=.{8} ((?!( |" +
+                           '|'.join(methods) +
+                           "))))", flags=re.MULTILINE)
+        self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1,
+                                msg="Logs messages doesn't match the format")
+
         self.assertNotIn('Starting STM32CubeMX', result.stdout, msg="STM32CubeMX printed its logs")
 
     def test_init(self):

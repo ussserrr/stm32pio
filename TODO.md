@@ -29,6 +29,6 @@
  - [x] Remake `get_state()` as property value (read-only getter with decorator)
  - [ ] If the project path is a unique identifier of the project in our code maybe we can remake `Stm32pio` class as a subclass of `pathlib.Path` and then reference it like `self` and not `self.project_path`. It would be more consistent also, as now `project_path` is perceived like any other config parameter that somehow is appeared to exist outside of a config instance but then it will be a core identifier, a truly `self` value.
  - [x] Try to invoke stm32pio as module (-m), from different paths...
- - [ ] Logs format test (see prepared regular expressions)
+ - [x] Logs format test (see prepared regular expressions)
  - [ ] Some non-intrusive installation test (may be some sort of temp virtualenv...)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good

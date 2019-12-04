@@ -77,11 +77,11 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
     logger = logging.getLogger('stm32pio')
     handler = logging.StreamHandler()
     logger.addHandler(handler)
-    if args is not None and args.verbose:
+    if args is not None and args.subcommand is not None and args.verbose:
         logger.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter("%(levelname)-8s %(funcName)-26s %(message)s"))
         logger.debug("debug logging enabled")
-    elif args is not None:
+    elif args is not None and args.subcommand is not None:
         logger.setLevel(logging.INFO)
         handler.setFormatter(logging.Formatter("%(levelname)-8s %(message)s"))
     else:
