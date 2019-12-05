@@ -6,7 +6,7 @@ To get test coverage use 'coverage':
     $  coverage run -m stm32pio.tests.test -b
     $  coverage html
 """
-import logging
+
 import re
 import unittest
 import configparser
@@ -87,7 +87,8 @@ class TestUnit(CustomTestCase):
     def test_pio_init(self):
         """
         Consider that existence of 'platformio.ini' file showing a successful PlatformIO project initialization. The
-        last one has another traces those can be checked too but we are interested only in a 'platformio.ini' anyway
+        last one has another traces those can be checked too but we are interested only in a 'platformio.ini' anyway.
+        Also, check that it is a correct configparser file and is not empty
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
@@ -95,7 +96,10 @@ class TestUnit(CustomTestCase):
 
         self.assertEqual(result, 0, msg="Non-zero return code")
         self.assertTrue(FIXTURE_PATH.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
-        # TODO: check that platformio.ini is a correct configparser file and is not empty
+
+        platformio_ini = configparser.ConfigParser()
+        self.assertGreater(len(platformio_ini.read(str(FIXTURE_PATH.joinpath('platformio.ini')))), 0,
+                           msg='platformio.ini is empty')
 
     def test_patch(self):
         """
@@ -384,38 +388,13 @@ class TestCLI(CustomTestCase):
             self.assertTrue(next((True for item in logs.output if "CubeMX project .ioc file" in item), False),
                             msg="'ERROR' logging message hasn't been printed")
 
-    def test_logs_format(self):
-        logger = logging.getLogger('stm32pio')
-        handler = logging.StreamHandler()
-        logger.addHandler(handler)
-        logger.setLevel(logging.DEBUG)
-        handler.setFormatter(logging.Formatter("%(levelname)-8s %(funcName)-26s %(message)s"))
-
-        with self.assertLogs(level='DEBUG') as logs:
-            return_code = stm32pio.app.main(sys_argv=['-v', 'new', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD,
-                                                      '--with-build'])
-            print('\n\n\n\n' + '\n\n'.join(logs.output))
-            # print([entry.msg for entry in logs.records])
-            self.assertEqual(return_code, 0, msg="Non-zero return code")
-            # self.assertRegex(logs.)
-
-        # with self.assertLogs(level='INFO') as logs:
-        #     return_code = stm32pio.app.main(sys_argv=['new', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD,
-        #                                               '--with-build'])
-        #     self.assertEqual(return_code, 0, msg="Non-zero return code")
-
-    # TODO: test logs format
-    # non-verbose should satisfy:
-    #     ^(?=(INFO) {0,4})(?=.{8} ((?!( |pio_build|pio_init))))
-    #
-    # verbose:
-    #     ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} (?=(pio_build|pio_init) {0,26})(?=.{26} [^ ]))
-    #
-    # we can actually get possible function names in that 26-width block
-
     def test_verbose(self):
         """
-        Run as subprocess to capture the full output. Check for both 'DEBUG' logging messages and STM32CubeMX CLI output
+        Run as subprocess to capture the full output. Check for both 'DEBUG' logging messages and STM32CubeMX CLI
+        output. Verbose logs format should match such a regex:
+
+            ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} (?=(pio_build|pio_init|...) {0,26})(?=.{26} [^ ]))
+
         """
 
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
@@ -429,9 +408,8 @@ class TestCLI(CustomTestCase):
         # Somehow stderr and not stdout contains the actual output but we check both
         self.assertTrue('DEBUG' in result.stderr or 'DEBUG' in result.stdout,
                         msg="Verbose logging output hasn't been enabled on stderr")
-        regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" +
-                           '|'.join(methods) +
-                           ") {0,26})(?=.{26} [^ ]))", flags=re.MULTILINE)
+        regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" + '|'.join(methods) + ") {0,26})(?=.{26} [^ ]))",
+                           flags=re.MULTILINE)
         self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1,
                                 msg="Logs messages doesn't match the format")
 
@@ -440,7 +418,10 @@ class TestCLI(CustomTestCase):
     def test_non_verbose(self):
         """
         Run as subprocess to capture the full output. We should not see any 'DEBUG' logging messages or STM32CubeMX CLI
-        output
+        output. Logs format should match such a regex:
+
+            ^(?=(INFO) {0,4})(?=.{8} ((?!( |pio_build|pio_init|...))))
+
         """
 
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
@@ -454,9 +435,7 @@ class TestCLI(CustomTestCase):
         self.assertNotIn('DEBUG', result.stderr, msg="Verbose logging output has been enabled on stderr")
         self.assertNotIn('DEBUG', result.stdout, msg="Verbose logging output has been enabled on stdout")
 
-        regex = re.compile("^(?=(INFO) {0,4})(?=.{8} ((?!( |" +
-                           '|'.join(methods) +
-                           "))))", flags=re.MULTILINE)
+        regex = re.compile("^(?=(INFO) {0,4})(?=.{8} ((?!( |" + '|'.join(methods) + "))))", flags=re.MULTILINE)
         self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1,
                                 msg="Logs messages doesn't match the format")
 

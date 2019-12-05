@@ -153,7 +153,8 @@ class Stm32pio:
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
         if logger.getEffectiveLevel() <= logging.DEBUG:
-            states_info_str = '\n'.join(f"{state.name:20}{conditions_results[state.value-1]}" for state in ProjectState)
+            states_info_str = '\n'.join(
+                f"{state.name:20}{conditions_results[state.value - 1]}" for state in ProjectState)
             logger.debug(f"determined states:\n{states_info_str}")
 
         # Search for a consecutive raw of 1's and find the last of them. For example, if the array is
@@ -335,6 +336,33 @@ class Stm32pio:
         # TODO: we can patch as native configparser object actually, to the [platformio] section
 
         logger.debug("patching 'platformio.ini' file...")
+
+        # platformio_ini = configparser.ConfigParser()
+        # try:
+        #     if len(platformio_ini.read('platformio.ini')) == 0:
+        #         raise Exception("'platformio.ini' file is not found, the project cannot be patched successfully")
+        # except Exception as e:
+        #     if logger.getEffectiveLevel() <= logging.DEBUG:
+        #         traceback.print_exception(*sys.exc_info())
+        #     raise Exception("'platformio.ini' file is incorrect, the project cannot be patched successfully")
+        #
+        # if 'platformio' in platformio_ini.sections():
+        #     patched = False
+        #     if platformio_ini.get('platformio', 'include_dir', fallback=None) != 'Inc':
+        #         platformio_ini.set('platformio', 'include_dir', 'Inc')
+        #         patched = True
+        #     if platformio_ini.get('platformio', 'src_dir', fallback=None) != 'Src':
+        #         platformio_ini.set('platformio', 'src_dir', 'Src')
+        #         patched = True
+        #     if patched:
+        #         logger.info("'platformio.ini' has been patched")
+        #     else:
+        #         logger.info("'platformio.ini' is already patched")
+        # else:
+        #     platformio_ini.add_section('platformio')
+        #     platformio_ini.set('platformio', 'include_dir', 'Inc')
+        #     platformio_ini.set('platformio', 'src_dir', 'Src')
+        #     logger.info("'platformio.ini' has been patched")
 
         platformio_ini_file = self.project_path.joinpath('platformio.ini')
         if platformio_ini_file.is_file():
