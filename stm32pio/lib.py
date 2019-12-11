@@ -3,13 +3,15 @@ Main library
 """
 
 import collections
+import configparser
+import difflib
+import enum
+import io
 import logging
 import pathlib
 import shutil
-import subprocess
-import enum
-import configparser
 import string
+import subprocess
 import sys
 import tempfile
 import traceback
@@ -124,6 +126,12 @@ class Stm32pio:
         logger.debug("calculating the project state...")
         logger.debug(f"project content: {[item.name for item in self.project_path.iterdir()]}")
 
+        platformio_ini_is_patched = False
+        try:
+            platformio_ini_is_patched = self.platformio_ini_is_patched()
+        except:
+            pass
+
         # Fill the ordered dictionary with conditions results
         states_conditions = collections.OrderedDict()
         states_conditions[ProjectState.UNDEFINED] = [True]
@@ -137,10 +145,7 @@ class Stm32pio:
             self.project_path.joinpath('platformio.ini').is_file() and
             len(self.project_path.joinpath('platformio.ini').read_text()) > 0]
         states_conditions[ProjectState.PIO_INI_PATCHED] = [
-            self.project_path.joinpath('platformio.ini').is_file() and
-            self.config.get('project', 'platformio_ini_patch_content') in
-            self.project_path.joinpath('platformio.ini').read_text(),
-            not self.project_path.joinpath('include').is_dir()]
+            platformio_ini_is_patched, not self.project_path.joinpath('include').is_dir()]
         states_conditions[ProjectState.BUILT] = [
             self.project_path.joinpath('.pio').is_dir() and
             any([item.is_file() for item in self.project_path.joinpath('.pio').rglob('*firmware*')])]
@@ -328,7 +333,7 @@ class Stm32pio:
             raise Exception(error_msg)
 
 
-    def is_patched(self) -> bool:
+    def platformio_ini_is_patched(self) -> bool:
         """
 
         """
@@ -365,25 +370,40 @@ class Stm32pio:
         Patch platformio.ini file to use created earlier by CubeMX 'Src' and 'Inc' folders as sources
         """
 
-        # TODO: we can patch as native configparser object actually, to the [platformio] section
-
         logger.debug("patching 'platformio.ini' file...")
 
-        if self.is_patched():
+        if self.platformio_ini_is_patched():
             logger.info("'platformio.ini' has been already patched")
         else:
-            platformio_ini = configparser.ConfigParser()
-            platformio_ini.read(self.project_path.joinpath('platformio.ini'))
+            platformio_ini_file_content = self.project_path.joinpath('platformio.ini').read_text()
+
+            platformio_ini_config = configparser.ConfigParser()
+            platformio_ini_config.read_string(platformio_ini_file_content)
+
             patch_config = configparser.ConfigParser()
             patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
+
             for patch_section in patch_config.sections():
-                if not platformio_ini.has_section(patch_section):
-                    platformio_ini.add_section(patch_section)
+                if not platformio_ini_config.has_section(patch_section):
+                    platformio_ini_config.add_section(patch_section)
                 for patch_key, patch_value in patch_config.items(patch_section):
-                    platformio_ini.set(patch_section, patch_key, patch_value)
-            return platformio_ini
-            with self.project_path.joinpath('platformio.ini').open(mode='w') as config_file:
-                platformio_ini.write(config_file)
+                    platformio_ini_config.set(patch_section, patch_key, patch_value)
+
+            buffer = io.StringIO()
+            platformio_ini_config.write(buffer)
+            platformio_ini_patched_content = buffer.getvalue()
+
+            diff = difflib.SequenceMatcher(a=platformio_ini_file_content, b=platformio_ini_patched_content)
+
+            with self.project_path.joinpath('platformio.ini').open(mode='w') as platformio_ini_file:
+                for action, src_from_idx, src_to_idx, dst_from_idx, dst_to_idx in diff.get_opcodes():
+                    # print('{:7}   a[{}:{}] --> b[{}:{}]'.format(
+                    #     action, src_from_idx, src_to_idx, dst_from_idx, dst_to_idx))
+                    if action == 'insert' or action == 'replace':
+                        platformio_ini_file.write(platformio_ini_patched_content[dst_from_idx:dst_to_idx])
+                    else:
+                        platformio_ini_file.write(platformio_ini_file_content[src_from_idx:src_to_idx])
+
             logger.info("'platformio.ini' has been patched")
 
         shutil.rmtree(self.project_path.joinpath('include'), ignore_errors=True)
