@@ -42,7 +42,6 @@ FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
 print(f"Temp test fixture path: {FIXTURE_PATH}")
 
 
-
 class CustomTestCase(unittest.TestCase):
     """
     These pre- and post-tasks are common for all test cases
@@ -264,7 +263,12 @@ class TestIntegration(CustomTestCase):
         Test the compliance with priorities when reading the parameters
         """
 
-        config_parameter_user_value = "SOME CUSTOM CONTENT"
+        # Sample user's custom patch value
+        config_parameter_user_value = inspect.cleandoc('''
+            [test_section]
+            key1 = value1
+            key2 = 789
+        ''')
         cli_parameter_user_value = 'nucleo_f429zi'
 
         # Create test config
