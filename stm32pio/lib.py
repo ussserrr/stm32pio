@@ -4,9 +4,7 @@ Main library
 
 import collections
 import configparser
-import difflib
 import enum
-import io
 import logging
 import pathlib
 import shutil
@@ -335,7 +333,7 @@ class Stm32pio:
 
     def platformio_ini_is_patched(self) -> bool:
         """
-
+        Check whether 'platformio.ini' config file is patched or not. It doesn't check for unnecessary folders deletion
         """
 
         platformio_ini = configparser.ConfigParser()
@@ -353,7 +351,7 @@ class Stm32pio:
         try:
             patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
         except Exception as e:
-            raise Exception("Desired patch content is invalid")
+            raise Exception("Desired patch content is invalid (should satisfy INI-format requirements)")
 
         for patch_section in patch_config.sections():
             if platformio_ini.has_section(patch_section):
@@ -365,9 +363,11 @@ class Stm32pio:
         return True
 
 
-    def patch(self):
+    def patch(self) -> None:
         """
-        Patch platformio.ini file to use created earlier by CubeMX 'Src' and 'Inc' folders as sources
+        Patch platformio.ini file by a user's patch. By default, it sets the created earlier (by CubeMX 'Src' and 'Inc')
+        folders as sources. configparser doesn't preserve any comments unfortunately so keep in mid that all of them
+        will be lost at this stage. Also, the order may be violated. In the end, remove old empty folders
         """
 
         logger.debug("patching 'platformio.ini' file...")
@@ -375,40 +375,32 @@ class Stm32pio:
         if self.platformio_ini_is_patched():
             logger.info("'platformio.ini' has been already patched")
         else:
-            platformio_ini_file_content = self.project_path.joinpath('platformio.ini').read_text()
-
+            # Existing .ini file
             platformio_ini_config = configparser.ConfigParser()
-            platformio_ini_config.read_string(platformio_ini_file_content)
+            platformio_ini_config.read(self.project_path.joinpath('platformio.ini'))
 
+            # Our patch has the config format too
             patch_config = configparser.ConfigParser()
             patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
 
+            # Merge 2 configs
             for patch_section in patch_config.sections():
                 if not platformio_ini_config.has_section(patch_section):
                     platformio_ini_config.add_section(patch_section)
                 for patch_key, patch_value in patch_config.items(patch_section):
                     platformio_ini_config.set(patch_section, patch_key, patch_value)
 
-            buffer = io.StringIO()
-            platformio_ini_config.write(buffer)
-            platformio_ini_patched_content = buffer.getvalue()
-
-            diff = difflib.SequenceMatcher(a=platformio_ini_file_content, b=platformio_ini_patched_content)
-
+            # Save, overwriting the original file
             with self.project_path.joinpath('platformio.ini').open(mode='w') as platformio_ini_file:
-                for action, src_from_idx, src_to_idx, dst_from_idx, dst_to_idx in diff.get_opcodes():
-                    # print('{:7}   a[{}:{}] --> b[{}:{}]'.format(
-                    #     action, src_from_idx, src_to_idx, dst_from_idx, dst_to_idx))
-                    if action == 'insert' or action == 'replace':
-                        platformio_ini_file.write(platformio_ini_patched_content[dst_from_idx:dst_to_idx])
-                    else:
-                        platformio_ini_file.write(platformio_ini_file_content[src_from_idx:src_to_idx])
+                platformio_ini_config.write(platformio_ini_file)
 
             logger.info("'platformio.ini' has been patched")
 
         shutil.rmtree(self.project_path.joinpath('include'), ignore_errors=True)
 
-        if not self.project_path.joinpath('SRC').is_dir():  # check for case sensitive file system
+        # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
+        # first
+        if not self.project_path.joinpath('SRC').is_dir():
             shutil.rmtree(self.project_path.joinpath('src'), ignore_errors=True)
 
 
