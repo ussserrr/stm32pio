@@ -3,13 +3,13 @@ Main library
 """
 
 import collections
+import configparser
+import enum
 import logging
 import pathlib
 import shutil
-import subprocess
-import enum
-import configparser
 import string
+import subprocess
 import sys
 import tempfile
 import traceback
@@ -124,6 +124,12 @@ class Stm32pio:
         logger.debug("calculating the project state...")
         logger.debug(f"project content: {[item.name for item in self.project_path.iterdir()]}")
 
+        platformio_ini_is_patched = False
+        try:
+            platformio_ini_is_patched = self.platformio_ini_is_patched()
+        except:
+            pass
+
         # Fill the ordered dictionary with conditions results
         states_conditions = collections.OrderedDict()
         states_conditions[ProjectState.UNDEFINED] = [True]
@@ -137,10 +143,7 @@ class Stm32pio:
             self.project_path.joinpath('platformio.ini').is_file() and
             len(self.project_path.joinpath('platformio.ini').read_text()) > 0]
         states_conditions[ProjectState.PIO_INI_PATCHED] = [
-            self.project_path.joinpath('platformio.ini').is_file() and
-            self.config.get('project', 'platformio_ini_patch_content') in
-            self.project_path.joinpath('platformio.ini').read_text(),
-            not self.project_path.joinpath('include').is_dir()]
+            platformio_ini_is_patched, not self.project_path.joinpath('include').is_dir()]
         states_conditions[ProjectState.BUILT] = [
             self.project_path.joinpath('.pio').is_dir() and
             any([item.is_file() for item in self.project_path.joinpath('.pio').rglob('*firmware*')])]
@@ -189,7 +192,7 @@ class Stm32pio:
             logger.debug("searching for any .ioc file...")
             candidates = list(self.project_path.glob('*.ioc'))
             if len(candidates) == 0:  # good candidate for the new Python 3.8 assignment expressions feature :)
-                raise FileNotFoundError("Not found: CubeMX project .ioc file")
+                raise FileNotFoundError("not found: CubeMX project .ioc file")
             elif len(candidates) == 1:
                 logger.debug(f"{candidates[0].name} is selected")
                 return candidates[0]
@@ -328,59 +331,76 @@ class Stm32pio:
             raise Exception(error_msg)
 
 
-    def patch(self) -> None:
+    def platformio_ini_is_patched(self) -> bool:
         """
-        Patch platformio.ini file to use created earlier by CubeMX 'Src' and 'Inc' folders as sources
+        Check whether 'platformio.ini' config file is patched or not. It doesn't check for unnecessary folders deletion
         """
 
-        # TODO: we can patch as native configparser object actually, to the [platformio] section
+        platformio_ini = configparser.ConfigParser()
+        try:
+            if len(platformio_ini.read(self.project_path.joinpath('platformio.ini'))) == 0:
+                raise FileNotFoundError("not found: 'platformio.ini' file")
+        except FileNotFoundError as e:
+            raise e
+        except Exception as e:
+            if logger.getEffectiveLevel() <= logging.DEBUG:
+                traceback.print_exception(*sys.exc_info())
+            raise Exception("'platformio.ini' file is incorrect")
+
+        patch_config = configparser.ConfigParser()
+        try:
+            patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
+        except Exception as e:
+            raise Exception("Desired patch content is invalid (should satisfy INI-format requirements)")
+
+        for patch_section in patch_config.sections():
+            if platformio_ini.has_section(patch_section):
+                for patch_key, patch_value in patch_config.items(patch_section):
+                    if platformio_ini.get(patch_section, patch_key, fallback=None) != patch_value:
+                        return False
+            else:
+                return False
+        return True
+
+
+    def patch(self) -> None:
+        """
+        Patch platformio.ini file by a user's patch. By default, it sets the created earlier (by CubeMX 'Src' and 'Inc')
+        folders as sources. configparser doesn't preserve any comments unfortunately so keep in mid that all of them
+        will be lost at this stage. Also, the order may be violated. In the end, remove old empty folders
+        """
 
         logger.debug("patching 'platformio.ini' file...")
 
-        # platformio_ini = configparser.ConfigParser()
-        # try:
-        #     if len(platformio_ini.read('platformio.ini')) == 0:
-        #         raise Exception("'platformio.ini' file is not found, the project cannot be patched successfully")
-        # except Exception as e:
-        #     if logger.getEffectiveLevel() <= logging.DEBUG:
-        #         traceback.print_exception(*sys.exc_info())
-        #     raise Exception("'platformio.ini' file is incorrect, the project cannot be patched successfully")
-        #
-        # if 'platformio' in platformio_ini.sections():
-        #     patched = False
-        #     if platformio_ini.get('platformio', 'include_dir', fallback=None) != 'Inc':
-        #         platformio_ini.set('platformio', 'include_dir', 'Inc')
-        #         patched = True
-        #     if platformio_ini.get('platformio', 'src_dir', fallback=None) != 'Src':
-        #         platformio_ini.set('platformio', 'src_dir', 'Src')
-        #         patched = True
-        #     if patched:
-        #         logger.info("'platformio.ini' has been patched")
-        #     else:
-        #         logger.info("'platformio.ini' is already patched")
-        # else:
-        #     platformio_ini.add_section('platformio')
-        #     platformio_ini.set('platformio', 'include_dir', 'Inc')
-        #     platformio_ini.set('platformio', 'src_dir', 'Src')
-        #     logger.info("'platformio.ini' has been patched")
-
-        platformio_ini_file = self.project_path.joinpath('platformio.ini')
-        if platformio_ini_file.is_file():
-            with platformio_ini_file.open(mode='a') as f:
-                # TODO: check whether there is already a patched platformio.ini file, warn in this case and do not
-                #  proceed. After second patch:
-                #  Error: Invalid
-                #  C:\Users\chufyrev\Documents\GitHub\stm32pio\stm32pio-test-project\platformio.ini' (project configuration file):
-                #  While reading from 'C:\Users\chufyrev\Documents\GitHub\stm32pio\stm32pio-test-project\platformio.ini
-                #  [line 19]: section 'platformio' already exists
-                f.write(self.config.get('project', 'platformio_ini_patch_content'))
-            logger.info("'platformio.ini' has been patched")
+        if self.platformio_ini_is_patched():
+            logger.info("'platformio.ini' has been already patched")
         else:
-            raise Exception("'platformio.ini' file not found, the project cannot be patched successfully")
+            # Existing .ini file
+            platformio_ini_config = configparser.ConfigParser()
+            platformio_ini_config.read(self.project_path.joinpath('platformio.ini'))
+
+            # Our patch has the config format too
+            patch_config = configparser.ConfigParser()
+            patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
+
+            # Merge 2 configs
+            for patch_section in patch_config.sections():
+                if not platformio_ini_config.has_section(patch_section):
+                    platformio_ini_config.add_section(patch_section)
+                for patch_key, patch_value in patch_config.items(patch_section):
+                    platformio_ini_config.set(patch_section, patch_key, patch_value)
+
+            # Save, overwriting the original file
+            with self.project_path.joinpath('platformio.ini').open(mode='w') as platformio_ini_file:
+                platformio_ini_config.write(platformio_ini_file)
+
+            logger.info("'platformio.ini' has been patched")
 
         shutil.rmtree(self.project_path.joinpath('include'), ignore_errors=True)
 
-        if not self.project_path.joinpath('SRC').is_dir():  # check for case sensitive file system
+        # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
+        # first
+        if not self.project_path.joinpath('SRC').is_dir():
             shutil.rmtree(self.project_path.joinpath('src'), ignore_errors=True)
 
 

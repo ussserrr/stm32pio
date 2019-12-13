@@ -28,7 +28,7 @@ config_default = collections.OrderedDict(
         # (default is OK) See CubeMX user manual PDF (UM1718) to get other useful options
         'cubemx_script_content': "config load $cubemx_ioc_full_filename\ngenerate code $project_path\nexit",
 
-        # Override the defaults to comply with CubeMX project structure
+        # Override the defaults to comply with CubeMX project structure. This should meet INI-style requirements
         'platformio_ini_patch_content': "[platformio]\ninclude_dir = Inc\nsrc_dir = Src\n"
     }
 )

@@ -42,7 +42,6 @@ FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
 print(f"Temp test fixture path: {FIXTURE_PATH}")
 
 
-
 class CustomTestCase(unittest.TestCase):
     """
     These pre- and post-tasks are common for all test cases
@@ -103,23 +102,58 @@ class TestUnit(CustomTestCase):
 
     def test_patch(self):
         """
-        Compare contents of the patched string and the patch itself
+        Check that new parameters were added, modified were updated and existing parameters didn't gone. Also, check for
+        unnecessary folders deletion
         """
-        test_content = "*** TEST PLATFORMIO.INI FILE ***"
-        FIXTURE_PATH.joinpath('platformio.ini').write_text(test_content)
 
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
+
+        # We do not create a real project here so we don't depend on other possible issues
+        test_content = inspect.cleandoc('''
+            ; This is a test config .ini file
+            ; with a comment. It emulates a real
+            ; platformio.ini file
+
+            [platformio]
+            include_dir = this s;789hould be replaced
+            ; there should appear a new parameter
+            test_key3 = this should be preserved
+
+            [test_section]
+            test_key1 = test_value1
+            test_key2 = 123
+        ''') + '\n'
+        FIXTURE_PATH.joinpath('platformio.ini').write_text(test_content)
+        FIXTURE_PATH.joinpath('include').mkdir()
+
         project.patch()
 
         self.assertFalse(FIXTURE_PATH.joinpath('include').is_dir(), msg="'include' has not been deleted")
 
-        after_patch_content = FIXTURE_PATH.joinpath('platformio.ini').read_text()
+        original_test_config = configparser.ConfigParser()
+        original_test_config.read_string(test_content)
 
-        self.assertEqual(after_patch_content[:len(test_content)], test_content,
-                         msg="Initial content of platformio.ini is corrupted")
-        self.assertEqual(after_patch_content[len(test_content):],
-                         stm32pio.settings.config_default['project']['platformio_ini_patch_content'],
-                         msg="Patch content is not as expected")
+        patched_config = configparser.ConfigParser()
+        patch_config = configparser.ConfigParser()
+        patch_config.read_string(project.config.get('project', 'platformio_ini_patch_content'))
+
+        self.assertGreater(len(patched_config.read(FIXTURE_PATH.joinpath('platformio.ini'))), 0)
+
+        for patch_section in patch_config.sections():
+            self.assertTrue(patched_config.has_section(patch_section), msg=f"{patch_section} is missing")
+            for patch_key, patch_value in patch_config.items(patch_section):
+                self.assertEqual(patched_config.get(patch_section, patch_key, fallback=None), patch_value,
+                                 msg=f"{patch_section}: {patch_key}={patch_value} is missing or incorrect in the "
+                                     "patched config")
+
+        for original_section in original_test_config.sections():
+            self.assertTrue(patched_config.has_section(original_section),
+                            msg=f"{original_section} from the original config is missing")
+            for original_key, original_value in original_test_config.items(original_section):
+                # We've already checked patch parameters so skip them
+                if not patch_config.has_option(original_section, original_key):
+                    self.assertEqual(patched_config.get(original_section, original_key), original_value,
+                                     msg=f"{original_section}: {original_key}={original_value} is corrupted")
 
     def test_build_should_handle_error(self):
         """
@@ -229,7 +263,12 @@ class TestIntegration(CustomTestCase):
         Test the compliance with priorities when reading the parameters
         """
 
-        config_parameter_user_value = "SOME CUSTOM CONTENT"
+        # Sample user's custom patch value
+        config_parameter_user_value = inspect.cleandoc('''
+            [test_section]
+            key1 = value1
+            key2 = 789
+        ''')
         cli_parameter_user_value = 'nucleo_f429zi'
 
         # Create test config

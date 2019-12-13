@@ -32,3 +32,6 @@
  - [x] Logs format test (see prepared regular expressions)
  - [ ] Some non-intrusive installation test (may be some sort of temp virtualenv...)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good
+ - [ ] Do we really need *sys.exc_info() ?
+ - [ ] See logging.exception and sys_exc argument for logging.debug
+ - [ ] Configparser interpolation 
