@@ -10,9 +10,7 @@ import pathlib
 import shutil
 import string
 import subprocess
-import sys
 import tempfile
-import traceback
 import weakref
 
 import stm32pio.settings
@@ -109,9 +107,7 @@ class Stm32pio:
             logger.debug("stm32pio.ini config file has been saved")
             return 0
         except Exception as e:
-            logger.warning(f"cannot save the config: {e}")
-            if logger.getEffectiveLevel() <= logging.DEBUG:
-                traceback.print_exception(*sys.exc_info())
+            logger.warning(f"cannot save the config: {e}", exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
             return -1
 
 
@@ -343,15 +339,13 @@ class Stm32pio:
         except FileNotFoundError as e:
             raise e
         except Exception as e:
-            if logger.getEffectiveLevel() <= logging.DEBUG:
-                traceback.print_exception(*sys.exc_info())
-            raise Exception("'platformio.ini' file is incorrect")
+            raise Exception("'platformio.ini' file is incorrect") from e
 
         patch_config = configparser.ConfigParser()
         try:
             patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
         except Exception as e:
-            raise Exception("Desired patch content is invalid (should satisfy INI-format requirements)")
+            raise Exception("Desired patch content is invalid (should satisfy INI-format requirements)") from e
 
         for patch_section in patch_config.sections():
             if platformio_ini.has_section(patch_section):

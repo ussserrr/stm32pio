@@ -7,7 +7,6 @@ import argparse
 import logging
 import sys
 import pathlib
-import traceback
 from typing import Optional
 
 
@@ -42,7 +41,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
 
     # Common subparsers options
     for p in [parser_init, parser_new, parser_generate, parser_clean]:
-        p.add_argument('-d', '--directory', dest='project_path', default=pathlib.Path.cwd(), required=True,
+        p.add_argument('-d', '--directory', dest='project_path', default=pathlib.Path.cwd(), required=False,
                        help="path to the project (current directory, if not given)")
     for p in [parser_init, parser_new]:
         p.add_argument('-b', '--board', dest='board', required=False, help="PlatformIO name of the board")
@@ -59,7 +58,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     return parser.parse_args(args)
 
 
-def main(sys_argv: list = sys.argv[1:]) -> int:
+def main(sys_argv=None) -> int:
     """
     Can be used as high-level wrapper to do complete tasks
 
@@ -69,6 +68,9 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
     Args:
         sys_argv: list of strings
     """
+
+    if sys_argv is None:
+        sys_argv = sys.argv[1:]
 
     args = parse_args(sys_argv)
 
@@ -129,9 +131,7 @@ def main(sys_argv: list = sys.argv[1:]) -> int:
 
     # library is designed to throw the exception in bad cases so we catch here globally
     except Exception as e:
-        logger.error(e)
-        if logger.getEffectiveLevel() <= logging.DEBUG:  # verbose
-            traceback.print_exception(*sys.exc_info())
+        logger.exception(e, exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
         return -1
 
     logger.info("exiting...")
