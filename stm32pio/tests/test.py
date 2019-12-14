@@ -96,7 +96,7 @@ class TestUnit(CustomTestCase):
         self.assertEqual(result, 0, msg="Non-zero return code")
         self.assertTrue(FIXTURE_PATH.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
 
-        platformio_ini = configparser.ConfigParser()
+        platformio_ini = configparser.ConfigParser(interpolation=None)
         self.assertGreater(len(platformio_ini.read(str(FIXTURE_PATH.joinpath('platformio.ini')))), 0,
                            msg='platformio.ini is empty')
 
@@ -130,11 +130,11 @@ class TestUnit(CustomTestCase):
 
         self.assertFalse(FIXTURE_PATH.joinpath('include').is_dir(), msg="'include' has not been deleted")
 
-        original_test_config = configparser.ConfigParser()
+        original_test_config = configparser.ConfigParser(interpolation=None)
         original_test_config.read_string(test_content)
 
-        patched_config = configparser.ConfigParser()
-        patch_config = configparser.ConfigParser()
+        patched_config = configparser.ConfigParser(interpolation=None)
+        patch_config = configparser.ConfigParser(interpolation=None)
         patch_config.read_string(project.config.get('project', 'platformio_ini_patch_content'))
 
         self.assertGreater(len(patched_config.read(FIXTURE_PATH.joinpath('platformio.ini'))), 0)
@@ -243,7 +243,7 @@ class TestUnit(CustomTestCase):
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
                         msg=f"{stm32pio.settings.config_file_name} file hasn't been created")
 
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
         config.read(str(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name)))
         for section, parameters in stm32pio.settings.config_default.items():
             for option, value in parameters.items():
@@ -272,7 +272,7 @@ class TestIntegration(CustomTestCase):
         cli_parameter_user_value = 'nucleo_f429zi'
 
         # Create test config
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
         config.read_dict({
             'project': {
                 'platformio_ini_patch_content': config_parameter_user_value,
@@ -347,6 +347,33 @@ class TestIntegration(CustomTestCase):
                       msg=f"User content hasn't been preserved after regeneration in {test_file_1}")
         self.assertIn(test_content_2, my_header_h_after_regenerate_content,
                       msg=f"User content hasn't been preserved after regeneration in {test_file_2}")
+
+    def test_get_state(self):
+        """
+        Go through the sequence of states emulating the real-life project lifecycle
+        """
+
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
+                                        save_on_destruction=False)
+        self.assertEqual(project.state, stm32pio.lib.ProjectState.UNDEFINED)
+
+        project.save_config()
+        self.assertEqual(project.state, stm32pio.lib.ProjectState.INITIALIZED)
+
+        project.generate_code()
+        self.assertEqual(project.state, stm32pio.lib.ProjectState.GENERATED)
+
+        project.pio_init()
+        self.assertEqual(project.state, stm32pio.lib.ProjectState.PIO_INITIALIZED)
+
+        project.patch()
+        self.assertEqual(project.state, stm32pio.lib.ProjectState.PATCHED)
+
+        project.pio_build()
+        self.assertEqual(project.state, stm32pio.lib.ProjectState.BUILT)
+
+        project.clean()
+        self.assertEqual(project.state, stm32pio.lib.ProjectState.UNDEFINED)
 
 
 class TestCLI(CustomTestCase):
@@ -492,7 +519,7 @@ class TestCLI(CustomTestCase):
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
                         msg=f"{stm32pio.settings.config_file_name} file hasn't been created")
 
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
         config.read(str(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name)))
         for section, parameters in stm32pio.settings.config_default.items():
             for option, value in parameters.items():

@@ -40,7 +40,7 @@ class ProjectState(enum.IntEnum):
     INITIALIZED = enum.auto()
     GENERATED = enum.auto()
     PIO_INITIALIZED = enum.auto()
-    PIO_INI_PATCHED = enum.auto()
+    PATCHED = enum.auto()
     BUILT = enum.auto()
 
 
@@ -126,8 +126,8 @@ class Stm32pio:
         except:
             pass
 
-        # Fill the ordered dictionary with conditions results
         states_conditions = collections.OrderedDict()
+        # Fill the ordered dictionary with conditions results
         states_conditions[ProjectState.UNDEFINED] = [True]
         states_conditions[ProjectState.INITIALIZED] = [
             self.project_path.joinpath(stm32pio.settings.config_file_name).is_file()]
@@ -138,7 +138,7 @@ class Stm32pio:
         states_conditions[ProjectState.PIO_INITIALIZED] = [
             self.project_path.joinpath('platformio.ini').is_file() and
             len(self.project_path.joinpath('platformio.ini').read_text()) > 0]
-        states_conditions[ProjectState.PIO_INI_PATCHED] = [
+        states_conditions[ProjectState.PATCHED] = [
             platformio_ini_is_patched, not self.project_path.joinpath('include').is_dir()]
         states_conditions[ProjectState.BUILT] = [
             self.project_path.joinpath('.pio').is_dir() and
@@ -206,7 +206,7 @@ class Stm32pio:
         logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
         stm32pio_ini = self.project_path.joinpath(stm32pio.settings.config_file_name)
 
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
 
         # Fill with default values
         config.read_dict(stm32pio.settings.config_default)
@@ -218,7 +218,7 @@ class Stm32pio:
         if logger.getEffectiveLevel() <= logging.DEBUG:
             debug_str = 'resolved config:'
             for section in config.sections():
-                debug_str += f"\n=========== {section} ===========\n"
+                debug_str += f"\n========== {section} ==========\n"
                 for value in config.items(section):
                     debug_str += f"{value}\n"
             logger.debug(debug_str)
@@ -332,7 +332,7 @@ class Stm32pio:
         Check whether 'platformio.ini' config file is patched or not. It doesn't check for unnecessary folders deletion
         """
 
-        platformio_ini = configparser.ConfigParser()
+        platformio_ini = configparser.ConfigParser(interpolation=None)
         try:
             if len(platformio_ini.read(self.project_path.joinpath('platformio.ini'))) == 0:
                 raise FileNotFoundError("not found: 'platformio.ini' file")
@@ -341,7 +341,7 @@ class Stm32pio:
         except Exception as e:
             raise Exception("'platformio.ini' file is incorrect") from e
 
-        patch_config = configparser.ConfigParser()
+        patch_config = configparser.ConfigParser(interpolation=None)
         try:
             patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
         except Exception as e:
@@ -370,11 +370,11 @@ class Stm32pio:
             logger.info("'platformio.ini' has been already patched")
         else:
             # Existing .ini file
-            platformio_ini_config = configparser.ConfigParser()
+            platformio_ini_config = configparser.ConfigParser(interpolation=None)
             platformio_ini_config.read(self.project_path.joinpath('platformio.ini'))
 
             # Our patch has the config format too
-            patch_config = configparser.ConfigParser()
+            patch_config = configparser.ConfigParser(interpolation=None)
             patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
 
             # Merge 2 configs
