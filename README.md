@@ -31,7 +31,14 @@ Starting from v0.8 it is possible to install the utility to be able to run stm32
 ```shell script
 stm32pio-repo/ $   pip3 install .
 ```
-command to launch the setup process. To uninstall run
+command to launch the setup process. Now you can simply type 'stm32pio' in the terminal to run the utility in any directory.
+
+PyPI distribution (starting from v0.95):
+```shell script
+$ pip install stm32pio
+```
+
+To uninstall run
 ```shell script
 $ pip3 uninstall stm32pio
 ```
