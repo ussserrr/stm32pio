@@ -238,7 +238,7 @@ class TestUnit(CustomTestCase):
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
 
-        project.save_config()
+        project.config.save()
 
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
                         msg=f"{stm32pio.settings.config_file_name} file hasn't been created")
@@ -357,7 +357,7 @@ class TestIntegration(CustomTestCase):
                                         save_on_destruction=False)
         self.assertEqual(project.state, stm32pio.lib.ProjectState.UNDEFINED)
 
-        project.save_config()
+        project.config.save()
         self.assertEqual(project.state, stm32pio.lib.ProjectState.INITIALIZED)
 
         project.generate_code()

@@ -44,6 +44,25 @@ class ProjectState(enum.IntEnum):
     BUILT = enum.auto()
 
 
+class Config(configparser.ConfigParser):
+    def __init__(self, location: pathlib.Path, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._location = location
+
+    def save(self):
+        """
+        Tries to save the configparser config to file and gently log if any error occurs
+        """
+        try:
+            with self._location.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
+                self.write(config_file)
+            logger.debug("stm32pio.ini config file has been saved")
+            return 0
+        except Exception as e:
+            logger.warning(f"cannot save the config: {e}", exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
+            return -1
+
+
 class Stm32pio:
     """
     Main class.
@@ -52,8 +71,8 @@ class Stm32pio:
     parameters in a configparser .ini file. As stm32pio can be installed via pip and has no global config we also
     storing global parameters (such as Java or STM32CubeMX invoking commands) in this config .ini file so the user can
     specify settings on a per-project base. The config can be saved in a non-disturbing way automatically on the
-    instance destruction (e.g. by garbage collecting it) (use save_on_destruction=True flag), otherwise user should
-    explicitly save the config if he wants to (using save_config() method).
+    instance destruction (e.g. by garbage collecting it) (use save_on_destruction=True flag), otherwise a user should
+    explicitly save the config if he wants to (using config.save() method).
 
     The typical life cycle consists of project creation, passing mandatory 'dirty_path' argument. If also 'parameters'
     dictionary is specified also these settings are processed (white-list approach is used so we set only those
@@ -93,22 +112,7 @@ class Stm32pio:
             self.config.set('project', 'board', board)
 
         if save_on_destruction:
-            self._finalizer = weakref.finalize(self, self.save_config)
-
-
-    def save_config(self) -> int:
-        """
-        Tries to save the configparser config to file and gently log if any error occurs
-        """
-
-        try:
-            with self.project_path.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
-                self.config.write(config_file)
-            logger.debug("stm32pio.ini config file has been saved")
-            return 0
-        except Exception as e:
-            logger.warning(f"cannot save the config: {e}", exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
-            return -1
+            self._finalizer = weakref.finalize(self, self.config.save)
 
 
     @property
@@ -120,11 +124,10 @@ class Stm32pio:
         logger.debug("calculating the project state...")
         logger.debug(f"project content: {[item.name for item in self.project_path.iterdir()]}")
 
-        platformio_ini_is_patched = False
         try:
             platformio_ini_is_patched = self.platformio_ini_is_patched()
         except:
-            pass
+            platformio_ini_is_patched = False
 
         states_conditions = collections.OrderedDict()
         # Fill the ordered dictionary with conditions results
@@ -197,7 +200,7 @@ class Stm32pio:
                 return candidates[0]
 
 
-    def _load_settings_file(self) -> configparser.ConfigParser:
+    def _load_settings_file(self) -> Config:
         """
         Prepare configparser config for the project. First, read the default config and then mask these values with user
         ones
@@ -206,7 +209,7 @@ class Stm32pio:
         logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
         stm32pio_ini = self.project_path.joinpath(stm32pio.settings.config_file_name)
 
-        config = configparser.ConfigParser(interpolation=None)
+        config = Config(self.project_path, interpolation=None)
 
         # Fill with default values
         config.read_dict(stm32pio.settings.config_default)
