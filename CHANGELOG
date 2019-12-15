@@ -64,7 +64,7 @@ stm32pio changelog:
     ver. 0.73 (10-11.02.19):
         - New: use more convenient Python project structure
         - New: package can be install using setuptools
-        - New: TODO list
+        - New: TO-DO list
         - New: '--directory' option is now optional if the program gets called from the project directory
         - Fixed: license copyright
         - Fixed: 'dot' path will be handle successfully now
@@ -100,7 +100,7 @@ stm32pio changelog:
         - Changed: actualized .ioc file and clean-up the code according to the latest STM32CubeMX version (5.3.0 at the moment)
         - Changed: revised and improved util module
 
-    ver. 0.9 (12.19):
+    ver. 0.9 (11-12.19):
         - New: tested with Python3 version of PlatformIO
         - New: '__main__.py' file (to run the app as module (python -m stm32pio))
         - New: 'init' subcommand (initialize the project only, useful for the preliminary tweaking)
@@ -125,3 +125,21 @@ stm32pio changelog:
         - Changed: set-up and tear-down stages are now done using 'unittest' API
         - Changed: actualized .ioc file for the latest STM32CubeMX version (5.4.0 at the moment)
         - Changed: improved help, docs, comments
+
+    ver. 0.95 (12.19):
+        - New: re-made patch() method: it can intelligently parses platformio.ini and substitute necessary options. Patch can now be a general .INI-format config
+        - New: test_get_state()
+        - New: upload to PyPI
+        - New: use regular expressions to test logging output format for both verbose and normal modes
+        - Fix: return -d as an optional argument to be able to execute a short form of the app
+        - Changed: subclass ConfigParser to add save() method (remove Stm32pio.save_config())
+        - Changed: resolve more TO-DOs (some cannot be achieved actually)
+        - Changed: improve setup.py
+        - Changed: replace traceback.print to 'logging' functionality
+        - Changed: no more mutable default arguments
+        - Changed: use inspect.cleandoc to place long multi-line strings in code
+        - Changed: rename _load_config_file(), ProjectState.PATCHED
+        - Changed: use interpolation=None for ConfigParser
+        - Changed: check whether there is already a platformio.ini file and warn in this case on PlatformIO init stage
+        - Changed: sort imports in the alphabetic order
+        - Changed: use configparser to test project patching

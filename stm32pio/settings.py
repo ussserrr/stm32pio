@@ -1,6 +1,7 @@
-import platform
-import pathlib
 import collections
+import inspect
+import pathlib
+import platform
 
 
 my_os = platform.system()
@@ -28,8 +29,16 @@ config_default = collections.OrderedDict(
         # (default is OK) See CubeMX user manual PDF (UM1718) to get other useful options
         'cubemx_script_content': "config load $cubemx_ioc_full_filename\ngenerate code $project_path\nexit",
 
-        # Override the defaults to comply with CubeMX project structure
-        'platformio_ini_patch_content': "[platformio]\ninclude_dir = Inc\nsrc_dir = Src\n"
+        # Override the defaults to comply with CubeMX project structure. This should meet INI-style requirements. You
+        # can include existing sections, too (e.g.
+        #   [env:nucleo_f031k6]
+        #   key=value
+        # will add a 'key' parameter)
+        'platformio_ini_patch_content': inspect.cleandoc('''
+            [platformio]
+            include_dir = Inc
+            src_dir = Src
+        ''') + '\n'
     }
 )
 

@@ -1,7 +1,7 @@
 # TODOs
 
  - [ ] Middleware support (FreeRTOS, etc.)
- - [ ] Arduino framework support
+ - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
  - [x] Function annotations
  - [ ] GUI. For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output. At left is a list of recent projects
@@ -25,10 +25,11 @@
  - [x] `str(path)` -> `path` were possible
  - [x] Check `start_editor()` for different input
  - [x] Test on Python 3.6 (pyenv)
- - [ ] Test for `get_state()` (as sequence of states (see scratch.py))
+ - [x] Test for `get_state()` (as sequence of states (see scratch.py))
  - [x] Remake `get_state()` as property value (read-only getter with decorator)
- - [ ] If the project path is a unique identifier of the project in our code maybe we can remake `Stm32pio` class as a subclass of `pathlib.Path` and then reference it like `self` and not `self.project_path`. It would be more consistent also, as now `project_path` is perceived like any other config parameter that somehow is appeared to exist outside of a config instance but then it will be a core identifier, a truly `self` value.
  - [x] Try to invoke stm32pio as module (-m), from different paths...
- - [ ] Logs format test (see prepared regular expressions)
- - [ ] Some non-intrusive installation test (may be some sort of temp virtualenv...)
- - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good
+ - [x] Logs format test (see prepared regular expressions)
+ - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
+ - [x] Do we really need *sys.exc_info() ?
+ - [x] See logging.exception and sys_exc argument for logging.debug
+ - [x] Make `save_config()` a part of the `config` i.e. `project.config.save()` (subclass `ConfigParser`)

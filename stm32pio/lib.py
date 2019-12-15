@@ -3,16 +3,14 @@ Main library
 """
 
 import collections
+import configparser
+import enum
 import logging
 import pathlib
 import shutil
-import subprocess
-import enum
-import configparser
 import string
-import sys
+import subprocess
 import tempfile
-import traceback
 import weakref
 
 import stm32pio.settings
@@ -42,8 +40,27 @@ class ProjectState(enum.IntEnum):
     INITIALIZED = enum.auto()
     GENERATED = enum.auto()
     PIO_INITIALIZED = enum.auto()
-    PIO_INI_PATCHED = enum.auto()
+    PATCHED = enum.auto()
     BUILT = enum.auto()
+
+
+class Config(configparser.ConfigParser):
+    def __init__(self, location: pathlib.Path, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._location = location
+
+    def save(self):
+        """
+        Tries to save the config to the file and gently log if any error occurs
+        """
+        try:
+            with self._location.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
+                self.write(config_file)
+            logger.debug("stm32pio.ini config file has been saved")
+            return 0
+        except Exception as e:
+            logger.warning(f"cannot save the config: {e}", exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
+            return -1
 
 
 class Stm32pio:
@@ -54,8 +71,8 @@ class Stm32pio:
     parameters in a configparser .ini file. As stm32pio can be installed via pip and has no global config we also
     storing global parameters (such as Java or STM32CubeMX invoking commands) in this config .ini file so the user can
     specify settings on a per-project base. The config can be saved in a non-disturbing way automatically on the
-    instance destruction (e.g. by garbage collecting it) (use save_on_destruction=True flag), otherwise user should
-    explicitly save the config if he wants to (using save_config() method).
+    instance destruction (e.g. by garbage collecting it) (use save_on_destruction=True flag), otherwise a user should
+    explicitly save the config if he wants to (using config.save() method).
 
     The typical life cycle consists of project creation, passing mandatory 'dirty_path' argument. If also 'parameters'
     dictionary is specified also these settings are processed (white-list approach is used so we set only those
@@ -73,8 +90,15 @@ class Stm32pio:
         if parameters is None:
             parameters = {}
 
+        # The path is a unique identifier of the project so it would be great to remake Stm32pio class as a subclass of
+        # pathlib.Path and then reference it like self and not self.project_path. It is more consistent also, as now
+        # project_path is perceived like any other config parameter that somehow is appeared to exist outside of a
+        # config instance but then it will be a core identifier, a truly 'self' value.
+        #
+        # But currently pathlib.Path is not intended to be subclassable by-design, unfortunately. See
+        # https://bugs.python.org/issue24132
         self.project_path = self._resolve_project_path(dirty_path)
-        self.config = self._load_settings_file()
+        self.config = self._load_config_file()
 
         ioc_file = self._find_ioc_file()
         self.config.set('project', 'ioc_file', str(ioc_file))
@@ -95,24 +119,7 @@ class Stm32pio:
             self.config.set('project', 'board', board)
 
         if save_on_destruction:
-            self._finalizer = weakref.finalize(self, self.save_config)
-
-
-    def save_config(self) -> int:
-        """
-        Tries to save the configparser config to file and gently log if any error occurs
-        """
-
-        try:
-            with self.project_path.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
-                self.config.write(config_file)
-            logger.debug("stm32pio.ini config file has been saved")
-            return 0
-        except Exception as e:
-            logger.warning(f"cannot save the config: {e}")
-            if logger.getEffectiveLevel() <= logging.DEBUG:
-                traceback.print_exception(*sys.exc_info())
-            return -1
+            self._finalizer = weakref.finalize(self, self.config.save)
 
 
     @property
@@ -124,8 +131,13 @@ class Stm32pio:
         logger.debug("calculating the project state...")
         logger.debug(f"project content: {[item.name for item in self.project_path.iterdir()]}")
 
-        # Fill the ordered dictionary with conditions results
+        try:
+            platformio_ini_is_patched = self.platformio_ini_is_patched()
+        except:
+            platformio_ini_is_patched = False
+
         states_conditions = collections.OrderedDict()
+        # Fill the ordered dictionary with conditions results
         states_conditions[ProjectState.UNDEFINED] = [True]
         states_conditions[ProjectState.INITIALIZED] = [
             self.project_path.joinpath(stm32pio.settings.config_file_name).is_file()]
@@ -136,11 +148,8 @@ class Stm32pio:
         states_conditions[ProjectState.PIO_INITIALIZED] = [
             self.project_path.joinpath('platformio.ini').is_file() and
             len(self.project_path.joinpath('platformio.ini').read_text()) > 0]
-        states_conditions[ProjectState.PIO_INI_PATCHED] = [
-            self.project_path.joinpath('platformio.ini').is_file() and
-            self.config.get('project', 'platformio_ini_patch_content') in
-            self.project_path.joinpath('platformio.ini').read_text(),
-            not self.project_path.joinpath('include').is_dir()]
+        states_conditions[ProjectState.PATCHED] = [
+            platformio_ini_is_patched, not self.project_path.joinpath('include').is_dir()]
         states_conditions[ProjectState.BUILT] = [
             self.project_path.joinpath('.pio').is_dir() and
             any([item.is_file() for item in self.project_path.joinpath('.pio').rglob('*firmware*')])]
@@ -153,7 +162,8 @@ class Stm32pio:
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
         if logger.getEffectiveLevel() <= logging.DEBUG:
-            states_info_str = '\n'.join(f"{state.name:20}{conditions_results[state.value-1]}" for state in ProjectState)
+            states_info_str = '\n'.join(
+                f"{state.name:20}{conditions_results[state.value - 1]}" for state in ProjectState)
             logger.debug(f"determined states:\n{states_info_str}")
 
         # Search for a consecutive raw of 1's and find the last of them. For example, if the array is
@@ -188,7 +198,7 @@ class Stm32pio:
             logger.debug("searching for any .ioc file...")
             candidates = list(self.project_path.glob('*.ioc'))
             if len(candidates) == 0:  # good candidate for the new Python 3.8 assignment expressions feature :)
-                raise FileNotFoundError("Not found: CubeMX project .ioc file")
+                raise FileNotFoundError("not found: CubeMX project .ioc file")
             elif len(candidates) == 1:
                 logger.debug(f"{candidates[0].name} is selected")
                 return candidates[0]
@@ -197,7 +207,7 @@ class Stm32pio:
                 return candidates[0]
 
 
-    def _load_settings_file(self) -> configparser.ConfigParser:
+    def _load_config_file(self) -> Config:
         """
         Prepare configparser config for the project. First, read the default config and then mask these values with user
         ones
@@ -206,7 +216,7 @@ class Stm32pio:
         logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
         stm32pio_ini = self.project_path.joinpath(stm32pio.settings.config_file_name)
 
-        config = configparser.ConfigParser()
+        config = Config(self.project_path, interpolation=None)
 
         # Fill with default values
         config.read_dict(stm32pio.settings.config_default)
@@ -218,7 +228,7 @@ class Stm32pio:
         if logger.getEffectiveLevel() <= logging.DEBUG:
             debug_str = 'resolved config:'
             for section in config.sections():
-                debug_str += f"\n=========== {section} ===========\n"
+                debug_str += f"\n========== {section} ==========\n"
                 for value in config.items(section):
                     debug_str += f"{value}\n"
             logger.debug(debug_str)
@@ -304,7 +314,9 @@ class Stm32pio:
 
         logger.info("starting PlatformIO project initialization...")
 
-        # TODO: check whether there is already a platformio.ini file and warn in this case
+        platformio_ini_file = self.project_path.joinpath('platformio.ini')
+        if platformio_ini_file.is_file() and len(platformio_ini_file.read_text()) > 0:
+            logger.warning("'platformio.ini' file is already existing")
 
         # TODO: move out to config a 'framework' option and to settings a 'platformio.ini' file name
         command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', str(self.project_path), '-b',
@@ -327,26 +339,74 @@ class Stm32pio:
             raise Exception(error_msg)
 
 
+    def platformio_ini_is_patched(self) -> bool:
+        """
+        Check whether 'platformio.ini' config file is patched or not. It doesn't check for unnecessary folders deletion
+        """
+
+        platformio_ini = configparser.ConfigParser(interpolation=None)
+        try:
+            if len(platformio_ini.read(self.project_path.joinpath('platformio.ini'))) == 0:
+                raise FileNotFoundError("not found: 'platformio.ini' file")
+        except FileNotFoundError as e:
+            raise e
+        except Exception as e:
+            raise Exception("'platformio.ini' file is incorrect") from e
+
+        patch_config = configparser.ConfigParser(interpolation=None)
+        try:
+            patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
+        except Exception as e:
+            raise Exception("Desired patch content is invalid (should satisfy INI-format requirements)") from e
+
+        for patch_section in patch_config.sections():
+            if platformio_ini.has_section(patch_section):
+                for patch_key, patch_value in patch_config.items(patch_section):
+                    if platformio_ini.get(patch_section, patch_key, fallback=None) != patch_value:
+                        return False
+            else:
+                return False
+        return True
+
+
     def patch(self) -> None:
         """
-        Patch platformio.ini file to use created earlier by CubeMX 'Src' and 'Inc' folders as sources
+        Patch platformio.ini file by a user's patch. By default, it sets the created earlier (by CubeMX 'Src' and 'Inc')
+        folders as sources. configparser doesn't preserve any comments unfortunately so keep in mid that all of them
+        will be lost at this stage. Also, the order may be violated. In the end, remove old empty folders
         """
 
         logger.debug("patching 'platformio.ini' file...")
 
-        platformio_ini_file = self.project_path.joinpath('platformio.ini')
-        if platformio_ini_file.is_file():
-            with platformio_ini_file.open(mode='a') as f:
-                # TODO: check whether there is already a patched platformio.ini file, warn in this case and do not
-                #  proceed
-                f.write(self.config.get('project', 'platformio_ini_patch_content'))
-            logger.info("'platformio.ini' has been patched")
+        if self.platformio_ini_is_patched():
+            logger.info("'platformio.ini' has been already patched")
         else:
-            raise Exception("'platformio.ini' file not found, the project cannot be patched successfully")
+            # Existing .ini file
+            platformio_ini_config = configparser.ConfigParser(interpolation=None)
+            platformio_ini_config.read(self.project_path.joinpath('platformio.ini'))
+
+            # Our patch has the config format too
+            patch_config = configparser.ConfigParser(interpolation=None)
+            patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
+
+            # Merge 2 configs
+            for patch_section in patch_config.sections():
+                if not platformio_ini_config.has_section(patch_section):
+                    platformio_ini_config.add_section(patch_section)
+                for patch_key, patch_value in patch_config.items(patch_section):
+                    platformio_ini_config.set(patch_section, patch_key, patch_value)
+
+            # Save, overwriting the original file
+            with self.project_path.joinpath('platformio.ini').open(mode='w') as platformio_ini_file:
+                platformio_ini_config.write(platformio_ini_file)
+
+            logger.info("'platformio.ini' has been patched")
 
         shutil.rmtree(self.project_path.joinpath('include'), ignore_errors=True)
 
-        if not self.project_path.joinpath('SRC').is_dir():  # check for case sensitive file system
+        # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
+        # first
+        if not self.project_path.joinpath('SRC').is_dir():
             shutil.rmtree(self.project_path.joinpath('src'), ignore_errors=True)
 
 
