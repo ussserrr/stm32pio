@@ -51,7 +51,7 @@ class Config(configparser.ConfigParser):
 
     def save(self):
         """
-        Tries to save the configparser config to file and gently log if any error occurs
+        Tries to save the config to the file and gently log if any error occurs
         """
         try:
             with self._location.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
@@ -90,8 +90,15 @@ class Stm32pio:
         if parameters is None:
             parameters = {}
 
+        # The path is a unique identifier of the project so it would be great to remake Stm32pio class as a subclass of
+        # pathlib.Path and then reference it like self and not self.project_path. It is more consistent also, as now
+        # project_path is perceived like any other config parameter that somehow is appeared to exist outside of a
+        # config instance but then it will be a core identifier, a truly 'self' value.
+        #
+        # But currently pathlib.Path is not intended to be subclassable by-design, unfortunately. See
+        # https://bugs.python.org/issue24132
         self.project_path = self._resolve_project_path(dirty_path)
-        self.config = self._load_settings_file()
+        self.config = self._load_config_file()
 
         ioc_file = self._find_ioc_file()
         self.config.set('project', 'ioc_file', str(ioc_file))
@@ -200,7 +207,7 @@ class Stm32pio:
                 return candidates[0]
 
 
-    def _load_settings_file(self) -> Config:
+    def _load_config_file(self) -> Config:
         """
         Prepare configparser config for the project. First, read the default config and then mask these values with user
         ones
@@ -307,7 +314,9 @@ class Stm32pio:
 
         logger.info("starting PlatformIO project initialization...")
 
-        # TODO: check whether there is already a platformio.ini file and warn in this case
+        platformio_ini_file = self.project_path.joinpath('platformio.ini')
+        if platformio_ini_file.is_file() and len(platformio_ini_file.read_text()) > 0:
+            logger.warning("'platformio.ini' file is already existing")
 
         # TODO: move out to config a 'framework' option and to settings a 'platformio.ini' file name
         command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', str(self.project_path), '-b',

@@ -7,21 +7,21 @@ To get test coverage use 'coverage':
     $  coverage html
 """
 
-import re
-import unittest
 import configparser
+import inspect
 import pathlib
 import platform
+import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
-import inspect
-import sys
+import unittest
 
 import stm32pio.app
-import stm32pio.settings
 import stm32pio.lib
+import stm32pio.settings
 
 
 STM32PIO_MAIN_SCRIPT = inspect.getfile(stm32pio.app)  # absolute path to the main stm32pio script

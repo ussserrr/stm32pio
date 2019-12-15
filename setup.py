@@ -11,7 +11,8 @@ setuptools.setup(
     author='ussserrr',
     author_email='andrei4.2008@gmail.com',
     description="Small cross-platform Python app that can create and update PlatformIO projects from STM32CubeMX .ioc "
-                "files.",
+                "files. It uses STM32CubeMX to generate a HAL-framework based code and alongside creates PlatformIO "
+                "project with the compatible framework specified",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ussserrr/stm32pio",
@@ -24,6 +25,7 @@ setuptools.setup(
         "Environment :: Console",
         "Topic :: Software Development :: Embedded Systems"
     ],
+    python_requires='>=3.6',
     include_package_data=True,
     entry_points={
         'console_scripts': [
