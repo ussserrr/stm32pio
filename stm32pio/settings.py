@@ -43,3 +43,5 @@ config_default = collections.OrderedDict(
 )
 
 config_file_name = 'stm32pio.ini'
+
+log_function_fieldwidth = 26

@@ -33,3 +33,6 @@
  - [x] Do we really need *sys.exc_info() ?
  - [x] See logging.exception and sys_exc argument for logging.debug
  - [x] Make `save_config()` a part of the `config` i.e. `project.config.save()` (subclass `ConfigParser`)
+ - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list. Ask the confirmation of a user by-defualt and add additional option for quiet performance
+ - [ ] 'status' CLI subcommand, why not?..
+ - [ ] exclude tests from the bundle (see `setup.py` options)
