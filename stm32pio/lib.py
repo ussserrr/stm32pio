@@ -313,8 +313,9 @@ class Stm32pio:
         # Use mkstemp() instead of higher-level API for compatibility with Windows (see tempfile docs for more details)
         cubemx_script_file, cubemx_script_name = tempfile.mkstemp()
 
-        # buffering=0 leads to the immediate flushing on writing
+        # We should necessarily remove the temp directory, so do not let any exception break our plans
         try:
+            # buffering=0 leads to the immediate flushing on writing
             with open(cubemx_script_file, mode='w+b', buffering=0) as cubemx_script:
                 # encode since mode='w+b'
                 cubemx_script.write(self.config.get('project', 'cubemx_script_content').encode())
@@ -328,6 +329,8 @@ class Stm32pio:
                     result = subprocess.run(command_arr, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     # Or, for Python 3.7 and above:
                     # result = subprocess.run(command_arr, capture_output=True)
+        except Exception as e:
+            raise e  # re-raise an exception after the final block
         finally:
             pathlib.Path(cubemx_script_name).unlink()
 

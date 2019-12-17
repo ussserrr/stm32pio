@@ -126,7 +126,7 @@ stm32pio changelog:
         - Changed: actualized .ioc file for the latest STM32CubeMX version (5.4.0 at the moment)
         - Changed: improved help, docs, comments
 
-    ver. 0.95 (12.19):
+    ver. 0.95 (15.12.19):
         - New: re-made patch() method: it can intelligently parses platformio.ini and substitute necessary options. Patch can now be a general .INI-format config
         - New: test_get_state()
         - New: upload to PyPI
@@ -143,3 +143,14 @@ stm32pio changelog:
         - Changed: check whether there is already a platformio.ini file and warn in this case on PlatformIO init stage
         - Changed: sort imports in the alphabetic order
         - Changed: use configparser to test project patching
+
+    ver. 0.96 (17.12.19):
+        - Fix: generate_code() doesn't destroy the temp folder after execution
+        - Fix: improved and actualized docs, comments, annotations
+        - Changed: print Python interpreter information on testing
+        - Changed: move some asserts inside subTest context managers
+        - Changed: rename pio_build() => build()
+        - Changed: take out to the settings.py the width of field in a log format string
+        - Changed: use file statistic to check its size instead of reading the whole content
+        - Changed: more logging output
+        - Changed: change some methods signatures to return result value
