@@ -39,6 +39,7 @@ TEST_PROJECT_BOARD = 'nucleo_f031k6'
 # Instantiate a temporary folder on every fixture run. It is used across all tests and is deleted on shutdown
 temp_dir = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
+
 print(f"The file of 'stm32pio.app' module: {STM32PIO_MAIN_SCRIPT}")
 print(f"Python executable: {PYTHON_EXEC} {sys.version}")
 print(f"Temp test fixture path: {FIXTURE_PATH}")

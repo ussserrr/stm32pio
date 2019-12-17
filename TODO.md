@@ -10,7 +10,7 @@
  - [x] Config file for every project instead of the `settings.py` (but we still sill be storing the default parameters there)
  - [x] Test CLI (integration testing)
  - [x] Move test fixtures out of the 'tests' so we can use it for multiple projects (for example while testing CLI and GUI versions). Set up test folder for every single test so we make sure the .ioc file is always present and not deleted after failed test
- - [ ] Upload to PyPI
+ - [x] Upload to PyPI
  - [x] `__main__`
  - [x] Abort `--with-build` if no platformio.ini file is present
  - [x] Rename `stm32pio.py` -> `app.py`
@@ -36,3 +36,4 @@
  - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list. Ask the confirmation of a user by-defualt and add additional option for quiet performance
  - [ ] 'status' CLI subcommand, why not?..
  - [ ] exclude tests from the bundle (see `setup.py` options)
+ - [ ] generate code docs (help user to understand an internal kitchen, e.g. for embedding)

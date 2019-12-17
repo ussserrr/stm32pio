@@ -1,3 +1,11 @@
+"""
+To pack:
+  $ python3 setup.py sdist bdist_wheel
+
+To upload to PyPI:
+  $ python3 -m twine upload dist/*
+"""
+
 import setuptools
 
 import stm32pio.app
