@@ -51,7 +51,14 @@ Basically, you need to follow such a pattern:
   3. Work on the project in your editor, compile/upload/debug etc.
   4. Edit the configuration in CubeMX when necessary, then run stm32pio to regenerate the code.
 
-Refer to Example section on more detailed steps.
+Refer to Example section on more detailed steps. If you face off with some error try to enable a verbose output to get more information about a problem:
+```shell script
+$ stm32pio -v [command] [options]
+```
+
+Note, that the patch operation (which takes the CubeMX code and PlatformIO project to the compliance) erases all the comments (lines starting with `;`) inside the `platformio.ini` file. They are not required anyway, in general, but if you need them please consider to save the information somewhere else.
+
+Starting from v0.95, the patch can has a general-form .INI content so it is possible to modify several sections and apply composite patches. This works totally fine for almost every cases except some big complex patches involving the parameters interpolation feature. It is turned off for both `platformio.ini` and user's patch parsing by default. If there are some problems you've met due to a such behavior please modify the source code to match the parameters interpolation kind for the configs you need to. Seems like `platformio.ini` uses `ExtendedInterpolation` for its needs, by the way.
 
 On the first run stm32pio will create a config file `stm32pio.ini`, syntax of which is similar to the `platformio.ini`. You can also create this config without any following operations by initializing the project:
 ```shell script
@@ -65,7 +72,7 @@ $ python3 app.py --help
 ```
 to see help on available commands.
 
-You can also use stm32pio as a package and embed it in your own application. See [`app.py`](/stm32pio/app.py) to see how to implement this. Basically you need to import `stm32pio.lib` module (where the main `Stm32pio` class resides), set up a logger and you are good to go. If you need higher-level API similar to the CLI version use `main()` function in `app.py` passing the same CLI arguments to it.
+You can also use stm32pio as a package and embed it in your own application. See [`app.py`](/stm32pio/app.py) to see how to implement this. Basically you need to import `stm32pio.lib` module (where the main `Stm32pio` class resides), set up a logger and you are good to go. If you need higher-level API similar to the CLI version, use `main()` function in `app.py` passing the same CLI arguments to it (except the actual script name).
 
 
 ## Example
@@ -123,4 +130,4 @@ CI is hard to implement for all target OSes during the requirement to have all t
     ```ini
     lib_extra_dirs = Middlewares/Third_Party/FreeRTOS
     ```
-    You also need to move all `.c`/`.h` files to the `src`/`include` folders respectively. See PlatformIO documentation for more information.
+    You also need to move all `.c`/`.h` files to the appropriate folders respectively. See PlatformIO documentation for more information.

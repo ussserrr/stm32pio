@@ -1,8 +1,8 @@
 """
-'pyenv' is recommended to use for testing with different Python versions
+'pyenv' was used to perform tests with different Python versions under Ubuntu:
 https://www.tecmint.com/pyenv-install-and-manage-multiple-python-versions-in-linux/
 
-To get test coverage use 'coverage':
+To get the test coverage install and use 'coverage':
     $  coverage run -m stm32pio.tests.test -b
     $  coverage html
 """
@@ -24,9 +24,9 @@ import stm32pio.lib
 import stm32pio.settings
 
 
-STM32PIO_MAIN_SCRIPT = inspect.getfile(stm32pio.app)  # absolute path to the main stm32pio script
+STM32PIO_MAIN_SCRIPT: str = inspect.getfile(stm32pio.app)  # absolute path to the main stm32pio script
 # absolute path to the Python executable (no need to guess whether it's python or python3 and so on)
-PYTHON_EXEC = sys.executable
+PYTHON_EXEC: str = sys.executable
 
 # Test data
 TEST_PROJECT_PATH = pathlib.Path('stm32pio-test-project').resolve()
@@ -39,6 +39,8 @@ TEST_PROJECT_BOARD = 'nucleo_f031k6'
 # Instantiate a temporary folder on every fixture run. It is used across all tests and is deleted on shutdown
 temp_dir = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
+print(f"The file of 'stm32pio.app' module: {STM32PIO_MAIN_SCRIPT}")
+print(f"Python executable: {PYTHON_EXEC} {sys.version}")
 print(f"Temp test fixture path: {FIXTURE_PATH}")
 
 
@@ -66,12 +68,12 @@ class TestUnit(CustomTestCase):
     """
     Test the single method. As we at some point decided to use a class instead of the set of scattered functions we need
     to do some preparations for almost every test (e.g. instantiate the class, create the PlatformIO project, etc.),
-    though
+    though, so the architecture now is way less modular
     """
 
     def test_generate_code(self):
         """
-        Check whether files and folders have been created by STM32CubeMX
+        Check whether files and folders have been created (by STM32CubeMX)
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
@@ -80,13 +82,13 @@ class TestUnit(CustomTestCase):
         # Assuming that the presence of these files indicating a success
         files_should_be_present = ['Src/main.c', 'Inc/main.h']
         for file in files_should_be_present:
-            with self.subTest(file_should_be_present=file, msg=f"{file} hasn't been created"):
+            with self.subTest(msg=f"{file} hasn't been created"):
                 self.assertEqual(FIXTURE_PATH.joinpath(file).is_file(), True)
 
     def test_pio_init(self):
         """
         Consider that existence of 'platformio.ini' file showing a successful PlatformIO project initialization. The
-        last one has another traces those can be checked too but we are interested only in a 'platformio.ini' anyway.
+        last one has another traces that can be checked too but we are interested only in a 'platformio.ini' anyway.
         Also, check that it is a correct configparser file and is not empty
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
@@ -105,10 +107,8 @@ class TestUnit(CustomTestCase):
         Check that new parameters were added, modified were updated and existing parameters didn't gone. Also, check for
         unnecessary folders deletion
         """
-
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
 
-        # We do not create a real project here so we don't depend on other possible issues
         test_content = inspect.cleandoc('''
             ; This is a test config .ini file
             ; with a comment. It emulates a real
@@ -128,7 +128,8 @@ class TestUnit(CustomTestCase):
 
         project.patch()
 
-        self.assertFalse(FIXTURE_PATH.joinpath('include').is_dir(), msg="'include' has not been deleted")
+        with self.subTest():
+            self.assertFalse(FIXTURE_PATH.joinpath('include').is_dir(), msg="'include' has not been deleted")
 
         original_test_config = configparser.ConfigParser(interpolation=None)
         original_test_config.read_string(test_content)
@@ -157,14 +158,15 @@ class TestUnit(CustomTestCase):
 
     def test_build_should_handle_error(self):
         """
-        Build an empty project so PlatformIO should return the error
+        Build an empty project so PlatformIO should return an error
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
         project.pio_init()
 
         with self.assertLogs(level='ERROR') as logs:
-            self.assertNotEqual(project.pio_build(), 0, msg="Build error was not indicated")
+            self.assertNotEqual(project.build(), 0, msg="Build error was not indicated")
+            # next() - Technique to find something in array, string, etc. (or to indicate that there is no)
             self.assertTrue(next((True for item in logs.output if "PlatformIO build error" in item), False),
                             msg="Error message does not match")
 
@@ -208,9 +210,10 @@ class TestUnit(CustomTestCase):
 
                     time.sleep(1)  # wait a little bit for app to start
 
-                    command_arr = ['ps', '-A']
                     if platform.system() == 'Windows':
                         command_arr = ['wmic', 'process', 'get', 'description']
+                    else:
+                        command_arr = ['ps', '-A']
                     # "encoding='utf-8'" is for "a bytes-like object is required, not 'str'" in "assertIn"
                     result = subprocess.run(command_arr, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                             encoding='utf-8')
@@ -237,18 +240,20 @@ class TestUnit(CustomTestCase):
         # 'board' is non-default, 'project'-section parameter
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
-
         project.config.save()
 
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
                         msg=f"{stm32pio.settings.config_file_name} file hasn't been created")
 
         config = configparser.ConfigParser(interpolation=None)
-        config.read(str(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name)))
+        self.assertGreater(len(config.read(str(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name)))), 0,
+                           msg="Config is empty")
         for section, parameters in stm32pio.settings.config_default.items():
             for option, value in parameters.items():
-                with self.subTest(section=section, option=option, msg="Section/key is not found in saved config file"):
+                with self.subTest(section=section, option=option,
+                                  msg="Section/key is not found in the saved config file"):
                     self.assertNotEqual(config.get(section, option, fallback="Not found"), "Not found")
+
         self.assertEqual(config.get('project', 'board', fallback="Not found"), TEST_PROJECT_BOARD,
                          msg="'board' has not been set")
 
@@ -262,7 +267,6 @@ class TestIntegration(CustomTestCase):
         """
         Test the compliance with priorities when reading the parameters
         """
-
         # Sample user's custom patch value
         config_parameter_user_value = inspect.cleandoc('''
             [test_section]
@@ -284,13 +288,13 @@ class TestIntegration(CustomTestCase):
             config.write(config_file)
 
         # On project creation we should interpret the CLI-provided values as superseding to the saved ones and
-        # saved ones as superseding to the default ones
+        # saved ones, in turn, as superseding to the default ones
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': cli_parameter_user_value},
                                         save_on_destruction=False)
         project.pio_init()
         project.patch()
 
-        # Actually, we can parse platformio.ini via configparser but this is simpler
+        # Actually, we can parse platformio.ini via configparser but this is simpler in our case
         after_patch_content = FIXTURE_PATH.joinpath('platformio.ini').read_text()
         self.assertIn(config_parameter_user_value, after_patch_content,
                       msg="User config parameter has not been prioritized over the default one")
@@ -307,7 +311,7 @@ class TestIntegration(CustomTestCase):
         project.pio_init()
         project.patch()
 
-        result = project.pio_build()
+        result = project.build()
 
         self.assertEqual(result, 0, msg="Build failed")
 
@@ -341,18 +345,22 @@ class TestIntegration(CustomTestCase):
         project.generate_code()
 
         # Check if added information is preserved
-        main_c_after_regenerate_content = test_file_1.read_text()
-        my_header_h_after_regenerate_content = test_file_2.read_text()
-        self.assertIn(test_content_1, main_c_after_regenerate_content,
-                      msg=f"User content hasn't been preserved after regeneration in {test_file_1}")
-        self.assertIn(test_content_2, my_header_h_after_regenerate_content,
-                      msg=f"User content hasn't been preserved after regeneration in {test_file_2}")
+        for test_content, after_regenerate_content in [(test_content_1, test_file_1.read_text()),
+                                                       (test_content_2, test_file_2.read_text())]:
+            with self.subTest(msg=f"User content hasn't been preserved in {after_regenerate_content}"):
+                self.assertIn(test_content, after_regenerate_content)
+
+        # main_c_after_regenerate_content = test_file_1.read_text()
+        # my_header_h_after_regenerate_content = test_file_2.read_text()
+        # self.assertIn(test_content_1, main_c_after_regenerate_content,
+        #               msg=f"User content hasn't been preserved after regeneration in {test_file_1}")
+        # self.assertIn(test_content_2, my_header_h_after_regenerate_content,
+        #               msg=f"User content hasn't been preserved after regeneration in {test_file_2}")
 
     def test_get_state(self):
         """
         Go through the sequence of states emulating the real-life project lifecycle
         """
-
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
         self.assertEqual(project.state, stm32pio.lib.ProjectState.UNDEFINED)
@@ -369,7 +377,7 @@ class TestIntegration(CustomTestCase):
         project.patch()
         self.assertEqual(project.state, stm32pio.lib.ProjectState.PATCHED)
 
-        project.pio_build()
+        project.build()
         self.assertEqual(project.state, stm32pio.lib.ProjectState.BUILT)
 
         project.clean()
@@ -394,17 +402,19 @@ class TestCLI(CustomTestCase):
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         # Look for remaining items
-        self.assertFalse(file_should_be_deleted.is_file(), msg=f"{file_should_be_deleted} is still there")
-        self.assertFalse(dir_should_be_deleted.is_dir(), msg=f"{dir_should_be_deleted} is still there")
+        with self.subTest():
+            self.assertFalse(file_should_be_deleted.is_file(), msg=f"{file_should_be_deleted} is still there")
+        with self.subTest():
+            self.assertFalse(dir_should_be_deleted.is_dir(), msg=f"{dir_should_be_deleted} is still there")
 
         # And .ioc file should be preserved
-        self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
+        with self.subTest():
+            self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
 
     def test_new(self):
         """
-        Successful build is the best indicator that all went right so we use '--with-build' option
+        Successful build is the best indicator that all went right so we use '--with-build' option here
         """
-
         return_code = stm32pio.app.main(sys_argv=['new', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD,
                                                   '--with-build'])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
@@ -416,13 +426,11 @@ class TestCLI(CustomTestCase):
         return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(FIXTURE_PATH)])
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
-        inc_dir = 'Inc'
-        src_dir = 'Src'
-
-        self.assertTrue(FIXTURE_PATH.joinpath(inc_dir).is_dir(), msg=f"Missing '{inc_dir}'")
-        self.assertTrue(FIXTURE_PATH.joinpath(src_dir).is_dir(), msg=f"Missing '{src_dir}'")
-        self.assertFalse(len(list(FIXTURE_PATH.joinpath(inc_dir).iterdir())) == 0, msg=f"'{inc_dir}' is empty")
-        self.assertFalse(len(list(FIXTURE_PATH.joinpath(src_dir).iterdir())) == 0, msg=f"'{src_dir}' is empty")
+        for directory in ['Inc', 'Src']:
+            with self.subTest():
+                self.assertTrue(FIXTURE_PATH.joinpath(directory).is_dir(), msg=f"Missing '{directory}'")
+                self.assertNotEqual(len(list(FIXTURE_PATH.joinpath(directory).iterdir())), 0,
+                                    msg=f"'{directory}' is empty")
 
         # .ioc file should be preserved
         self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
@@ -431,7 +439,6 @@ class TestCLI(CustomTestCase):
         """
         We should see an error log message and non-zero return code
         """
-
         path_not_exist = pathlib.Path('path/does/not/exist')
 
         with self.assertLogs(level='ERROR') as logs:
@@ -444,7 +451,6 @@ class TestCLI(CustomTestCase):
         """
         We should see an error log message and non-zero return code
         """
-
         dir_with_no_ioc_file = FIXTURE_PATH.joinpath('dir.with.no.ioc.file')
         dir_with_no_ioc_file.mkdir(exist_ok=False)
 
@@ -459,10 +465,8 @@ class TestCLI(CustomTestCase):
         Run as subprocess to capture the full output. Check for both 'DEBUG' logging messages and STM32CubeMX CLI
         output. Verbose logs format should match such a regex:
 
-            ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} (?=(pio_build|pio_init|...) {0,26})(?=.{26} [^ ]))
-
+            ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} (?=(build|pio_init|...) {0,26})(?=.{26} [^ ]))
         """
-
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
         methods = [method[0] for method in inspect.getmembers(project, predicate=inspect.ismethod)]
         methods.append('main')
@@ -474,10 +478,12 @@ class TestCLI(CustomTestCase):
         # Somehow stderr and not stdout contains the actual output but we check both
         self.assertTrue('DEBUG' in result.stderr or 'DEBUG' in result.stdout,
                         msg="Verbose logging output hasn't been enabled on stderr")
-        regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" + '|'.join(methods) + ") {0,26})(?=.{26} [^ ]))",
+        # Inject all methods' names in the regex. Inject the width of field in a log format string
+        regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" + '|'.join(methods) + ") {0," +
+                           str(stm32pio.settings.log_function_fieldwidth) + "})(?=.{" +
+                           str(stm32pio.settings.log_function_fieldwidth) + "} [^ ]))",
                            flags=re.MULTILINE)
-        self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1,
-                                msg="Logs messages doesn't match the format")
+        self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1, msg="Logs messages doesn't match the format")
 
         self.assertIn('Starting STM32CubeMX', result.stdout, msg="STM32CubeMX didn't print its logs")
 
@@ -486,10 +492,8 @@ class TestCLI(CustomTestCase):
         Run as subprocess to capture the full output. We should not see any 'DEBUG' logging messages or STM32CubeMX CLI
         output. Logs format should match such a regex:
 
-            ^(?=(INFO) {0,4})(?=.{8} ((?!( |pio_build|pio_init|...))))
-
+            ^(?=(INFO) {0,4})(?=.{8} ((?!( |build|pio_init|...))))
         """
-
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
         methods = [method[0] for method in inspect.getmembers(project, predicate=inspect.ismethod)]
         methods.append('main')
@@ -511,7 +515,6 @@ class TestCLI(CustomTestCase):
         """
         Check for config creation and parameters presence
         """
-
         result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(FIXTURE_PATH),
                                  '-b', TEST_PROJECT_BOARD])
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")

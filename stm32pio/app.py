@@ -15,7 +15,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     Dedicated function to parse the arguments given via the CLI
 
     Args:
-        args: list of strings
+        args: list of strings CLI arguments
 
     Returns:
         argparse.Namespace or None if no arguments were given
@@ -23,8 +23,8 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
 
     parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
                                                  "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Run "
-                                                 "'init' command to create settings file and set the path to "
-                                                 "STM32CubeMX and other tools (if defaults doesn't work)")
+                                                 "'init' command to create config file and set the path to STM32CubeMX "
+                                                 "and other tools (if defaults doesn't work for you)")
     # Global arguments (there is also an automatically added '-h, --help' option)
     parser.add_argument('--version', action='version', version=f"stm32pio v{__version__}")
     parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', required=False)
@@ -35,7 +35,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     parser_init = subparsers.add_parser('init', help="create config .ini file so you can tweak parameters before "
                                                      "proceeding")
     parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project")
-    parser_generate = subparsers.add_parser('generate', help="generate CubeMX code")
+    parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (WARNING: it deletes ALL content of "
                                                        "'path' except the .ioc file)")
 
@@ -60,28 +60,34 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
 
 def main(sys_argv=None) -> int:
     """
-    Can be used as high-level wrapper to do complete tasks
+    Can be used as a high-level wrapper to do complete tasks
 
     Example:
         ret_code = stm32pio.app.main(sys_argv=['new', '-d', '~/path/to/project', '-b', 'nucleo_f031k6', '--with-build'])
 
     Args:
-        sys_argv: list of strings
+        sys_argv: list of strings CLI arguments
+
+    Returns:
+        0 on success, -1 otherwise
     """
 
     if sys_argv is None:
         sys_argv = sys.argv[1:]
 
+    import stm32pio.settings
+
     args = parse_args(sys_argv)
 
-    # Logger instance goes through the whole program.
-    # Currently only 2 levels of verbosity through the '-v' option are counted (INFO (default) and DEBUG (-v))
-    logger = logging.getLogger('stm32pio')
+    logger = logging.getLogger('stm32pio')  # the root (relatively to the possible outer scope) logger instance
     handler = logging.StreamHandler()
     logger.addHandler(handler)
+    # Currently only 2 levels of verbosity through the '-v' option are counted (INFO (default) and DEBUG (-v))
     if args is not None and args.subcommand is not None and args.verbose:
         logger.setLevel(logging.DEBUG)
-        handler.setFormatter(logging.Formatter("%(levelname)-8s %(funcName)-26s %(message)s"))
+        handler.setFormatter(logging.Formatter("%(levelname)-8s "
+                                               f"%(funcName)-{stm32pio.settings.log_function_fieldwidth}s "
+                                               "%(message)s"))
         logger.debug("debug logging enabled")
     elif args is not None and args.subcommand is not None:
         logger.setLevel(logging.INFO)
@@ -92,9 +98,9 @@ def main(sys_argv=None) -> int:
         logger.info("\nNo arguments were given, exiting...")
         return 0
 
-    # Main routine
-    import stm32pio.lib  # import the module after sys.path modification
+    import stm32pio.lib  # import the module after sys.path modification and logger configuration
 
+    # Main routine
     try:
         if args.subcommand == 'init':
             project = stm32pio.lib.Stm32pio(args.project_path, parameters={'board': args.board})
@@ -113,7 +119,7 @@ def main(sys_argv=None) -> int:
             project.pio_init()
             project.patch()
             if args.with_build:
-                project.pio_build()
+                project.build()
             if args.editor:
                 project.start_editor(args.editor)
 
@@ -121,7 +127,7 @@ def main(sys_argv=None) -> int:
             project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
             project.generate_code()
             if args.with_build:
-                project.pio_build()
+                project.build()
             if args.editor:
                 project.start_editor(args.editor)
 
