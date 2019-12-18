@@ -3,10 +3,10 @@
 // 1.4  // 1.6
 // 1.2
 // respectively
-import QtQuick 2.13
-import QtQuick.Controls 2.13
+import QtQuick 2.12
+import QtQuick.Controls 2.12
 //import QtQuick.Controls.Material 2.13
-import QtQuick.Layouts 1.13
+import QtQuick.Layouts 1.12
 
 ApplicationWindow {
     visible: true
