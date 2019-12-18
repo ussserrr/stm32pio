@@ -35,7 +35,7 @@ class Calculator(QObject):
 if __name__ == "__main__":
     import sys
 
-    sys.argv += ['--style', 'material']
+    # sys.argv += ['--style', 'material']
 
     # создаём экземпляр приложения
     app = QGuiApplication(sys.argv)

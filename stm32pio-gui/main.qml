@@ -1,11 +1,11 @@
 // latest, but native are:
 // 2.5
-// 1.4
+// 1.4  // 1.6
 // 1.2
 // respectively
 import QtQuick 2.13
 import QtQuick.Controls 2.13
-import QtQuick.Controls.Material 2.13
+//import QtQuick.Controls.Material 2.13
 import QtQuick.Layouts 1.13
 
 ApplicationWindow {
@@ -13,8 +13,8 @@ ApplicationWindow {
     width: 640
     height: 240
     title: qsTr("PyQt5 love QML")
-    Material.theme: Material.Light
-    //color: "whitesmoke"
+    //Material.theme: Material.Light
+    color: "whitesmoke"
 
     GridLayout {
         anchors.top: parent.top
@@ -48,7 +48,7 @@ ApplicationWindow {
         Button {
             height: 40
             Layout.fillWidth: true
-            highlighted: true
+            //highlighted: true
             //Material.accent: Material.Orange
             text: qsTr("Sum numbers")
 
