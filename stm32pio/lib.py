@@ -100,11 +100,11 @@ class Stm32pio:
             parameters = {}
 
         # The path is a unique identifier of the project so it would be great to remake Stm32pio class as a subclass of
-        # pathlib.Path and then reference it like self and not self.project_path. It is more consistent also, as now
-        # project_path is perceived like any other config parameter that somehow is appeared to exist outside of a
-        # config instance but then it will be a core identifier, a truly 'self' value. But currently pathlib.Path is not
-        # intended to be subclassable by-design, unfortunately. See https://bugs.python.org/issue24132
-        self.project_path = self._resolve_project_path(dirty_path)
+        # pathlib.Path and then reference it like self and not self.path. It is more consistent also, as now path is
+        # perceived like any other config parameter that somehow is appeared to exist outside of a config instance but
+        # then it will be a core identifier, a truly 'self' value. But currently pathlib.Path is not intended to be
+        # subclassable by-design, unfortunately. See https://bugs.python.org/issue24132
+        self.path = self._resolve_project_path(dirty_path)
 
         self.config = self._load_config_file()
 
@@ -112,7 +112,7 @@ class Stm32pio:
         self.config.set('project', 'ioc_file', str(ioc_file))
 
         cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
-        cubemx_script_content = cubemx_script_template.substitute(project_path=self.project_path,
+        cubemx_script_content = cubemx_script_template.substitute(project_path=self.path,
             cubemx_ioc_full_filename=self.config.get('project', 'ioc_file'))
         self.config.set('project', 'cubemx_script_content', cubemx_script_content)
 
@@ -130,6 +130,10 @@ class Stm32pio:
             self._finalizer = weakref.finalize(self, self.config.save)
 
 
+    def __repr__(self):
+        return f"Stm32pio project: {str(self.path)}"
+
+
     @property
     def state(self) -> ProjectState:
         """
@@ -140,7 +144,7 @@ class Stm32pio:
         """
 
         logger.debug("calculating the project state...")
-        logger.debug(f"project content: {[item.name for item in self.project_path.iterdir()]}")
+        logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
 
         try:
             platformio_ini_is_patched = self.platformio_ini_is_patched()
@@ -151,19 +155,19 @@ class Stm32pio:
         # Fill the ordered dictionary with the conditions results
         states_conditions[ProjectState.UNDEFINED] = [True]
         states_conditions[ProjectState.INITIALIZED] = [
-            self.project_path.joinpath(stm32pio.settings.config_file_name).is_file()]
-        states_conditions[ProjectState.GENERATED] = [self.project_path.joinpath('Inc').is_dir() and
-                                                     len(list(self.project_path.joinpath('Inc').iterdir())) > 0,
-                                                     self.project_path.joinpath('Src').is_dir() and
-                                                     len(list(self.project_path.joinpath('Src').iterdir())) > 0]
+            self.path.joinpath(stm32pio.settings.config_file_name).is_file()]
+        states_conditions[ProjectState.GENERATED] = [self.path.joinpath('Inc').is_dir() and
+                                                     len(list(self.path.joinpath('Inc').iterdir())) > 0,
+                                                     self.path.joinpath('Src').is_dir() and
+                                                     len(list(self.path.joinpath('Src').iterdir())) > 0]
         states_conditions[ProjectState.PIO_INITIALIZED] = [
-            self.project_path.joinpath('platformio.ini').is_file() and
-            self.project_path.joinpath('platformio.ini').stat().st_size > 0]
+            self.path.joinpath('platformio.ini').is_file() and
+            self.path.joinpath('platformio.ini').stat().st_size > 0]
         states_conditions[ProjectState.PATCHED] = [
-            platformio_ini_is_patched, not self.project_path.joinpath('include').is_dir()]
+            platformio_ini_is_patched, not self.path.joinpath('include').is_dir()]
         states_conditions[ProjectState.BUILT] = [
-            self.project_path.joinpath('.pio').is_dir() and
-            any([item.is_file() for item in self.project_path.joinpath('.pio').rglob('*firmware*')])]
+            self.path.joinpath('.pio').is_dir() and
+            any([item.is_file() for item in self.path.joinpath('.pio').rglob('*firmware*')])]
 
         # Use (1,0) instead of (True,False) because on debug printing it looks better
         conditions_results = []
@@ -214,7 +218,7 @@ class Stm32pio:
             return ioc_file
         else:
             logger.debug("searching for any .ioc file...")
-            candidates = list(self.project_path.glob('*.ioc'))
+            candidates = list(self.path.glob('*.ioc'))
             if len(candidates) == 0:  # good candidate for the new Python 3.8 assignment expressions feature :)
                 raise FileNotFoundError("not found: CubeMX project .ioc file")
             elif len(candidates) == 1:
@@ -235,14 +239,12 @@ class Stm32pio:
         """
 
         logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
-        stm32pio_ini = self.project_path.joinpath(stm32pio.settings.config_file_name)
 
-        config = Config(self.project_path, interpolation=None)
-
+        config = Config(self.path, interpolation=None)
         # Fill with default values
         config.read_dict(stm32pio.settings.config_default)
         # Then override by user values (if exist)
-        config.read(str(stm32pio_ini))
+        config.read(str(self.path.joinpath(stm32pio.settings.config_file_name)))
 
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
@@ -353,11 +355,11 @@ class Stm32pio:
 
         logger.info("starting PlatformIO project initialization...")
 
-        platformio_ini_file = self.project_path.joinpath('platformio.ini')
+        platformio_ini_file = self.path.joinpath('platformio.ini')
         if platformio_ini_file.is_file() and platformio_ini_file.stat().st_size > 0:
             logger.warning("'platformio.ini' file is already exist")
 
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', str(self.project_path), '-b',
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', str(self.path), '-b',
                        self.config.get('project', 'board'), '-O', 'framework=stm32cube']
         if logger.getEffectiveLevel() > logging.DEBUG:
             command_arr.append('--silent')
@@ -388,7 +390,7 @@ class Stm32pio:
 
         platformio_ini = configparser.ConfigParser(interpolation=None)
         try:
-            if len(platformio_ini.read(self.project_path.joinpath('platformio.ini'))) == 0:
+            if len(platformio_ini.read(self.path.joinpath('platformio.ini'))) == 0:
                 raise FileNotFoundError("not found: 'platformio.ini' file")
         except FileNotFoundError as e:
             raise e
@@ -429,7 +431,7 @@ class Stm32pio:
         else:
             # Existing .ini file
             platformio_ini_config = configparser.ConfigParser(interpolation=None)
-            platformio_ini_config.read(self.project_path.joinpath('platformio.ini'))
+            platformio_ini_config.read(self.path.joinpath('platformio.ini'))
 
             # Our patch has the config format too
             patch_config = configparser.ConfigParser(interpolation=None)
@@ -445,19 +447,19 @@ class Stm32pio:
                     platformio_ini_config.set(patch_section, patch_key, patch_value)
 
             # Save, overwriting the original file (deletes all comments!)
-            with self.project_path.joinpath('platformio.ini').open(mode='w') as platformio_ini_file:
+            with self.path.joinpath('platformio.ini').open(mode='w') as platformio_ini_file:
                 platformio_ini_config.write(platformio_ini_file)
 
             logger.info("'platformio.ini' has been patched")
 
         try:
-            shutil.rmtree(self.project_path.joinpath('include'))
+            shutil.rmtree(self.path.joinpath('include'))
         except:
             logger.info("cannot delete 'include' folder", exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
         # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
-        if not self.project_path.joinpath('SRC').is_dir():
+        if not self.path.joinpath('SRC').is_dir():
             try:
-                shutil.rmtree(self.project_path.joinpath('src'))
+                shutil.rmtree(self.path.joinpath('src'))
             except:
                 logger.info("cannot delete 'src' folder", exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
 
@@ -479,8 +481,8 @@ class Stm32pio:
 
         try:
             # Works unstable on some Windows 7 systems, but correct on latest Win7 and Win10...
-            # result = subprocess.run([editor_command, str(self.project_path)], check=True)
-            result = subprocess.run(f"{editor_command} {str(self.project_path)}", shell=True, check=True,
+            # result = subprocess.run([editor_command, str(self.path)], check=True)
+            result = subprocess.run(f"{editor_command} {str(self.path)}", shell=True, check=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             return result.returncode
         except subprocess.CalledProcessError as e:
@@ -498,7 +500,7 @@ class Stm32pio:
             passes a return code of the PlatformIO
         """
 
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', str(self.project_path)]
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', str(self.path)]
         if logger.getEffectiveLevel() > logging.DEBUG:
             command_arr.append('--silent')
 
@@ -515,8 +517,8 @@ class Stm32pio:
         Clean-up the project folder preserving only an '.ioc' file
         """
 
-        for child in self.project_path.iterdir():
-            if child.name != f"{self.project_path.name}.ioc":
+        for child in self.path.iterdir():
+            if child.name != f"{self.path.name}.ioc":
                 if child.is_dir():
                     shutil.rmtree(child, ignore_errors=True)
                     logger.debug(f"del {child}")
