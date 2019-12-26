@@ -2,6 +2,8 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 
+// import ProjectListItem 1.0
+
 ApplicationWindow {
     visible: true
     width: 640
@@ -22,7 +24,9 @@ ApplicationWindow {
                 id: projectListItem
                 width: ListView.view.width
                 height: 40
+                // property ProjectListItem listItem: projectsModel.getProject(index)
                 Column {
+                    // Text { text: listItem.name }
                     Text { text: '<b>Name:</b> ' + display.name }
                     Text { text: '<b>State:</b> ' + display.state }
                 }
@@ -48,8 +52,8 @@ ApplicationWindow {
                     Button {
                         text: 'Click me'
                         onClicked: {
-                            console.log('clicked');
-                            log.append(qsTr('SAD'));
+                            // console.log('here')
+                            projectsModel.run(index, 'clean')
                         }
                     }
                     ScrollView {
