@@ -16,7 +16,7 @@ import weakref
 import stm32pio.settings
 
 # Child logger, inherits parameters of the parent that has been set in more high-level code
-logger = logging.getLogger('stm32pio.util')
+logger = logging.getLogger(__name__)
 
 
 @enum.unique
