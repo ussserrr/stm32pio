@@ -13,3 +13,7 @@
  - [ ] generate code docs (help user to understand an internal kitchen, e.g. for embedding)
  - [ ] handle the project folder renaming/movement to other location and/or describe in README
  - [ ] colored logs, maybe...
+ - [ ] check logging work when embed stm32pio lib in third-party stuff
+ - [ ] logging process coverage in README
+ - [ ] merge subprocess pipes to one where suitable
+ - [ ] redirect subprocess pipes to DEVNULL where suitable to suppress output

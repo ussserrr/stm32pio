@@ -75,30 +75,33 @@ def main(sys_argv=None) -> int:
     if sys_argv is None:
         sys_argv = sys.argv[1:]
 
+    # import modules after sys.path modification
     import stm32pio.settings
+    import stm32pio.lib
+    import stm32pio.util
 
     args = parse_args(sys_argv)
 
     logger = logging.getLogger('stm32pio')  # the root (relatively to the possible outer scope) logger instance
     handler = logging.StreamHandler()
     logger.addHandler(handler)
+    special_formatters = { 'subprocess': logging.Formatter('%(message)s') }
     # Currently only 2 levels of verbosity through the '-v' option are counted (INFO (default) and DEBUG (-v))
     if args is not None and args.subcommand is not None and args.verbose:
         logger.setLevel(logging.DEBUG)
-        handler.setFormatter(logging.Formatter("%(levelname)-8s "
-                                               f"%(funcName)-{stm32pio.settings.log_function_fieldwidth}s "
-                                               "%(message)s"))
+        handler.setFormatter(stm32pio.util.DispatchingFormatter(
+            f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s",
+            special=special_formatters))
         logger.debug("debug logging enabled")
     elif args is not None and args.subcommand is not None:
         logger.setLevel(logging.INFO)
-        handler.setFormatter(logging.Formatter("%(levelname)-8s %(message)s"))
+        handler.setFormatter(stm32pio.util.DispatchingFormatter("%(levelname)-8s %(message)s",
+                                                               special=special_formatters))
     else:
         logger.setLevel(logging.INFO)
         handler.setFormatter(logging.Formatter("%(message)s"))
         logger.info("\nNo arguments were given, exiting...")
         return 0
-
-    import stm32pio.lib  # import the module after sys.path modification and logger configuration
 
     # Main routine
     try:
@@ -137,7 +140,7 @@ def main(sys_argv=None) -> int:
 
     # library is designed to throw the exception in bad cases so we catch here globally
     except Exception as e:
-        logger.exception(e, exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
+        logger.exception(e, exc_info=logger.isEnabledFor(logging.DEBUG))
         return -1
 
     logger.info("exiting...")

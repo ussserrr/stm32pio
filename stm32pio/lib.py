@@ -16,6 +16,7 @@ import tempfile
 import weakref
 
 import stm32pio.settings
+import stm32pio.util
 
 
 @enum.unique
@@ -78,7 +79,7 @@ class Config(configparser.ConfigParser):
             self.project.logger.debug("stm32pio.ini config file has been saved")
             return 0
         except Exception as e:
-            self.project.logger.warning(f"cannot save the config: {e}", exc_info=self.project.logger.getEffectiveLevel() <= logging.DEBUG)
+            self.project.logger.warning(f"cannot save the config: {e}", exc_info=self.project.logger.isEnabledFor(logging.DEBUG))
             return -1
 
 
@@ -188,7 +189,7 @@ class Stm32pio:
 
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
-        if self.logger.getEffectiveLevel() <= logging.DEBUG:
+        if self.logger.isEnabledFor(logging.DEBUG):
             states_info_str = '\n'.join(
                 f"{state.name:20}{conditions_results[state.value - 1]}" for state in ProjectState)
             self.logger.debug(f"determined states:\n{states_info_str}")
@@ -260,7 +261,7 @@ class Stm32pio:
 
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
-        if self.logger.getEffectiveLevel() <= logging.DEBUG:
+        if self.logger.isEnabledFor(logging.DEBUG):
             debug_str = 'resolved config:'
             for section in config.sections():
                 debug_str += f"\n========== {section} ==========\n"
@@ -291,7 +292,8 @@ class Stm32pio:
 
     def _resolve_board(self, board: str) -> str:
         """
-        Check if given board is a correct board name in the PlatformIO database
+        Check if given board is a correct board name in the PlatformIO database. Simply get the whole list of all boards
+        using CLI command and search in the STDOUT
 
         Args:
             board: string representing PlatformIO board name (for example, 'nucleo_f031k6')
@@ -337,12 +339,8 @@ class Stm32pio:
                 self.logger.info("starting to generate a code from the CubeMX .ioc file...")
                 command_arr = [self.config.get('app', 'java_cmd'), '-jar', self.config.get('app', 'cubemx_cmd'), '-q',
                                cubemx_script_name, '-s']  # -q: read commands from file, -s: silent performance
-                if self.logger.getEffectiveLevel() <= logging.DEBUG:
-                    result = subprocess.run(command_arr)
-                else:
-                    result = subprocess.run(command_arr, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    # Or, for Python 3.7 and above:
-                    # result = subprocess.run(command_arr, capture_output=True)
+                with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log_pipe:
+                    result = subprocess.run(command_arr, stdout=log_pipe, stderr=log_pipe)
         except Exception as e:
             raise e  # re-raise an exception after the final block
         finally:
@@ -353,7 +351,7 @@ class Stm32pio:
             return result.returncode
         else:
             self.logger.error(f"code generation error (CubeMX return code is {result.returncode}).\n"
-                         "Enable a verbose output or try to generate a code from the CubeMX itself.")
+                              "Enable a verbose output or try to generate a code from the CubeMX itself.")
             raise Exception("code generation error")
 
     def pio_init(self) -> int:
@@ -373,21 +371,22 @@ class Stm32pio:
 
         command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', str(self.path), '-b',
                        self.config.get('project', 'board'), '-O', 'framework=stm32cube']
-        if self.logger.getEffectiveLevel() > logging.DEBUG:
+        if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
-        result = subprocess.run(command_arr, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(command_arr, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         error_msg = "PlatformIO project initialization error"
         if result.returncode == 0:
             # PlatformIO returns 0 even on some errors (e.g. no '--board' argument)
-            for output in [result.stdout, result.stderr]:
-                if 'ERROR' in output.upper():
-                    self.logger.error(output)
-                    raise Exception(error_msg)
+            if 'ERROR' in result.stdout:
+                self.logger.error(result.stdout)
+                raise Exception(error_msg)
+            self.logger.debug(result.stdout, 'from_subprocess')
             self.logger.info("successful PlatformIO project initialization")
             return result.returncode
         else:
+            self.logger.error(result.stdout)
             raise Exception(error_msg)
 
 
@@ -421,7 +420,7 @@ class Stm32pio:
                     platformio_ini_value = platformio_ini.get(patch_section, patch_key, fallback=None)
                     if platformio_ini_value != patch_value:
                         self.logger.debug(f"[{patch_section}]{patch_key}: patch value is\n{patch_value}\nbut "
-                                     f"platformio.ini contains\n{platformio_ini_value}")
+                                          f"platformio.ini contains\n{platformio_ini_value}")
                         return False
             else:
                 self.logger.debug(f"platformio.ini has not {patch_section} section")
@@ -467,13 +466,13 @@ class Stm32pio:
         try:
             shutil.rmtree(self.path.joinpath('include'))
         except:
-            self.logger.info("cannot delete 'include' folder", exc_info=self.logger.getEffectiveLevel() <= logging.DEBUG)
+            self.logger.info("cannot delete 'include' folder", exc_info=self.logger.isEnabledFor(logging.DEBUG))
         # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
         if not self.path.joinpath('SRC').is_dir():
             try:
                 shutil.rmtree(self.path.joinpath('src'))
             except:
-                self.logger.info("cannot delete 'src' folder", exc_info=self.logger.getEffectiveLevel() <= logging.DEBUG)
+                self.logger.info("cannot delete 'src' folder", exc_info=self.logger.isEnabledFor(logging.DEBUG))
 
 
     def start_editor(self, editor_command: str) -> int:
@@ -495,11 +494,11 @@ class Stm32pio:
             # Works unstable on some Windows 7 systems, but correct on latest Win7 and Win10...
             # result = subprocess.run([editor_command, str(self.path)], check=True)
             result = subprocess.run(f"{editor_command} {str(self.path)}", shell=True, check=True,
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            self.logger.debug(result.stdout, 'from_subprocess')
             return result.returncode
         except subprocess.CalledProcessError as e:
-            output = e.stdout if e.stderr is None else e.stderr
-            self.logger.error(f"failed to start the editor {editor_command}: {output}")
+            self.logger.error(f"failed to start the editor {editor_command}: {e.stdout}")
             return e.returncode
 
 
@@ -512,11 +511,14 @@ class Stm32pio:
             passes a return code of the PlatformIO
         """
 
+        self.logger.info("starting PlatformIO project build...")
+
         command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', str(self.path)]
-        if self.logger.getEffectiveLevel() > logging.DEBUG:
+        if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
-        result = subprocess.run(command_arr)
+        with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log_pipe:
+            result = subprocess.run(command_arr, stdout=log_pipe, stderr=log_pipe)
         if result.returncode == 0:
             self.logger.info("successful PlatformIO build")
         else:

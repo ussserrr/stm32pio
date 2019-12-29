@@ -111,7 +111,7 @@ or
 ```shell script
 stm32pio-repo/ $   python3 -m stm32pio.tests.test -b -v
 ```
-to test the app. It uses STM32F0 framework to generate and build a code from the test [`stm32pio-test-project.ioc`](/stm32pio-test-project/stm32pio-test-project.ioc) project file. Please make sure that the test project folder is clean (i.e. contains only an .ioc file) before running the test.
+to test the app. It uses STM32F0 framework to generate and build a code from the test [`stm32pio-test-project.ioc`](/stm32pio-test-project/stm32pio-test-project.ioc) project file. Please make sure that the test project folder is clean (i.e. contains only an .ioc file) before running the test otherwise it can lead to some cases to fail.
 
 For specific test suite or case you can use
 ```shell script
