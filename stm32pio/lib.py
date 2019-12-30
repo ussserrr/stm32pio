@@ -254,6 +254,7 @@ class Stm32pio:
         self.logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
 
         config = Config(self, interpolation=None)
+
         # Fill with default values
         config.read_dict(stm32pio.settings.config_default)
         # Then override by user values (if exist)
@@ -496,6 +497,7 @@ class Stm32pio:
             result = subprocess.run(f"{editor_command} {str(self.path)}", shell=True, check=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.logger.debug(result.stdout, 'from_subprocess')
+
             return result.returncode
         except subprocess.CalledProcessError as e:
             self.logger.error(f"failed to start the editor {editor_command}: {e.stdout}")
