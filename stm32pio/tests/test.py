@@ -1,4 +1,6 @@
 """
+Make sure the test project tree is clean before running the tests
+
 'pyenv' was used to perform tests with different Python versions under Ubuntu:
 https://www.tecmint.com/pyenv-install-and-manage-multiple-python-versions-in-linux/
 
@@ -43,6 +45,7 @@ FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
 print(f"The file of 'stm32pio.app' module: {STM32PIO_MAIN_SCRIPT}")
 print(f"Python executable: {PYTHON_EXEC} {sys.version}")
 print(f"Temp test fixture path: {FIXTURE_PATH}")
+print()
 
 
 class CustomTestCase(unittest.TestCase):
@@ -481,12 +484,13 @@ class TestCLI(CustomTestCase):
                         msg="Verbose logging output hasn't been enabled on stderr")
         # Inject all methods' names in the regex. Inject the width of field in a log format string
         regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" + '|'.join(methods) + ") {0," +
-                           str(stm32pio.settings.log_function_fieldwidth) + "})(?=.{" +
-                           str(stm32pio.settings.log_function_fieldwidth) + "} [^ ]))",
+                           str(stm32pio.settings.log_fieldwidth_function) + "})(?=.{" +
+                           str(stm32pio.settings.log_fieldwidth_function) + "} [^ ]))",
                            flags=re.MULTILINE)
         self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1, msg="Logs messages doesn't match the format")
 
-        self.assertIn('Starting STM32CubeMX', result.stdout, msg="STM32CubeMX didn't print its logs")
+        self.assertEqual(len(result.stdout), 0, msg="Process has printed something directly into STDOUT bypassing "
+                                                    "logging")
 
     def test_non_verbose(self):
         """
@@ -507,17 +511,16 @@ class TestCLI(CustomTestCase):
         self.assertNotIn('DEBUG', result.stdout, msg="Verbose logging output has been enabled on stdout")
 
         regex = re.compile("^(?=(INFO) {0,4})(?=.{8} ((?!( |" + '|'.join(methods) + "))))", flags=re.MULTILINE)
-        self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1,
-                                msg="Logs messages doesn't match the format")
+        self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1, msg="Logs messages doesn't match the format")
 
-        self.assertNotIn('Starting STM32CubeMX', result.stdout, msg="STM32CubeMX printed its logs")
+        self.assertNotIn('Starting STM32CubeMX', result.stderr, msg="STM32CubeMX printed its logs")
 
     def test_init(self):
         """
         Check for config creation and parameters presence
         """
         result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(FIXTURE_PATH),
-                                 '-b', TEST_PROJECT_BOARD])
+                                 '-b', TEST_PROJECT_BOARD], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
 
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
