@@ -2,7 +2,7 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 
-// import ProjectListItem 1.0
+//import ProjectListItem 1.0
 
 ApplicationWindow {
     visible: true
@@ -12,7 +12,8 @@ ApplicationWindow {
     color: "whitesmoke"
 
     GridLayout {
-        columns: 2
+        id: mainGrid
+        columns: 3
         rows: 1
         // width: 200; height: 250
 
@@ -22,21 +23,22 @@ ApplicationWindow {
             model: projectsModel
             delegate: Item {
                 id: projectListItem
+                //property ProjectListItem listItem: projectsModel.getProject(index)
                 width: ListView.view.width
                 height: 40
-                // property ProjectListItem listItem: projectsModel.getProject(index)
-                Column {
-                    // Text { text: listItem.name }
-                    Text { text: '<b>Name:</b> ' + display.name }
-                    Text { text: '<b>State:</b> ' + display.state }
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: {
-                        projectListItem.ListView.view.currentIndex = index;
-                        view2.currentIndex = index
-                    }
-                }
+                model: display
+                // Column {
+                //     //Text { text: '<b>Name:</b> ' + listItem.name }
+                //     Text { text: '<b>Name:</b> ' + name }
+                //     Text { text: '<b>State:</b> ' + state }
+                // }
+                // MouseArea {
+                //     anchors.fill: parent
+                //     onClicked: {
+                //         projectListItem.ListView.view.currentIndex = index;
+                //         view2.currentIndex = index
+                //     }
+                // }
             }
             highlight: Rectangle { color: "lightsteelblue"; radius: 5 }
             // focus: true
@@ -49,14 +51,16 @@ ApplicationWindow {
             Repeater {
                 model: projectsModel
                 Column {
+                    id: 'col'
                     Button {
                         text: 'Click me'
                         onClicked: {
-                            // console.log('here')
                             projectsModel.run(index, 'clean')
+                            log.append('text text text')
                         }
                     }
                     ScrollView {
+                        id: 'sv'
                         height: 100
                         TextArea {
                             id: log
@@ -71,6 +75,21 @@ ApplicationWindow {
                 }
             }
         }
+
+        Button {
+            text: 'Global'
+            onClicked: {
+                view2.children[1].col.sv.log.append('text text text')
+                projectsModel[1].append('text text text')
+            }
+        }
     }
+
+    // Connections {
+    //     target: projectsModel
+    //     onLogAdded {
+    //         log.append(message)
+    //     }
+    // }
 
 }
