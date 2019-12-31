@@ -2,7 +2,7 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 
-//import ProjectListItem 1.0
+import ProjectListItem 1.0
 
 ApplicationWindow {
     visible: true
@@ -23,22 +23,20 @@ ApplicationWindow {
             model: projectsModel
             delegate: Item {
                 id: projectListItem
-                //property ProjectListItem listItem: projectsModel.getProject(index)
                 width: ListView.view.width
                 height: 40
-                model: display
-                // Column {
-                //     //Text { text: '<b>Name:</b> ' + listItem.name }
-                //     Text { text: '<b>Name:</b> ' + name }
-                //     Text { text: '<b>State:</b> ' + state }
-                // }
-                // MouseArea {
-                //     anchors.fill: parent
-                //     onClicked: {
-                //         projectListItem.ListView.view.currentIndex = index;
-                //         view2.currentIndex = index
-                //     }
-                // }
+                Column {
+                    //Text { text: '<b>Name:</b> ' + listItem.name }
+                    Text { text: '<b>Name:</b> ' + display.name }
+                    Text { text: '<b>State:</b> ' + display.state }
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        projectListItem.ListView.view.currentIndex = index;
+                        view2.currentIndex = index
+                    }
+                }
             }
             highlight: Rectangle { color: "lightsteelblue"; radius: 5 }
             // focus: true
@@ -52,11 +50,13 @@ ApplicationWindow {
                 model: projectsModel
                 Column {
                     id: 'col'
+                    property ProjectListItem listItem: projectsModel.getProject(index)
                     Button {
                         text: 'Click me'
                         onClicked: {
-                            projectsModel.run(index, 'clean')
-                            log.append('text text text')
+                            listItem.clean()
+                            //projectsModel.run(index, 'clean')
+                            //log.append('text text text')
                         }
                     }
                     ScrollView {
@@ -64,6 +64,7 @@ ApplicationWindow {
                         height: 100
                         TextArea {
                             id: log
+                            objectName: "log"
                             //anchors.centerIn: parent
                             text: 'Initial log content'
                         }

@@ -22,16 +22,15 @@ special_formatters = {'subprocess': logging.Formatter('%(message)s')}
 
 class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
     # nameChanged = Signal()
-    logAdded = Signal(str, arguments=['message'])
 
     def __init__(self, dirty_path: str, parameters: dict = None, save_on_destruction: bool = True, qt_parent=None):
         QObject.__init__(self, parent=qt_parent)
 
-        # this = self
+        this = self
         class InternalHandler(logging.Handler):
             def emit(self, record: logging.LogRecord) -> None:
                 print(record)
-                # this.log(self.format(record))
+                this.log(self.format(record))
         self.handler = InternalHandler()
         logger = logging.getLogger(f"{stm32pio.lib.__name__}.{id(self)}")
         logger.addHandler(self.handler)
@@ -43,8 +42,9 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
         stm32pio.lib.Stm32pio.__init__(self, dirty_path, parameters=parameters, save_on_destruction=save_on_destruction)
         self._name = self.path.name
 
-    # def log(self, message):
-    #     self.logAdded.emit(message)
+    logAdded = Signal(str, arguments=['message'])
+    def log(self, message):
+        self.logAdded.emit(message)
 
     @Property(str)
     def name(self):
@@ -61,16 +61,21 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
     def state(self):
         return str(super().state)
 
+    @Slot()
+    def clean(self) -> None:
+        print('clean was called')
+        super().clean()
+
 
 class ProjectsList(QAbstractListModel):
     def __init__(self, projects: list, parent=None):
         super().__init__(parent)
         self.projects = projects
 
-    # @Slot(int)
-    # def getProject(self, index):
-    #     print(index)
-    #     return self.projects[index]
+    @Slot(int, result=ProjectListItem)
+    def getProject(self, index):
+        print('getProject', index)
+        return self.projects[index]
 
     def rowCount(self, parent=None, *args, **kwargs):
         return len(self.projects)
@@ -108,7 +113,7 @@ if __name__ == '__main__':
 
     engine = QQmlApplicationEngine()
 
-    # print('AAAAAAAAAAA', qmlRegisterType(ProjectListItem, 'ProjectListItem', 1, 0, 'ProjectListItem'))
+    print('AAAAAAAAAAA', qmlRegisterType(ProjectListItem, 'ProjectListItem', 1, 0, 'ProjectListItem'))
 
     projects = ProjectsList([])
     projects.addProject(ProjectListItem('../stm32pio-test-project', save_on_destruction=False))
@@ -130,6 +135,8 @@ if __name__ == '__main__':
     # view.setResizeMode(QQuickView.SizeRootObjectToView)
     # view.rootContext().setContextProperty('projectsModel', projects)
     # view.setSource(QUrl('main.qml'))
+
+    engine.rootObjects()[0].findChildren(QObject)
 
     engine.quit.connect(app.quit)
     sys.exit(app.exec_())
