@@ -1,6 +1,7 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
+import Qt.labs.platform 1.1
 
 import ProjectListItem 1.0
 
@@ -13,8 +14,8 @@ ApplicationWindow {
 
     GridLayout {
         id: mainGrid
-        columns: 3
-        rows: 1
+        columns: 2
+        rows: 2
         // width: 200; height: 250
 
         ListView {
@@ -26,7 +27,6 @@ ApplicationWindow {
                 width: ListView.view.width
                 height: 40
                 Column {
-                    //Text { text: '<b>Name:</b> ' + listItem.name }
                     Text { text: '<b>Name:</b> ' + display.name }
                     Text { text: '<b>State:</b> ' + display.state }
                 }
@@ -48,49 +48,94 @@ ApplicationWindow {
             // anchors.fill: parent
             Repeater {
                 model: projectsModel
+                //Component.onDestruction: console.log('DESTRUCT ALL')
                 Column {
-                    id: 'col'
                     property ProjectListItem listItem: projectsModel.getProject(index)
-                    Button {
-                        text: 'Click me'
-                        onClicked: {
-                            listItem.clean()
-                            //projectsModel.run(index, 'clean')
-                            //log.append('text text text')
+                    Connections {
+                        target: listItem
+                        onLogAdded: {
+                            log.append(message);
+                        }
+                    }
+                    Column {
+                        ButtonGroup {
+                            buttons: row.children
+                            onClicked: {
+                                for (let i = 0; i < buttonsModel.count; ++i) {
+                                    if (buttonsModel.get(i).name === button.text) {
+                                        const b = buttonsModel.get(i);
+                                        let args = [];
+                                        if (b.args) {
+                                            args = b.args.split(' ');
+                                        }
+                                        listItem.run(b.action, args);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        Row {
+                            id: row
+                            Repeater {
+                                model: ListModel {
+                                    id: buttonsModel
+                                    ListElement {
+                                        name: 'Generate'
+                                        action: 'generate_code'
+                                    }
+                                    ListElement {
+                                        name: 'Initialize PlatformIO'
+                                        action: 'pio_init'
+                                    }
+                                }
+                                delegate: Button {
+                                    text: name
+                                    //rotation: -90
+                                }
+                            }
                         }
                     }
                     ScrollView {
-                        id: 'sv'
-                        height: 100
                         TextArea {
+                            Component.onCompleted: listItem.completed()
                             id: log
-                            objectName: "log"
-                            //anchors.centerIn: parent
-                            text: 'Initial log content'
                         }
                     }
                     Text {
                         //anchors.centerIn: parent
                         text: '<b>Name:</b> ' + display.name
                     }
+                    Button {
+                        text: 'editor'
+                        onClicked: {
+                            for (var i = 0; i < buttonsModel.count; ++i) {
+                                if (buttonsModel.get(i).action === 'pio_init') {
+                                    buttonsModel.get(i).args = 'code';
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
 
+        FolderDialog {
+            id: folderDialog
+            currentFolder: StandardPaths.standardLocations(StandardPaths.HomeLocation)[0]
+            onAccepted: {
+                projectsModel.addProject(folder);
+            }
+        }
+
         Button {
-            text: 'Global'
+            text: 'Add'
             onClicked: {
-                view2.children[1].col.sv.log.append('text text text')
-                projectsModel[1].append('text text text')
+                folderDialog.open()
             }
         }
     }
 
-    // Connections {
-    //     target: projectsModel
-    //     onLogAdded {
-    //         log.append(message)
-    //     }
-    // }
+    onClosing: Qt.quit()
 
 }
