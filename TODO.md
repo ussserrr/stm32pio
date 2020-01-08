@@ -17,3 +17,4 @@
  - [ ] logging process coverage in README
  - [ ] merge subprocess pipes to one where suitable
  - [ ] redirect subprocess pipes to DEVNULL where suitable to suppress output
+ - [ ] maybe move _load_config_file() to Config (i.e. config.load())

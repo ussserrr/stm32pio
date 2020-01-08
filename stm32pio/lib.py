@@ -129,6 +129,7 @@ class Stm32pio:
             cubemx_ioc_full_filename=self.config.get('project', 'ioc_file'))
         self.config.set('project', 'cubemx_script_content', cubemx_script_content)
 
+        # Given parameter takes precedence over the saved one
         board = ''
         if 'board' in parameters and parameters['board'] is not None:
             try:

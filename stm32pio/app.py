@@ -85,7 +85,7 @@ def main(sys_argv=None) -> int:
     logger = logging.getLogger('stm32pio')  # the root (relatively to the possible outer scope) logger instance
     handler = logging.StreamHandler()
     logger.addHandler(handler)
-    special_formatters = { 'subprocess': logging.Formatter('%(message)s') }
+    special_formatters = {'subprocess': logging.Formatter('%(message)s')}
     # Currently only 2 levels of verbosity through the '-v' option are counted (INFO (default) and DEBUG (-v))
     if args is not None and args.subcommand is not None and args.verbose:
         logger.setLevel(logging.DEBUG)
@@ -96,7 +96,7 @@ def main(sys_argv=None) -> int:
     elif args is not None and args.subcommand is not None:
         logger.setLevel(logging.INFO)
         handler.setFormatter(stm32pio.util.DispatchingFormatter("%(levelname)-8s %(message)s",
-                                                               special=special_formatters))
+                                                                special=special_formatters))
     else:
         logger.setLevel(logging.INFO)
         handler.setFormatter(logging.Formatter("%(message)s"))
