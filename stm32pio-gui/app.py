@@ -36,7 +36,7 @@ class RepetitiveTimer(threading.Thread):
 
     def run(self) -> None:
         print('start')
-        while not self.stopped.wait(timeout=0.05):
+        while not self.stopped.wait(timeout=0.005):
             self.callable()
         print('exitttt')
 
@@ -72,7 +72,7 @@ class InternalHandler(logging.Handler):
         # msg = self.format(record)
         # print(msg)
         self.queued_buffer.append(record)
-        # if not self.parent.initialized:
+        # if not self.parent.is_bound:
         #     self.temp_logs.append(msg)
         # else:
         #     if len(self.temp_logs):
@@ -213,6 +213,6 @@ if __name__ == '__main__':
 
     engine.rootContext().setContextProperty("projectsModel", projects)
     engine.load(QUrl.fromLocalFile('main.qml'))
-    engine.quit.connect(app.quit)
+    # engine.quit.connect(app.quit)
 
     sys.exit(app.exec_())
