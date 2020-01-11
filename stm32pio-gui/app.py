@@ -85,20 +85,76 @@ class InternalHandler(logging.Handler):
         #     self.parent.logAdded.emit(msg)
 
 
+class HandlerWorker(QObject):
+    addLog = Signal(str)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.temp_logs = []
+        self.parent_ready = False
+
+        this = self
+        class H(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                msg = self.format(record)
+                # print(msg)
+                # self.queued_buffer.append(record)
+                # if not this.parent_ready:
+                #     this.temp_logs.append(msg)
+                # else:
+                #     if len(this.temp_logs):
+                #         this.temp_logs.reverse()
+                #         for i in range(len(this.temp_logs)):
+                #             m = this.temp_logs.pop()
+                #             this.addLog.emit(m)
+                this.addLog.emit(msg)
+
+        self.handler = H()
+
+        # self.queued_buffer = collections.deque()
+
+    # @Slot()
+    # def cccompleted(self):
+    #     self.parent_ready = True
+
+    #     self.stopped = threading.Event()
+    #     self.timer = RepetitiveTimer(self.stopped, self.log)
+    #     self.timer.start()
+    #
+    # def log(self):
+    #     if self.parent_ready:
+    #         try:
+    #             m = self.format(self.queued_buffer.popleft())
+    #             # print('initialized', m)
+    #             self.addLog.emit(m)
+    #         except IndexError:
+    #             pass
+
+
+
+
 class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
     stateChanged = Signal()
     logAdded = Signal(str, arguments=['message'])
+    # ccompleted = Signal()
 
     def __init__(self, dirty_path: str, parameters: dict = None, save_on_destruction: bool = True, parent=None):
         self.is_bound = False
 
         QObject.__init__(self, parent=parent)
 
-        self.handler = InternalHandler(self)
+        self.logThread = QThread()
+        self.handler = HandlerWorker()
+        self.handler.moveToThread(self.logThread)
+        self.handler.addLog.connect(self.logAdded)
+        # self.ccompleted.connect(self.handler.cccompleted)
+        self.logThread.start()
+
         self.logger = logging.getLogger(f"{stm32pio.lib.__name__}.{id(self)}")
-        self.logger.addHandler(self.handler)
+        self.logger.addHandler(self.handler.handler)
         self.logger.setLevel(logging.DEBUG)
-        self.handler.setFormatter(stm32pio.util.DispatchingFormatter(
+        self.handler.handler.setFormatter(stm32pio.util.DispatchingFormatter(
             f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s",
             special=special_formatters))
 
@@ -120,18 +176,12 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
 
     def at_exit(self):
         print('destroy', self)
+        self.logThread.quit()
         self.logger.removeHandler(self.handler)
 
     @Property(str)
     def name(self):
         return self._name
-
-    # @name.setter
-    # def name(self, value):
-    #     if self._name == value:
-    #         return
-    #     self._name = value
-    #     self.nameChanged.emit()
 
     @Property(str, notify=stateChanged)
     def state(self):
@@ -139,7 +189,8 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
 
     @Slot()
     def completed(self):
-        self.is_bound = True
+        pass
+        # self.handler.cccompleted()
 
     @Slot(str, 'QVariantList')
     def run(self, action, args):
