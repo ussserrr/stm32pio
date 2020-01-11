@@ -207,14 +207,14 @@ if __name__ == '__main__':
     qmlRegisterType(ProjectListItem, 'ProjectListItem', 1, 0, 'ProjectListItem')
 
     projects = ProjectsList([
-        ProjectListItem('../stm32pio-test-project', save_on_destruction=False),
+        ProjectListItem('stm32pio-test-project', save_on_destruction=False),
         # ProjectListItem('../stm32pio-test-project', save_on_destruction=False),
         # ProjectListItem('../stm32pio-test-project', save_on_destruction=False)
     ])
     # projects.add(ProjectListItem('../stm32pio-test-project', save_on_destruction=False))
 
     engine.rootContext().setContextProperty("projectsModel", projects)
-    engine.load(QUrl.fromLocalFile('main.qml'))
+    engine.load(QUrl.fromLocalFile('stm32pio-gui/main.qml'))
     # engine.quit.connect(app.quit)
 
     sys.exit(app.exec_())
