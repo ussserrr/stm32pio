@@ -19,6 +19,8 @@ from PySide2.QtGui import QGuiApplication
 from PySide2.QtQml import qmlRegisterType, QQmlEngine, QQmlComponent, QQmlApplicationEngine
 from PySide2.QtQuick import QQuickView
 
+sys.path.insert(0, str(pathlib.Path(sys.path[0]).parent))
+
 import stm32pio.settings
 import stm32pio.lib
 import stm32pio.util
