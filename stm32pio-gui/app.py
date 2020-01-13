@@ -100,23 +100,23 @@ class HandlerWorker(QObject):
                 msg = self.format(record)
                 # print(msg)
                 # self.queued_buffer.append(record)
-                # if not this.parent_ready:
-                #     this.temp_logs.append(msg)
-                # else:
-                #     if len(this.temp_logs):
-                #         this.temp_logs.reverse()
-                #         for i in range(len(this.temp_logs)):
-                #             m = this.temp_logs.pop()
-                #             this.addLog.emit(m)
-                this.addLog.emit(msg)
+                if not this.parent_ready:
+                    this.temp_logs.append(msg)
+                else:
+                    if len(this.temp_logs):
+                        this.temp_logs.reverse()
+                        for i in range(len(this.temp_logs)):
+                            m = this.temp_logs.pop()
+                            this.addLog.emit(m)
+                    this.addLog.emit(msg)
 
         self.handler = H()
 
         # self.queued_buffer = collections.deque()
 
     # @Slot()
-    # def cccompleted(self):
-    #     self.parent_ready = True
+    def cccompleted(self):
+        self.parent_ready = True
 
     #     self.stopped = threading.Event()
     #     self.timer = RepetitiveTimer(self.stopped, self.log)
@@ -189,8 +189,8 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
 
     @Slot()
     def completed(self):
-        pass
-        # self.handler.cccompleted()
+        # pass
+        self.handler.cccompleted()
 
     @Slot(str, 'QVariantList')
     def run(self, action, args):
@@ -202,6 +202,9 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
             this.stateChanged.emit()
         t = threading.Thread(target=job)
         t.start()
+
+    def save_config(self):
+        self.config.save()
 
         # this = super()
         # class Worker(QThread):
@@ -258,9 +261,11 @@ if __name__ == '__main__':
     qmlRegisterType(ProjectListItem, 'ProjectListItem', 1, 0, 'ProjectListItem')
 
     projects = ProjectsList([
-        ProjectListItem('stm32pio-test-project', save_on_destruction=False),
-        # ProjectListItem('../stm32pio-test-project', save_on_destruction=False),
-        # ProjectListItem('../stm32pio-test-project', save_on_destruction=False)
+        ProjectListItem('stm32pio-test-project', save_on_destruction=False, parameters={
+            'board': 'nucleo_f031k6'
+        }),
+        # ProjectListItem('stm32pio-test-project', save_on_destruction=False),
+        # ProjectListItem('stm32pio-test-project', save_on_destruction=False)
     ])
     # projects.add(ProjectListItem('../stm32pio-test-project', save_on_destruction=False))
 

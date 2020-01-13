@@ -20,6 +20,7 @@ ApplicationWindow {
         ListView {
             width: 200; height: 250
             model: projectsModel
+            clip: true
             delegate: Item {
                 id: projectListItem
                 width: ListView.view.width
@@ -42,6 +43,7 @@ ApplicationWindow {
 
         SwipeView {
             id: view2
+            clip: true
             Repeater {
                 model: projectsModel
                 delegate: Column {
@@ -51,6 +53,11 @@ ApplicationWindow {
                         onLogAdded: {
                             log.append(message);
                         }
+                        onStateChanged: {
+                            for (let i = 0; i < buttonsModel.count; ++i) {
+                                row.children[i].enabled = false;
+                            }
+                        }
                     }
                     ButtonGroup {
                         buttons: row.children
@@ -58,10 +65,7 @@ ApplicationWindow {
                             for (let i = 0; i < buttonsModel.count; ++i) {
                                 if (buttonsModel.get(i).name === button.text) {
                                     const b = buttonsModel.get(i);
-                                    let args = [];
-                                    if (b.args) {
-                                        args = b.args.split(' ');
-                                    }
+                                    const args = b.args ? b.args.split(' ') : [];
                                     listItem.run(b.action, args);
                                     break;
                                 }
@@ -74,6 +78,10 @@ ApplicationWindow {
                             model: ListModel {
                                 id: buttonsModel
                                 ListElement {
+                                    name: 'Initialize'
+                                    action: 'save_config'
+                                }
+                                ListElement {
                                     name: 'Generate'
                                     action: 'generate_code'
                                 }
@@ -81,10 +89,21 @@ ApplicationWindow {
                                     name: 'Initialize PlatformIO'
                                     action: 'pio_init'
                                 }
+                                ListElement {
+                                    name: 'Patch'
+                                    action: 'patch'
+                                }
+                                ListElement {
+                                    name: 'Build'
+                                    action: 'build'
+                                }
                             }
                             delegate: Button {
                                 text: name
                                 //rotation: -90
+                                // Component.onCompleted: {
+                                //     console.log(name);
+                                // }
                             }
                         }
                     }

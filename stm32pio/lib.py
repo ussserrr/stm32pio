@@ -462,8 +462,7 @@ class Stm32pio:
             # Save, overwriting the original file (deletes all comments!)
             with self.path.joinpath('platformio.ini').open(mode='w') as platformio_ini_file:
                 platformio_ini_config.write(platformio_ini_file)
-
-            self.logger.info("'platformio.ini' has been patched")
+                self.logger.debug("'platformio.ini' has been patched")
 
         try:
             shutil.rmtree(self.path.joinpath('include'))
@@ -473,8 +472,11 @@ class Stm32pio:
         if not self.path.joinpath('SRC').is_dir():
             try:
                 shutil.rmtree(self.path.joinpath('src'))
+                self.logger.debug("'src' folder has been removed")
             except:
                 self.logger.info("cannot delete 'src' folder", exc_info=self.logger.isEnabledFor(logging.DEBUG))
+
+        self.logger.info("Project has been patched")
 
 
     def start_editor(self, editor_command: str) -> int:
