@@ -57,11 +57,35 @@ class ProjectStage(enum.IntEnum):
         return string_representations[self.name]
 
 
-class ProjectState(collections.UserList):
-    def __str__(self):
-        return '\n'.join(('✅ ' if self[index] else '❌ ') + str(ProjectStage(index + 1))
-                         for index in range(1, len(self)))
+class ProjectState(collections.OrderedDict):
+    """
+    is not protected from incorrect usage (no checks)
+    """
 
+    def __str__(self):
+        return '\n'.join(f"{'✅ ' if state_value else '❌ '} {str(state_name)}"
+                         for state_name, state_value in self.items() if state_name != ProjectStage.UNDEFINED)
+
+    @property
+    def current_stage(self):
+        last_consistent_state = ProjectStage.UNDEFINED
+        zero_found = False
+
+        for name, value in self.items():
+            if value:
+                if zero_found:
+                    last_consistent_state = ProjectStage.UNDEFINED
+                    break
+                else:
+                    last_consistent_state = name
+            else:
+                zero_found = True
+
+        return last_consistent_state
+
+    @property
+    def is_consistent(self):
+        return self.current_stage != ProjectStage.UNDEFINED
 
 
 class Config(configparser.ConfigParser):
@@ -157,7 +181,8 @@ class Stm32pio:
         return f"Stm32pio project: {str(self.path)}"
 
 
-    def _get_states_conditions(self) -> list[int]:
+    @property
+    def state(self):
         """
         """
 
@@ -184,74 +209,53 @@ class Stm32pio:
             self.path.joinpath('.pio').is_dir() and
             any([item.is_file() for item in self.path.joinpath('.pio').rglob('*firmware*')])]
 
-        # Use (1,0) instead of (True,False) because on debug printing it looks better
-        conditions_results = []
+        conditions_results = ProjectState()
         for state, conditions in states_conditions.items():
-            conditions_results.append(1 if all(condition is True for condition in conditions) else 0)
+            conditions_results[state] = all(condition is True for condition in conditions)
 
         return conditions_results
 
 
-    @property
-    def stage(self) -> ProjectStage:
-        """
-        Property returning the current stage of the project. Calculated at every request
-
-        Returns:
-            enum value representing a project stage
-        """
-
-        self.logger.debug("calculating the project stage...")
-        self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
-
-        conditions_results = self._get_states_conditions()
-
-        # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
-        # propagation of this message
-        # if self.logger.isEnabledFor(logging.DEBUG):
-        #     states_info_str = '\n'.join(
-        #         f"{state.name:20}{conditions_results[state.value - 1]}" for state in ProjectStage)
-        #     self.logger.debug(f"determined states:\n{states_info_str}")
-
-        # Search for a consecutive sequence of 1's and find the last of them. For example, if the array is
-        #   [1,1,1,0,1,0,0]
-        #        ^
-        # we should consider 1 as the last index
-        last_true_index = 0  # ProjectStage.UNDEFINED is always True, use as a start value
-        for index, value in enumerate(conditions_results):
-            if value == 1:
-                last_true_index = index
-            else:
-                break
-
-        # Fall back to the UNDEFINED stage if we have breaks in conditions results array. For example, in [1,1,1,0,1,0,0]
-        # we still return UNDEFINED as it doesn't look like a correct combination of files actually
-        if 1 in conditions_results[last_true_index + 1:]:
-            project_state = ProjectStage.UNDEFINED
-        else:
-            project_state = ProjectStage(last_true_index + 1)
-
-        return project_state
-
-
-    @property
-    def state(self) -> ProjectState:
-        """
-        """
-
-        self.logger.debug("calculating the project stage...")
-        self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
-
-        conditions_results = self._get_states_conditions()
-
-        state = ProjectState()
-        for index, value in enumerate(conditions_results):
-            if value == 1:
-                state.append(ProjectStage(index + 1))
-            else:
-                state.append(0)
-
-        return state
+    # @property
+    # def stage(self) -> ProjectStage:
+    #     """
+    #     Property returning the current stage of the project. Calculated at every request
+    #
+    #     Returns:
+    #         enum value representing a project stage
+    #     """
+    #
+    #     self.logger.debug("calculating the project stage...")
+    #     self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
+    #
+    #     conditions_results = self.state
+    #
+    #     # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
+    #     # propagation of this message
+    #     # if self.logger.isEnabledFor(logging.DEBUG):
+    #     #     states_info_str = '\n'.join(
+    #     #         f"{state.name:20}{conditions_results[state.value - 1]}" for state in ProjectStage)
+    #     #     self.logger.debug(f"determined states:\n{states_info_str}")
+    #
+    #     # Search for a consecutive sequence of 1's and find the last of them. For example, if the array is
+    #     #   [1,1,1,0,1,0,0]
+    #     #        ^
+    #     # we should consider 1 as the last index
+    #     last_true_index = 0  # ProjectStage.UNDEFINED is always True, use as a start value
+    #     for index, value in enumerate(conditions_results):
+    #         if value == 1:
+    #             last_true_index = index
+    #         else:
+    #             break
+    #
+    #     # Fall back to the UNDEFINED stage if we have breaks in conditions results array. For example, in [1,1,1,0,1,0,0]
+    #     # we still return UNDEFINED as it doesn't look like a correct combination of files actually
+    #     if 1 in conditions_results[last_true_index + 1:]:
+    #         project_state = ProjectStage.UNDEFINED
+    #     else:
+    #         project_state = ProjectStage(last_true_index + 1)
+    #
+    #     return project_state
 
 
     def _find_ioc_file(self) -> pathlib.Path:

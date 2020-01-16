@@ -10,6 +10,16 @@ import stm32pio.lib
 import stm32pio.settings
 import stm32pio.util
 
+# s = stm32pio.lib.ProjectState([
+#     (stm32pio.lib.ProjectStage.UNDEFINED, True),
+#     (stm32pio.lib.ProjectStage.EMPTY, True),
+#     (stm32pio.lib.ProjectStage.INITIALIZED, True),
+#     (stm32pio.lib.ProjectStage.GENERATED, True),
+#     (stm32pio.lib.ProjectStage.PIO_INITIALIZED, True),
+#     (stm32pio.lib.ProjectStage.PATCHED, False),
+#     (stm32pio.lib.ProjectStage.BUILT, True),
+# ])
+
 # logger = logging.getLogger('stm32pio')  # the root (relatively to the possible outer scope) logger instance
 # handler = logging.StreamHandler()
 # logger.addHandler(handler)
@@ -23,7 +33,3 @@ p = stm32pio.lib.Stm32pio('/Users/chufyrev/Documents/GitHub/stm32pio/stm32pio-te
                           parameters={ 'board': 'nucleo_f031k6' }, save_on_destruction=False)
 print(p.state)
 print()
-print([1 if v else 0 for v in p.state])
-print()
-print(p.stage)
-print(p.stage.value)
