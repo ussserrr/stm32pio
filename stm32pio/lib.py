@@ -20,13 +20,13 @@ import stm32pio.util
 
 
 @enum.unique
-class ProjectState(enum.IntEnum):
+class ProjectStage(enum.IntEnum):
     """
     Codes indicating a project state at the moment. Should be the sequence of incrementing integers to be suited for
     state determining algorithm. Starting from 1
 
     Hint: Files/folders to be present on every project state:
-        UNDEFINED: use this state to indicate none of the states below. Also, when we do not have any .ioc file the
+        EMPTY: use this state to indicate none of the states below. Also, when we do not have any .ioc file the
                    Stm32pio class cannot be instantiated (constructor raises an exception)
         INITIALIZED: ['project.ioc', 'stm32pio.ini']
         GENERATED: ['Inc', 'Src', 'project.ioc', 'stm32pio.ini']
@@ -37,6 +37,7 @@ class ProjectState(enum.IntEnum):
                                                                            .pio/build/nucleo_f031k6/firmware.elf)
     """
     UNDEFINED = enum.auto()  # note: starts from 1
+    EMPTY = enum.auto()
     INITIALIZED = enum.auto()
     GENERATED = enum.auto()
     PIO_INITIALIZED = enum.auto()
@@ -45,14 +46,22 @@ class ProjectState(enum.IntEnum):
 
     def __str__(self):
         string_representations = {
-            'UNDEFINED': 'Undefined',
-            'INITIALIZED': 'Initialized',
-            'GENERATED': 'Code generated',
+            'UNDEFINED': 'The project is messed up',
+            'EMPTY': '.ioc file is present',
+            'INITIALIZED': 'stm32pio initialized',
+            'GENERATED': 'CubeMX code generated',
             'PIO_INITIALIZED': 'PlatformIO project initialized',
             'PATCHED': 'PlatformIO project patched',
             'BUILT': 'PlatformIO project built'
         }
         return string_representations[self.name]
+
+
+class ProjectState(collections.UserList):
+    def __str__(self):
+        return '\n'.join(('✅ ' if self[index] else '❌ ') + str(ProjectStage(index + 1))
+                         for index in range(1, len(self)))
+
 
 
 class Config(configparser.ConfigParser):
@@ -121,12 +130,12 @@ class Stm32pio:
 
         self.config = self._load_config_file()
 
-        ioc_file = self._find_ioc_file()
-        self.config.set('project', 'ioc_file', str(ioc_file))
+        self.ioc_file = self._find_ioc_file()
+        self.config.set('project', 'ioc_file', str(self.ioc_file))
 
         cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
         cubemx_script_content = cubemx_script_template.substitute(project_path=self.path,
-            cubemx_ioc_full_filename=self.config.get('project', 'ioc_file'))
+                                                                  cubemx_ioc_full_filename=self.ioc_file)
         self.config.set('project', 'cubemx_script_content', cubemx_script_content)
 
         # Given parameter takes precedence over the saved one
@@ -148,17 +157,9 @@ class Stm32pio:
         return f"Stm32pio project: {str(self.path)}"
 
 
-    @property
-    def state(self) -> ProjectState:
+    def _get_states_conditions(self) -> list[int]:
         """
-        Property returning the current state of the project. Calculated at every request
-
-        Returns:
-            enum value representing a project state
         """
-
-        self.logger.debug("calculating the project state...")
-        self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
 
         try:
             platformio_ini_is_patched = self.platformio_ini_is_patched()
@@ -167,19 +168,19 @@ class Stm32pio:
 
         states_conditions = collections.OrderedDict()
         # Fill the ordered dictionary with the conditions results
-        states_conditions[ProjectState.UNDEFINED] = [True]
-        states_conditions[ProjectState.INITIALIZED] = [
-            self.path.joinpath(stm32pio.settings.config_file_name).is_file()]
-        states_conditions[ProjectState.GENERATED] = [self.path.joinpath('Inc').is_dir() and
+        states_conditions[ProjectStage.UNDEFINED] = [True]
+        states_conditions[ProjectStage.EMPTY] = [self.ioc_file.is_file()]
+        states_conditions[ProjectStage.INITIALIZED] = [self.path.joinpath(stm32pio.settings.config_file_name).is_file()]
+        states_conditions[ProjectStage.GENERATED] = [self.path.joinpath('Inc').is_dir() and
                                                      len(list(self.path.joinpath('Inc').iterdir())) > 0,
                                                      self.path.joinpath('Src').is_dir() and
                                                      len(list(self.path.joinpath('Src').iterdir())) > 0]
-        states_conditions[ProjectState.PIO_INITIALIZED] = [
+        states_conditions[ProjectStage.PIO_INITIALIZED] = [
             self.path.joinpath('platformio.ini').is_file() and
             self.path.joinpath('platformio.ini').stat().st_size > 0]
-        states_conditions[ProjectState.PATCHED] = [
+        states_conditions[ProjectStage.PATCHED] = [
             platformio_ini_is_patched, not self.path.joinpath('include').is_dir()]
-        states_conditions[ProjectState.BUILT] = [
+        states_conditions[ProjectStage.BUILT] = [
             self.path.joinpath('.pio').is_dir() and
             any([item.is_file() for item in self.path.joinpath('.pio').rglob('*firmware*')])]
 
@@ -188,32 +189,69 @@ class Stm32pio:
         for state, conditions in states_conditions.items():
             conditions_results.append(1 if all(condition is True for condition in conditions) else 0)
 
+        return conditions_results
+
+
+    @property
+    def stage(self) -> ProjectStage:
+        """
+        Property returning the current stage of the project. Calculated at every request
+
+        Returns:
+            enum value representing a project stage
+        """
+
+        self.logger.debug("calculating the project stage...")
+        self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
+
+        conditions_results = self._get_states_conditions()
+
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
-        if self.logger.isEnabledFor(logging.DEBUG):
-            states_info_str = '\n'.join(
-                f"{state.name:20}{conditions_results[state.value - 1]}" for state in ProjectState)
-            self.logger.debug(f"determined states:\n{states_info_str}")
+        # if self.logger.isEnabledFor(logging.DEBUG):
+        #     states_info_str = '\n'.join(
+        #         f"{state.name:20}{conditions_results[state.value - 1]}" for state in ProjectStage)
+        #     self.logger.debug(f"determined states:\n{states_info_str}")
 
         # Search for a consecutive sequence of 1's and find the last of them. For example, if the array is
-        #   [1,1,0,1,0,0]
-        #      ^
+        #   [1,1,1,0,1,0,0]
+        #        ^
         # we should consider 1 as the last index
-        last_true_index = 0  # ProjectState.UNDEFINED is always True, use as a start value
+        last_true_index = 0  # ProjectStage.UNDEFINED is always True, use as a start value
         for index, value in enumerate(conditions_results):
             if value == 1:
                 last_true_index = index
             else:
                 break
 
-        # Fall back to the UNDEFINED state if we have breaks in conditions results array. For example, in [1,1,0,1,0,0]
+        # Fall back to the UNDEFINED stage if we have breaks in conditions results array. For example, in [1,1,1,0,1,0,0]
         # we still return UNDEFINED as it doesn't look like a correct combination of files actually
         if 1 in conditions_results[last_true_index + 1:]:
-            project_state = ProjectState.UNDEFINED
+            project_state = ProjectStage.UNDEFINED
         else:
-            project_state = ProjectState(last_true_index + 1)
+            project_state = ProjectStage(last_true_index + 1)
 
         return project_state
+
+
+    @property
+    def state(self) -> ProjectState:
+        """
+        """
+
+        self.logger.debug("calculating the project stage...")
+        self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
+
+        conditions_results = self._get_states_conditions()
+
+        state = ProjectState()
+        for index, value in enumerate(conditions_results):
+            if value == 1:
+                state.append(ProjectStage(index + 1))
+            else:
+                state.append(0)
+
+        return state
 
 
     def _find_ioc_file(self) -> pathlib.Path:
@@ -227,13 +265,13 @@ class Stm32pio:
 
         ioc_file = self.config.get('project', 'ioc_file', fallback=None)
         if ioc_file:
-            ioc_file = pathlib.Path(ioc_file).resolve()
+            ioc_file = pathlib.Path(ioc_file).expanduser().resolve()
             self.logger.debug(f"use {ioc_file.name} file from the INI config")
             return ioc_file
         else:
             self.logger.debug("searching for any .ioc file...")
             candidates = list(self.path.glob('*.ioc'))
-            if len(candidates) == 0:  # good candidate for the new Python 3.8 assignment expressions feature :)
+            if len(candidates) == 0:  # good candidate for the new Python 3.8 assignment expression feature :)
                 raise FileNotFoundError("not found: CubeMX project .ioc file")
             elif len(candidates) == 1:
                 self.logger.debug(f"{candidates[0].name} is selected")

@@ -184,8 +184,8 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
         return self._name
 
     @Property(str, notify=stateChanged)
-    def state(self):
-        return str(super().state)
+    def stage(self):
+        return str(super().stage)
 
     @Slot()
     def completed(self):

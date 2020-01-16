@@ -367,25 +367,25 @@ class TestIntegration(CustomTestCase):
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.UNDEFINED)
+        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.EMPTY)
 
         project.config.save()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.INITIALIZED)
+        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.INITIALIZED)
 
         project.generate_code()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.GENERATED)
+        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.GENERATED)
 
         project.pio_init()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.PIO_INITIALIZED)
+        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.PIO_INITIALIZED)
 
         project.patch()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.PATCHED)
+        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.PATCHED)
 
         project.build()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.BUILT)
+        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.BUILT)
 
         project.clean()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.UNDEFINED)
+        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.EMPTY)
 
 
 class TestCLI(CustomTestCase):

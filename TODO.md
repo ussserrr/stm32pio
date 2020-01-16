@@ -19,3 +19,4 @@
  - [ ] merge subprocess pipes to one where suitable
  - [ ] redirect subprocess pipes to DEVNULL where suitable to suppress output
  - [ ] maybe move _load_config_file() to Config (i.e. config.load())
+ - [ ] .ioc file is set in stm32pio.ini but not present in the file system anymore

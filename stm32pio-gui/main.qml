@@ -27,7 +27,7 @@ ApplicationWindow {
                 height: 40
                 Column {
                     Text { text: '<b>Name:</b> ' + display.name }
-                    Text { text: '<b>State:</b> ' + display.state }
+                    Text { text: '<b>State:</b> ' + display.stage }
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -53,11 +53,19 @@ ApplicationWindow {
                         onLogAdded: {
                             log.append(message);
                         }
-                        onStateChanged: {
+                        Component.onCompleted: {
                             for (let i = 0; i < buttonsModel.count; ++i) {
-                                row.children[i].enabled = false;
+                                // row.children[i].enabled = false;
+                                // buttonsModel.get(i).stateChangedHandler();
+                                listItem.stateChanged.connect(row.children[i].haha);
                             }
                         }
+                        // onStateChanged: {
+                            // for (let i = 0; i < buttonsModel.count; ++i) {
+                            //     // row.children[i].enabled = false;
+                            //     buttonsModel.get(i).stateChangedHandler();
+                            // }
+                        // }
                     }
                     ButtonGroup {
                         buttons: row.children
@@ -80,6 +88,9 @@ ApplicationWindow {
                                 ListElement {
                                     name: 'Initialize'
                                     action: 'save_config'
+                                    function handler() {
+                                        console.log('Inside')
+                                    }
                                 }
                                 ListElement {
                                     name: 'Generate'
@@ -100,6 +111,10 @@ ApplicationWindow {
                             }
                             delegate: Button {
                                 text: name
+                                signal haha
+                                onHaha: {
+                                    model.modelData.handler();
+                                }
                                 //rotation: -90
                                 // Component.onCompleted: {
                                 //     console.log(name);
