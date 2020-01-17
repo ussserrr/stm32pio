@@ -23,7 +23,7 @@ import stm32pio.util
 class ProjectStage(enum.IntEnum):
     """
     Codes indicating a project state at the moment. Should be the sequence of incrementing integers to be suited for
-    state determining algorithm. Starting from 1
+    state determining algorithm. Starts from 1
 
     Hint: Files/folders to be present on every project state:
         EMPTY: use this state to indicate none of the states below. Also, when we do not have any .ioc file the

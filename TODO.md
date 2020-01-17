@@ -5,18 +5,21 @@
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
  - [ ] GUI. For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output. At left is a list of recent projects
  - [ ] GUI. Indicate the progress as states goes forward during the run (see `scratch.py`)
+ - [ ] GUI. Tests
  - [ ] VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (also related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
  - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list. Ask the confirmation of a user by-defualt and add additional option for quiet performance
- - [ ] 'status' CLI subcommand, why not?..
+ - [x] `status` CLI subcommand, why not?..
  - [ ] exclude tests from the bundle (see `setup.py` options)
  - [ ] generate code docs (help user to understand an internal kitchen, e.g. for embedding)
  - [ ] handle the project folder renaming/movement to other location and/or describe in README
  - [ ] colored logs, maybe...
  - [ ] check logging work when embed stm32pio lib in third-party stuff
  - [ ] logging process coverage in README
- - [ ] merge subprocess pipes to one where suitable
- - [ ] redirect subprocess pipes to DEVNULL where suitable to suppress output
- - [ ] maybe move _load_config_file() to Config (i.e. config.load())
- - [ ] .ioc file is set in stm32pio.ini but not present in the file system anymore
+ - [ ] merge subprocess pipes to one where suitable (i.e. `stdout` and `stderr`)
+ - [ ] redirect subprocess pipes to `DEVNULL` where suitable to suppress output
+ - [ ] maybe move `_load_config_file()` to `Config` (i.e. `config.load()`)
+ - [ ] handle the case when the `.ioc` file is set in `stm32pio.ini` but not present in the file system anymore
+ - [ ] `stm32pio.ini` config file validation
+ - [ ] CHANGELOG markdown markup
