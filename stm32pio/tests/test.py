@@ -348,44 +348,37 @@ class TestIntegration(CustomTestCase):
         # Re-generate CubeMX project
         project.generate_code()
 
-        # Check if added information is preserved
+        # Check if added information has been preserved
         for test_content, after_regenerate_content in [(test_content_1, test_file_1.read_text()),
                                                        (test_content_2, test_file_2.read_text())]:
             with self.subTest(msg=f"User content hasn't been preserved in {after_regenerate_content}"):
                 self.assertIn(test_content, after_regenerate_content)
 
-        # main_c_after_regenerate_content = test_file_1.read_text()
-        # my_header_h_after_regenerate_content = test_file_2.read_text()
-        # self.assertIn(test_content_1, main_c_after_regenerate_content,
-        #               msg=f"User content hasn't been preserved after regeneration in {test_file_1}")
-        # self.assertIn(test_content_2, my_header_h_after_regenerate_content,
-        #               msg=f"User content hasn't been preserved after regeneration in {test_file_2}")
-
-    def test_get_state(self):
+    def test_current_stage(self):
         """
         Go through the sequence of states emulating the real-life project lifecycle
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
-        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.EMPTY)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.EMPTY)
 
         project.config.save()
-        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.INITIALIZED)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.INITIALIZED)
 
         project.generate_code()
-        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.GENERATED)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.GENERATED)
 
         project.pio_init()
-        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.PIO_INITIALIZED)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.PIO_INITIALIZED)
 
         project.patch()
-        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.PATCHED)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.PATCHED)
 
         project.build()
-        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.BUILT)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.BUILT)
 
         project.clean()
-        self.assertEqual(project.stage, stm32pio.lib.ProjectStage.EMPTY)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.EMPTY)
 
 
 class TestCLI(CustomTestCase):

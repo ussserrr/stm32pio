@@ -9,7 +9,7 @@ ApplicationWindow {
     visible: true
     width: 740
     height: 480
-    title: qsTr("PyQt5 love QML")
+    title: "stm32pio"
     color: "whitesmoke"
 
     GridLayout {
@@ -27,7 +27,7 @@ ApplicationWindow {
                 height: 40
                 Column {
                     Text { text: '<b>Name:</b> ' + display.name }
-                    Text { text: '<b>State:</b> ' + display.stage }
+                    Text { text: '<b>State:</b> ' + display.current_stage }
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -53,19 +53,19 @@ ApplicationWindow {
                         onLogAdded: {
                             log.append(message);
                         }
-                        Component.onCompleted: {
+                        // Component.onCompleted: {
+                        //     for (let i = 0; i < buttonsModel.count; ++i) {
+                        //         // row.children[i].enabled = false;
+                        //         // buttonsModel.get(i).stateChangedHandler();
+                        //         listItem.stateChanged.connect(row.children[i].haha);
+                        //     }
+                        // }
+                        onStateChanged: {
                             for (let i = 0; i < buttonsModel.count; ++i) {
-                                // row.children[i].enabled = false;
+                                row.children[i].enabled = false;
                                 // buttonsModel.get(i).stateChangedHandler();
-                                listItem.stateChanged.connect(row.children[i].haha);
                             }
                         }
-                        // onStateChanged: {
-                            // for (let i = 0; i < buttonsModel.count; ++i) {
-                            //     // row.children[i].enabled = false;
-                            //     buttonsModel.get(i).stateChangedHandler();
-                            // }
-                        // }
                     }
                     ButtonGroup {
                         buttons: row.children
@@ -88,9 +88,6 @@ ApplicationWindow {
                                 ListElement {
                                     name: 'Initialize'
                                     action: 'save_config'
-                                    function handler() {
-                                        console.log('Inside')
-                                    }
                                 }
                                 ListElement {
                                     name: 'Generate'
@@ -111,11 +108,7 @@ ApplicationWindow {
                             }
                             delegate: Button {
                                 text: name
-                                signal haha
-                                onHaha: {
-                                    model.modelData.handler();
-                                }
-                                //rotation: -90
+                                // rotation: -90
                                 // Component.onCompleted: {
                                 //     console.log(name);
                                 // }
@@ -130,6 +123,7 @@ ApplicationWindow {
                             TextArea {
                                 width: 500
                                 height: 380
+                                wrapMode: Text.WordWrap
                                 Component.onCompleted: listItem.completed()
                                 id: log
                             }

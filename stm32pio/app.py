@@ -38,9 +38,10 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (WARNING: it deletes ALL content of "
                                                        "'path' except the .ioc file)")
+    parser_status = subparsers.add_parser('status', help="get the description of the current project state")
 
     # Common subparsers options
-    for p in [parser_init, parser_new, parser_generate, parser_clean]:
+    for p in [parser_init, parser_new, parser_generate, parser_clean, parser_status]:
         p.add_argument('-d', '--directory', dest='project_path', default=pathlib.Path.cwd(), required=False,
                        help="path to the project (current directory, if not given)")
     for p in [parser_init, parser_new]:
@@ -75,7 +76,7 @@ def main(sys_argv=None) -> int:
     if sys_argv is None:
         sys_argv = sys.argv[1:]
 
-    # import modules after sys.path modification
+    # Import modules after sys.path modification
     import stm32pio.settings
     import stm32pio.lib
     import stm32pio.util
@@ -138,7 +139,11 @@ def main(sys_argv=None) -> int:
             project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
             project.clean()
 
-    # library is designed to throw the exception in bad cases so we catch here globally
+        elif args.subcommand == 'status':
+            project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
+            print(project.state)
+
+    # Library is designed to throw the exception in bad cases so we catch here globally
     except Exception as e:
         logger.exception(e, exc_info=logger.isEnabledFor(logging.DEBUG))
         return -1

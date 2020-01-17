@@ -71,9 +71,15 @@ class ProjectState(collections.OrderedDict):
         last_consistent_state = ProjectStage.UNDEFINED
         zero_found = False
 
+        # Search for a consecutive sequence of 1's and find the last of them. For example, if the array is
+        #   [1,1,1,0,1,0,0]
+        #        ^
+        # we should consider 2 as the last index
         for name, value in self.items():
             if value:
                 if zero_found:
+                    # Fall back to the UNDEFINED stage if we have breaks in conditions results array. For example, in [1,1,1,0,1,0,0]
+                    # we still return UNDEFINED as it doesn't look like a correct combination of files actually
                     last_consistent_state = ProjectStage.UNDEFINED
                     break
                 else:
@@ -186,6 +192,8 @@ class Stm32pio:
         """
         """
 
+        # self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
+
         try:
             platformio_ini_is_patched = self.platformio_ini_is_patched()
         except:
@@ -214,48 +222,6 @@ class Stm32pio:
             conditions_results[state] = all(condition is True for condition in conditions)
 
         return conditions_results
-
-
-    # @property
-    # def stage(self) -> ProjectStage:
-    #     """
-    #     Property returning the current stage of the project. Calculated at every request
-    #
-    #     Returns:
-    #         enum value representing a project stage
-    #     """
-    #
-    #     self.logger.debug("calculating the project stage...")
-    #     self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
-    #
-    #     conditions_results = self.state
-    #
-    #     # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
-    #     # propagation of this message
-    #     # if self.logger.isEnabledFor(logging.DEBUG):
-    #     #     states_info_str = '\n'.join(
-    #     #         f"{state.name:20}{conditions_results[state.value - 1]}" for state in ProjectStage)
-    #     #     self.logger.debug(f"determined states:\n{states_info_str}")
-    #
-    #     # Search for a consecutive sequence of 1's and find the last of them. For example, if the array is
-    #     #   [1,1,1,0,1,0,0]
-    #     #        ^
-    #     # we should consider 1 as the last index
-    #     last_true_index = 0  # ProjectStage.UNDEFINED is always True, use as a start value
-    #     for index, value in enumerate(conditions_results):
-    #         if value == 1:
-    #             last_true_index = index
-    #         else:
-    #             break
-    #
-    #     # Fall back to the UNDEFINED stage if we have breaks in conditions results array. For example, in [1,1,1,0,1,0,0]
-    #     # we still return UNDEFINED as it doesn't look like a correct combination of files actually
-    #     if 1 in conditions_results[last_true_index + 1:]:
-    #         project_state = ProjectStage.UNDEFINED
-    #     else:
-    #         project_state = ProjectStage(last_true_index + 1)
-    #
-    #     return project_state
 
 
     def _find_ioc_file(self) -> pathlib.Path:

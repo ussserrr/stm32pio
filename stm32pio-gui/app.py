@@ -98,7 +98,7 @@ class HandlerWorker(QObject):
         class H(logging.Handler):
             def emit(self, record: logging.LogRecord) -> None:
                 msg = self.format(record)
-                # print(msg)
+                print(msg)
                 # self.queued_buffer.append(record)
                 if not this.parent_ready:
                     this.temp_logs.append(msg)
@@ -184,8 +184,12 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
         return self._name
 
     @Property(str, notify=stateChanged)
-    def stage(self):
-        return str(super().stage)
+    def current_stage(self):
+        print('Hello')
+        return str(self.state.current_stage)
+
+    def is_present(self):
+        return self.state[stm32pio.lib.ProjectStage.EMPTY]
 
     @Slot()
     def completed(self):
