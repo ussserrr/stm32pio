@@ -136,7 +136,9 @@ class HandlerWorker(QObject):
 
 class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
     stateChanged = Signal()
+    stageChanged = Signal()
     logAdded = Signal(str, arguments=['message'])
+    actionResult = Signal(str, bool, arguments=['action', 'success'])
     # ccompleted = Signal()
 
     def __init__(self, dirty_path: str, parameters: dict = None, save_on_destruction: bool = True, parent=None):
@@ -183,13 +185,19 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
     def name(self):
         return self._name
 
-    @Property(str, notify=stateChanged)
-    def current_stage(self):
-        print('Hello')
-        return str(self.state.current_stage)
+    @Property('QVariant', notify=stateChanged)
+    def state(self):
+        state = super().state
+        return { s.name: value for s, value in state.items() }
 
-    def is_present(self):
-        return self.state[stm32pio.lib.ProjectStage.EMPTY]
+    @Property(str, notify=stageChanged)
+    def current_stage(self):
+        print('wants current_stage')
+        return str(super().state.current_stage)
+
+    # @Slot(result=bool)
+    # def is_present(self):
+    #     return self.state[stm32pio.lib.ProjectStage.EMPTY]
 
     @Slot()
     def completed(self):
@@ -198,17 +206,25 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
 
     @Slot(str, 'QVariantList')
     def run(self, action, args):
-        # print(action, args)
-        # return
         this = self
         def job():
-            getattr(this, action)(*args)
+            try:
+                result = getattr(this, action)(*args)
+            except Exception as e:
+                this.logger.exception(e, exc_info=this.logger.isEnabledFor(logging.DEBUG))
+                result = -1
+            if result is None or (type(result) == int and result == 0):
+                success = True
+            else:
+                success = False
             this.stateChanged.emit()
+            this.stageChanged.emit()
+            this.actionResult.emit(action, success)
         t = threading.Thread(target=job)
         t.start()
 
     def save_config(self):
-        self.config.save()
+        return self.config.save()
 
         # this = super()
         # class Worker(QThread):
@@ -250,6 +266,12 @@ class ProjectsList(QAbstractListModel):
         self.projects.append(ProjectListItem(path.toLocalFile(), save_on_destruction=False))
         self.endInsertRows()
 
+    @Slot(int)
+    def removeProject(self, index):
+        self.beginRemoveRows(QModelIndex(), index, index)
+        self.projects.pop(index)
+        self.endRemoveRows()
+
     # @staticmethod
     def at_exit(self):
         print('destroy', self)
@@ -265,11 +287,15 @@ if __name__ == '__main__':
     qmlRegisterType(ProjectListItem, 'ProjectListItem', 1, 0, 'ProjectListItem')
 
     projects = ProjectsList([
-        ProjectListItem('stm32pio-test-project', save_on_destruction=False, parameters={
+        ProjectListItem('Apple', save_on_destruction=False, parameters={
             'board': 'nucleo_f031k6'
         }),
-        # ProjectListItem('stm32pio-test-project', save_on_destruction=False),
-        # ProjectListItem('stm32pio-test-project', save_on_destruction=False)
+        ProjectListItem('Orange', save_on_destruction=False, parameters={
+            'board': 'nucleo_f031k6'
+        }),
+        ProjectListItem('Peach', save_on_destruction=False, parameters={
+            'board': 'nucleo_f031k6'
+        }),
     ])
     # projects.add(ProjectListItem('../stm32pio-test-project', save_on_destruction=False))
 

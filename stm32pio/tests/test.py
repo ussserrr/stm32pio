@@ -380,6 +380,8 @@ class TestIntegration(CustomTestCase):
         project.clean()
         self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.EMPTY)
 
+        # TODO: should be undefined when the project is messed up
+
 
 class TestCLI(CustomTestCase):
     """

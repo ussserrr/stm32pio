@@ -1,5 +1,5 @@
 """
-Main library
+Core library
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class ProjectStage(enum.IntEnum):
     state determining algorithm. Starts from 1
 
     Hint: Files/folders to be present on every project state:
-        EMPTY: use this state to indicate none of the states below. Also, when we do not have any .ioc file the
+        UNDEFINED: use this state to indicate none of the states below. Also, when we do not have any .ioc file the
                    Stm32pio class cannot be instantiated (constructor raises an exception)
         INITIALIZED: ['project.ioc', 'stm32pio.ini']
         GENERATED: ['Inc', 'Src', 'project.ioc', 'stm32pio.ini']
@@ -233,16 +233,20 @@ class Stm32pio:
             absolute path to the .ioc file
         """
 
+        error_message = "not found: CubeMX project .ioc file"
+
         ioc_file = self.config.get('project', 'ioc_file', fallback=None)
         if ioc_file:
             ioc_file = pathlib.Path(ioc_file).expanduser().resolve()
             self.logger.debug(f"use {ioc_file.name} file from the INI config")
+            if (not ioc_file.is_file()):
+                raise FileNotFoundError(error_message)
             return ioc_file
         else:
             self.logger.debug("searching for any .ioc file...")
             candidates = list(self.path.glob('*.ioc'))
             if len(candidates) == 0:  # good candidate for the new Python 3.8 assignment expression feature :)
-                raise FileNotFoundError("not found: CubeMX project .ioc file")
+                raise FileNotFoundError(error_message)
             elif len(candidates) == 1:
                 self.logger.debug(f"{candidates[0].name} is selected")
                 return candidates[0]
