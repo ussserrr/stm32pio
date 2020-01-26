@@ -23,3 +23,5 @@
  - [ ] handle the case when the `.ioc` file is set in `stm32pio.ini` but not present in the file system anymore
  - [ ] `stm32pio.ini` config file validation
  - [ ] CHANGELOG markdown markup
+ - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
+ - [ ] shlex for 'build' command option sanitizing

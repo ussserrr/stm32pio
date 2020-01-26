@@ -347,7 +347,7 @@ class Stm32pio:
         try:
             # buffering=0 leads to the immediate flushing on writing
             with open(cubemx_script_file, mode='w+b', buffering=0) as cubemx_script:
-                # encode since mode='w+b'
+                # should encode, since mode='w+b'
                 cubemx_script.write(self.config.get('project', 'cubemx_script_content').encode())
 
                 self.logger.info("starting to generate a code from the CubeMX .ioc file...")
@@ -367,6 +367,7 @@ class Stm32pio:
             self.logger.error(f"code generation error (CubeMX return code is {result.returncode}).\n"
                               "Enable a verbose output or try to generate a code from the CubeMX itself.")
             raise Exception("code generation error")
+
 
     def pio_init(self) -> int:
         """

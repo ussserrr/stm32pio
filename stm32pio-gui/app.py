@@ -30,59 +30,59 @@ import stm32pio.util
 special_formatters = {'subprocess': logging.Formatter('%(message)s')}
 
 
-class RepetitiveTimer(threading.Thread):
-    def __init__(self, stopped, callable, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.stopped = stopped
-        self.callable = callable
-
-    def run(self) -> None:
-        print('start')
-        while not self.stopped.wait(timeout=0.005):
-            self.callable()
-        print('exitttt')
-
-
-class InternalHandler(logging.Handler):
-    def __init__(self, parent: QObject):
-        super().__init__()
-        self.parent = parent
-        # self.temp_logs = []
-
-        self.queued_buffer = collections.deque()
-
-        self.stopped = threading.Event()
-        self.timer = RepetitiveTimer(self.stopped, self.log)
-        self.timer.start()
-
-        self._finalizer = weakref.finalize(self, self.at_exit)
-
-    def at_exit(self):
-        print('exit')
-        self.stopped.set()
-
-    def log(self):
-        if self.parent.is_bound:
-            try:
-                m = self.format(self.queued_buffer.popleft())
-                # print('initialized', m)
-                self.parent.logAdded.emit(m)
-            except IndexError:
-                pass
-
-    def emit(self, record: logging.LogRecord) -> None:
-        # msg = self.format(record)
-        # print(msg)
-        self.queued_buffer.append(record)
-        # if not self.parent.is_bound:
-        #     self.temp_logs.append(msg)
-        # else:
-        #     if len(self.temp_logs):
-        #         self.temp_logs.reverse()
-        #         for i in range(len(self.temp_logs)):
-        #             m = self.temp_logs.pop()
-        #             self.parent.logAdded.emit(m)
-        #     self.parent.logAdded.emit(msg)
+# class RepetitiveTimer(threading.Thread):
+#     def __init__(self, stopped, callable, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.stopped = stopped
+#         self.callable = callable
+#
+#     def run(self) -> None:
+#         print('start')
+#         while not self.stopped.wait(timeout=0.005):
+#             self.callable()
+#         print('exitttt')
+#
+#
+# class InternalHandler(logging.Handler):
+#     def __init__(self, parent: QObject):
+#         super().__init__()
+#         self.parent = parent
+#         # self.temp_logs = []
+#
+#         self.queued_buffer = collections.deque()
+#
+#         self.stopped = threading.Event()
+#         self.timer = RepetitiveTimer(self.stopped, self.log)
+#         self.timer.start()
+#
+#         self._finalizer = weakref.finalize(self, self.at_exit)
+#
+#     def at_exit(self):
+#         print('exit')
+#         self.stopped.set()
+#
+#     def log(self):
+#         if self.parent.is_bound:
+#             try:
+#                 m = self.format(self.queued_buffer.popleft())
+#                 # print('initialized', m)
+#                 self.parent.logAdded.emit(m)
+#             except IndexError:
+#                 pass
+#
+#     def emit(self, record: logging.LogRecord) -> None:
+#         # msg = self.format(record)
+#         # print(msg)
+#         self.queued_buffer.append(record)
+#         # if not self.parent.is_bound:
+#         #     self.temp_logs.append(msg)
+#         # else:
+#         #     if len(self.temp_logs):
+#         #         self.temp_logs.reverse()
+#         #         for i in range(len(self.temp_logs)):
+#         #             m = self.temp_logs.pop()
+#         #             self.parent.logAdded.emit(m)
+#         #     self.parent.logAdded.emit(msg)
 
 
 class HandlerWorker(QObject):
@@ -146,7 +146,7 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
 
         QObject.__init__(self, parent=parent)
 
-        self.logThread = QThread()
+        self.logThread = QThread()  # TODO: can be a 'daemon' type as it runs alongside the main for a long time
         self.handler = HandlerWorker()
         self.handler.moveToThread(self.logThread)
         self.handler.addLog.connect(self.logAdded)
@@ -178,8 +178,8 @@ class ProjectListItem(stm32pio.lib.Stm32pio, QObject):
 
     def at_exit(self):
         print('destroy', self)
-        self.logThread.quit()
         self.logger.removeHandler(self.handler)
+        self.logThread.quit()
 
     @Property(str)
     def name(self):
@@ -290,12 +290,12 @@ if __name__ == '__main__':
         ProjectListItem('Apple', save_on_destruction=False, parameters={
             'board': 'nucleo_f031k6'
         }),
-        ProjectListItem('Orange', save_on_destruction=False, parameters={
-            'board': 'nucleo_f031k6'
-        }),
-        ProjectListItem('Peach', save_on_destruction=False, parameters={
-            'board': 'nucleo_f031k6'
-        }),
+        # ProjectListItem('Orange', save_on_destruction=False, parameters={
+        #     'board': 'nucleo_f031k6'
+        # }),
+        # ProjectListItem('Peach', save_on_destruction=False, parameters={
+        #     'board': 'nucleo_f031k6'
+        # }),
     ])
     # projects.add(ProjectListItem('../stm32pio-test-project', save_on_destruction=False))
 

@@ -26,12 +26,24 @@ ApplicationWindow {
             model: projectsModel
             clip: true
             delegate: Item {
-                id: projectListItem
+                id: iii
                 width: ListView.view.width
                 height: 40
-                Column {
-                    Text { text: '<b>Name:</b> ' + display.name }
-                    Text { text: '<b>State:</b> ' + display.current_stage }
+                Row {
+                    Column {
+                        Text { text: '<b>Name:</b> ' + display.name }
+                        Text { text: '<b>State:</b> ' + display.current_stage }
+                    }
+                    Item {
+                        width: iii.height
+                        height: iii.height
+                        BusyIndicator {
+                            anchors.centerIn: parent
+                            running: false
+                            width: iii.height
+                            height: iii.height
+                        }
+                    }
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -121,23 +133,25 @@ ApplicationWindow {
                             }
                         }
                         onActionResult: {
+                            stopActionButton.visible = false;
                             for (let i = 0; i < buttonsModel.count; ++i) {
+                                row.children[i].enabled = true;
                                 if (buttonsModel.get(i).action === action) {
                                     if (success === false) {
                                         // TODO: change to fade animation. Also, can blink a log area in the same way
                                         row.children[i].palette.button = 'lightcoral';
                                     }
-                                    break;
                                 }
                             }
                         }
                         onClicked: {
                             for (let i = 0; i < buttonsModel.count; ++i) {
+                                row.children[i].enabled = false;
                                 if (buttonsModel.get(i).name === button.text) {
                                     const b = buttonsModel.get(i);
                                     const args = b.args ? b.args.split(' ') : [];
+                                    stopActionButton.visible = true;
                                     listItem.run(b.action, args);
-                                    break;
                                 }
                             }
                         }
@@ -206,12 +220,15 @@ ApplicationWindow {
                     // Text {
                     //     text: '<b>Name:</b> ' + display.name
                     // }
-                    // Button {
-                    //     text: 'editor'
-                    //     onClicked: {
-                    //         projectIncorrectDialog.open();
-                    //     }
-                    // }
+                    Button {
+                        id: stopActionButton
+                        text: 'Stop'
+                        visible: false
+                        palette.button: 'lightcoral'
+                        onClicked: {
+                            // projectIncorrectDialog.open();
+                        }
+                    }
                 }
             }
         }
