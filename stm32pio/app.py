@@ -111,7 +111,7 @@ def main(sys_argv=None) -> int:
             if not args.board:
                 logger.warning("STM32 PlatformIO board is not specified, it will be needed on PlatformIO project "
                                "creation")
-            logger.info('project has been initialized. You can now edit stm32pio.ini config file')
+            logger.info("project has been initialized. You can now edit stm32pio.ini config file")
             if args.editor:
                 project.start_editor(args.editor)
 

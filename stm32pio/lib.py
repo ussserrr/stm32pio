@@ -145,11 +145,14 @@ class Stm32pio:
         save_on_destruction (bool): register or not the finalizer that saves the config to file
     """
 
-    def __init__(self, dirty_path: str, parameters: dict = None, save_on_destruction: bool = True):
+    def __init__(self, dirty_path: str, parameters: dict = None, save_on_destruction: bool = True, logger: logging.Logger = None):
         if parameters is None:
             parameters = {}
 
-        self.logger = logging.getLogger(f"{__name__}.{id(self)}")
+        if logger is not None:
+            self.logger = logger
+        else:
+            self.logger = logging.getLogger(f"{__name__}.{id(self)}")
 
         # The path is a unique identifier of the project so it would be great to remake Stm32pio class as a subclass of
         # pathlib.Path and then reference it like self and not self.path. It is more consistent also, as now path is

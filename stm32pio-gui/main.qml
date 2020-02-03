@@ -10,10 +10,25 @@ import ProjectListItem 1.0
 ApplicationWindow {
     id: mainWindow
     visible: true
-    width: 740
+    width: 790
     height: 480
     title: "stm32pio"
     color: "whitesmoke"
+
+    // Popup {
+    //     id: popup
+    //     anchors.centerIn: parent
+    //     modal: true
+
+    //     parent: Overlay.overlay
+    //     background: Rectangle {
+    //         color: '#00000000'
+    //     }
+    //     contentItem: Column {
+    //         BusyIndicator {}
+    //         Text { text: 'Loading...' }
+    //     }
+    // }
 
     GridLayout {
         id: mainGrid
@@ -22,27 +37,34 @@ ApplicationWindow {
 
         ListView {
             id: listView
-            width: 200; height: 250
+            width: 250; height: 250
             model: projectsModel
             clip: true
             delegate: Item {
                 id: iii
+                property bool loading: true
+                property bool actionRunning: false
                 width: ListView.view.width
                 height: 40
+                property ProjectListItem listItem: projectsModel.getProject(index)
+                Connections {
+                    target: listItem  // sender
+                    onNameChanged: {
+                        loading = false;
+                    }
+                    onActionResult: {
+                        actionRunning = false;
+                    }
+                }
                 Row {
                     Column {
                         Text { text: '<b>Name:</b> ' + display.name }
-                        Text { text: '<b>State:</b> ' + display.current_stage }
+                        Text { text: '<b>Stage:</b> ' + display.current_stage }
                     }
-                    Item {
+                    BusyIndicator {
+                        running: iii.loading || iii.actionRunning
                         width: iii.height
                         height: iii.height
-                        BusyIndicator {
-                            anchors.centerIn: parent
-                            running: false
-                            width: iii.height
-                            height: iii.height
-                        }
                     }
                 }
                 MouseArea {
@@ -68,6 +90,11 @@ ApplicationWindow {
                         target: listItem  // sender
                         onLogAdded: {
                             log.append(message);
+                        }
+                        onNameChanged: {
+                            for (let i = 0; i < buttonsModel.count; ++i) {
+                                row.children[i].enabled = true;
+                            }
                         }
                         // Component.onCompleted: {
                         //     for (let i = 0; i < buttonsModel.count; ++i) {
@@ -101,22 +128,27 @@ ApplicationWindow {
                         id: buttonGroup
                         buttons: row.children
                         signal stateReceived()
-                        signal actionResult(string action, bool success)
+                        signal actionResult(string actionDone, bool success)
                         property bool lock: false
                         onStateReceived: {
                             if (active && index == swipeView.currentIndex && !lock) {
-                                console.log('onStateReceived', index);
+                                console.log('onStateReceived', active, index, !lock);
 
                                 const state = projectsModel.getProject(swipeView.currentIndex).state;
                                 listItem.stageChanged();
 
-                                if (!state['EMPTY']) {
+                                if (state['LOADING']) {
+                                    // listView.currentItem.running = true;
+                                } else if (state['INIT_ERROR']) {
+                                    // listView.currentItem.running = false;
+                                    row.visible = false;
+                                    initErrorMessage.visible = true;
+                                } else if (!state['EMPTY']) {
                                     lock = true;  // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
                                     projectIncorrectDialog.open();
                                     console.log('no .ioc file');
                                 } else if (state['EMPTY']) {
-                                    // delete state['UNDEFINED'];
-                                    // delete state['EMPTY'];
+                                    // listView.currentItem.running = false;
                                     Object.keys(state).forEach(key => {
                                         for (let i = 0; i < buttonsModel.count; ++i) {
                                             if (buttonsModel.get(i).state === key) {
@@ -132,29 +164,30 @@ ApplicationWindow {
                                 }
                             }
                         }
-                        onActionResult: {
-                            stopActionButton.visible = false;
-                            for (let i = 0; i < buttonsModel.count; ++i) {
-                                row.children[i].enabled = true;
-                                if (buttonsModel.get(i).action === action) {
-                                    if (success === false) {
-                                        // TODO: change to fade animation. Also, can blink a log area in the same way
-                                        row.children[i].palette.button = 'lightcoral';
-                                    }
-                                }
-                            }
-                        }
-                        onClicked: {
-                            for (let i = 0; i < buttonsModel.count; ++i) {
-                                row.children[i].enabled = false;
-                                if (buttonsModel.get(i).name === button.text) {
-                                    const b = buttonsModel.get(i);
-                                    const args = b.args ? b.args.split(' ') : [];
-                                    stopActionButton.visible = true;
-                                    listItem.run(b.action, args);
-                                }
-                            }
-                        }
+                        // onActionResult: {
+                        //     // stopActionButton.visible = false;
+                        //     for (let i = 0; i < buttonsModel.count; ++i) {
+                        //         row.children[i].enabled = true;
+                        //         if (buttonsModel.get(i).action === action) {
+                        //             if (success === false) {
+                        //                 // TODO: change to fade animation. Also, can blink a log area in the same way
+                        //                 row.children[i].palette.button = 'lightcoral';
+                        //             }
+                        //         }
+                        //     }
+                        // }
+                        // onClicked: {
+                        //     // stopActionButton.visible = true;
+                        //     listView.currentItem.actionRunning = true;
+                        //     for (let i = 0; i < buttonsModel.count; ++i) {
+                        //         row.children[i].enabled = false;
+                        //         if (buttonsModel.get(i).name === button.text) {
+                        //             const b = buttonsModel.get(i);
+                        //             const args = b.args ? b.args.split(' ') : [];
+                        //             listItem.run(b.action, args);
+                        //         }
+                        //     }
+                        // }
                         Component.onCompleted: {
                             listItem.stateChanged.connect(stateReceived);
                             swipeView.currentItemChanged.connect(stateReceived);
@@ -162,6 +195,13 @@ ApplicationWindow {
 
                             listItem.actionResult.connect(actionResult);
                         }
+                    }
+                    Text {
+                        id: initErrorMessage
+                        visible: false
+                        padding: 10
+                        text: "The project cannot be initialized"
+                        color: 'red'
                     }
                     Row {
                         id: row
@@ -196,7 +236,24 @@ ApplicationWindow {
                             }
                             delegate: Button {
                                 text: name
+                                enabled: false
                                 // rotation: -90
+                                onClicked: {
+                                    // enabled = false;
+                                    listView.currentItem.actionRunning = true;
+                                    const args = model.args ? model.args.split(' ') : [];
+                                    listItem.run(model.action, args);
+                                }
+                                Connections {
+                                    target: buttonGroup
+                                    onActionResult: {
+                                        // console.log('actionDone', actionDone, model.name);
+                                        if (actionDone === model.action && success === false) {
+                                            palette.button = 'lightcoral';
+                                        }
+                                        // enabled = true;
+                                    }
+                                }
                             }
                         }
                     }
@@ -207,6 +264,7 @@ ApplicationWindow {
                             anchors.fill: parent
                             TextArea {
                                 id: log
+                                // anchors.fill: parent
                                 width: 500
                                 height: 380
                                 readOnly: true
@@ -220,15 +278,22 @@ ApplicationWindow {
                     // Text {
                     //     text: '<b>Name:</b> ' + display.name
                     // }
-                    Button {
-                        id: stopActionButton
-                        text: 'Stop'
-                        visible: false
-                        palette.button: 'lightcoral'
-                        onClicked: {
-                            // projectIncorrectDialog.open();
-                        }
-                    }
+                    // Button {
+                    //     text: 'test'
+                    //     onClicked: {
+                    //         console.log();
+                    //     }
+                    // }
+                    // Button {
+                    //     id: stopActionButton
+                    //     text: 'Stop'
+                    //     visible: false
+                    //     palette.button: 'lightcoral'
+                    //     onClicked: {
+                    //         // projectIncorrectDialog.open();
+                    //         console.log(listItem.stop('generate_code'));
+                    //     }
+                    // }
                 }
             }
         }
@@ -237,22 +302,25 @@ ApplicationWindow {
             id: folderDialog
             currentFolder: QtLabs.StandardPaths.standardLocations(QtLabs.StandardPaths.HomeLocation)[0]
             onAccepted: {
+                // popup.open();
                 projectsModel.addProject(folder);
+                // listView.currentIndex = listView.count;
+                // swipeView.currentIndex = listView.count;
             }
         }
         Button {
             text: 'Add'
             onClicked: {
-                folderDialog.open()
+                folderDialog.open();
             }
         }
     }
 
     // onClosing: Qt.quit()
-    onActiveChanged: {
-        if (active) {
-            console.log('window received focus', swipeView.currentIndex);
-        }
-    }
+    // onActiveChanged: {
+    //     if (active) {
+    //         console.log('window received focus', swipeView.currentIndex);
+    //     }
+    // }
 
 }
