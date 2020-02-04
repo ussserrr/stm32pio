@@ -84,6 +84,8 @@ ApplicationWindow {
         SwipeView {
             id: swipeView
             clip: true
+            interactive: false
+            orientation: Qt.Vertical
             Repeater {
                 model: projectsModel
                 delegate: Column {
@@ -209,6 +211,12 @@ ApplicationWindow {
                         Repeater {
                             model: ListModel {
                                 id: buttonsModel
+                                // ListElement {
+                                //     // TODO: add margin or divider or smth to visually separate the Clean action as it doesn't represent any state
+                                //     name: 'Clean'
+                                //     // state: 'INITIALIZED'
+                                //     action: 'clean'
+                                // }
                                 ListElement {
                                     name: 'Initialize'
                                     state: 'INITIALIZED'
@@ -315,7 +323,7 @@ ApplicationWindow {
                     // Button {
                     //     text: 'test'
                     //     onClicked: {
-                    //         console.log();
+                    //         row.visible = false;
                     //     }
                     // }
                     // Button {
@@ -328,6 +336,25 @@ ApplicationWindow {
                     //         console.log(listItem.stop('generate_code'));
                     //     }
                     // }
+                    Column {
+                        id: initDialog
+                        // visible: false
+                        Text {
+                            text: 'You can specify blabla'
+                        }
+                        Row {
+                            TextField {
+                                placeholderText: 'Board'
+                            }
+                            TextField {
+                                placeholderText: 'Editor'
+                            }
+                            CheckBox {
+                                text: 'Build'
+                                enabled: false
+                            }
+                        }
+                    }
                 }
             }
         }

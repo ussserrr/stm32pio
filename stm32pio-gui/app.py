@@ -202,15 +202,15 @@ class ProjectListItem(QObject):
         try:
             # import time
             # time.sleep(1)
-            if args[0] == '/Users/chufyrev/Documents/GitHub/stm32pio/Orange':
-                raise Exception("Error during initialization")
+            # if args[0] == '/Users/chufyrev/Documents/GitHub/stm32pio/Orange':
+            #     raise Exception("Error during initialization")
             self.project = Stm32pio(*args, **kwargs)
         except Exception as e:
             self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
-            self._name = args[0]  # FIXME
+            self._name = args[0]  # FIXME check if available
             self._state = { 'INIT_ERROR': True }
             self._current_stage = 'Initializing error'
-        self.qml_ready.wait()
+        self.qml_ready.wait()  # FIXME still not guaranteed, should check for ALL components to be loaded
         self.nameChanged.emit()
         self.stageChanged.emit()
         self.stateChanged.emit()
@@ -393,15 +393,10 @@ if __name__ == '__main__':
 
     qmlRegisterType(ProjectListItem, 'ProjectListItem', 1, 0, 'ProjectListItem')
 
-    apple = ProjectListItem(project_args=['Apple'], project_kwargs=dict(save_on_destruction=False, parameters={ 'board': 'nucleo_f031k6' }))
-    # orange = ProjectListItem(project_args=['Orange'], project_kwargs=dict(save_on_destruction=False, parameters={ 'board': 'nucleo_f031k6' }))
-    # peach = ProjectListItem(project_args=['Peach'], project_kwargs=dict(save_on_destruction=False, parameters={ 'board': 'nucleo_f031k6' }))
-    # apple.init_project()
-
     projects = ProjectsList([
-        apple,
-        # orange,
-        # peach
+        ProjectListItem(project_args=['Apple'], project_kwargs=dict(save_on_destruction=False, parameters={ 'board': 'nucleo_f031k6' })),
+        # ProjectListItem(project_args=['Orange'], project_kwargs=dict(save_on_destruction=False, parameters={ 'board': 'nucleo_f031k6' })),
+        # ProjectListItem(project_args=['Peach'], project_kwargs=dict(save_on_destruction=False, parameters={ 'board': 'nucleo_f031k6' }))
     ])
     # projects.addProject('Apple')
     # projects.add(ProjectListItem('../stm32pio-test-project', save_on_destruction=False))
