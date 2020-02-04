@@ -1,6 +1,7 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
+import QtGraphicalEffects 1.12
 import QtQuick.Dialogs 1.3 as QtDialogs
 import Qt.labs.platform 1.1 as QtLabs
 
@@ -10,7 +11,7 @@ import ProjectListItem 1.0
 ApplicationWindow {
     id: mainWindow
     visible: true
-    width: 790
+    width: 830
     height: 480
     title: "stm32pio"
     color: "whitesmoke"
@@ -51,6 +52,7 @@ ApplicationWindow {
                     target: listItem  // sender
                     onNameChanged: {
                         loading = false;
+                        // TODO: open the dialog where the user can enter board, editor etc.
                     }
                     onActionResult: {
                         actionRunning = false;
@@ -164,30 +166,26 @@ ApplicationWindow {
                                 }
                             }
                         }
-                        // onActionResult: {
-                        //     // stopActionButton.visible = false;
-                        //     for (let i = 0; i < buttonsModel.count; ++i) {
-                        //         row.children[i].enabled = true;
-                        //         if (buttonsModel.get(i).action === action) {
-                        //             if (success === false) {
-                        //                 // TODO: change to fade animation. Also, can blink a log area in the same way
-                        //                 row.children[i].palette.button = 'lightcoral';
-                        //             }
-                        //         }
-                        //     }
-                        // }
-                        // onClicked: {
-                        //     // stopActionButton.visible = true;
-                        //     listView.currentItem.actionRunning = true;
-                        //     for (let i = 0; i < buttonsModel.count; ++i) {
-                        //         row.children[i].enabled = false;
-                        //         if (buttonsModel.get(i).name === button.text) {
-                        //             const b = buttonsModel.get(i);
-                        //             const args = b.args ? b.args.split(' ') : [];
-                        //             listItem.run(b.action, args);
-                        //         }
-                        //     }
-                        // }
+                        onActionResult: {
+                            // stopActionButton.visible = false;
+                            for (let i = 0; i < buttonsModel.count; ++i) {
+                                row.children[i].enabled = true;
+                            }
+                        }
+                        onClicked: {
+                            // stopActionButton.visible = true;
+                            // listView.currentItem.actionRunning = true;
+                            for (let i = 0; i < buttonsModel.count; ++i) {
+                                row.children[i].enabled = false;
+                                row.children[i].glowingVisible = false;
+                                row.children[i].anim.complete();
+                                // if (buttonsModel.get(i).name === button.text) {
+                                //     const b = buttonsModel.get(i);
+                                //     const args = b.args ? b.args.split(' ') : [];
+                                //     listItem.run(b.action, args);
+                                // }
+                            }
+                        }
                         Component.onCompleted: {
                             listItem.stateChanged.connect(stateReceived);
                             swipeView.currentItemChanged.connect(stateReceived);
@@ -205,6 +203,9 @@ ApplicationWindow {
                     }
                     Row {
                         id: row
+                        padding: 10
+                        spacing: 10
+                        z: 1
                         Repeater {
                             model: ListModel {
                                 id: buttonsModel
@@ -235,11 +236,13 @@ ApplicationWindow {
                                 }
                             }
                             delegate: Button {
+                                id: actionButton
                                 text: name
                                 enabled: false
+                                property alias glowingVisible: glow.visible
+                                property alias anim: seq
                                 // rotation: -90
                                 onClicked: {
-                                    // enabled = false;
                                     listView.currentItem.actionRunning = true;
                                     const args = model.args ? model.args.split(' ') : [];
                                     listItem.run(model.action, args);
@@ -248,10 +251,41 @@ ApplicationWindow {
                                     target: buttonGroup
                                     onActionResult: {
                                         // console.log('actionDone', actionDone, model.name);
-                                        if (actionDone === model.action && success === false) {
-                                            palette.button = 'lightcoral';
+                                        if (actionDone === model.action) {
+                                            if (success) {
+                                                glow.color = 'lightgreen';
+                                            } else {
+                                                palette.button = 'lightcoral';
+                                                glow.color = 'lightcoral';
+                                            }
+                                            glow.visible = true;
+                                            seq.start();
                                         }
-                                        // enabled = true;
+                                    }
+                                }
+                                Glow {
+                                    id: glow
+                                    visible: false
+                                    anchors.fill: actionButton
+                                    radius: 10
+                                    samples: 21
+                                    color: 'lightgreen'
+                                    source: actionButton
+                                }
+                                SequentialAnimation {
+                                    id: seq
+                                    loops: 3
+                                    OpacityAnimator {
+                                        target: glow
+                                        from: 0
+                                        to: 1
+                                        duration: 1000
+                                    }
+                                    OpacityAnimator {
+                                        target: glow
+                                        from: 1
+                                        to: 0
+                                        duration: 1000
                                     }
                                 }
                             }
@@ -304,6 +338,7 @@ ApplicationWindow {
             onAccepted: {
                 // popup.open();
                 projectsModel.addProject(folder);
+
                 // listView.currentIndex = listView.count;
                 // swipeView.currentIndex = listView.count;
             }

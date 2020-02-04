@@ -14,7 +14,8 @@ import time
 import weakref
 
 from PySide2.QtCore import QCoreApplication, QUrl, QAbstractItemModel, Property, QAbstractListModel, QModelIndex, \
-    QObject, Qt, Slot, Signal, QTimer, QThread
+    QObject, Qt, Slot, Signal, QTimer, QThread, qInstallMessageHandler, QtInfoMsg, QtWarningMsg, QtCriticalMsg, \
+    QtFatalMsg
 from PySide2.QtGui import QGuiApplication
 from PySide2.QtQml import qmlRegisterType, QQmlEngine, QQmlComponent, QQmlApplicationEngine
 from PySide2.QtQuick import QQuickView
@@ -368,8 +369,24 @@ class ProjectsList(QAbstractListModel):
         # self.logger.removeHandler(self.handler)
 
 
+def qt_message_handler(mode, context, message):
+    if mode == QtInfoMsg:
+        mode = 'Info'
+    elif mode == QtWarningMsg:
+        mode = 'Warning'
+    elif mode == QtCriticalMsg:
+        mode = 'critical'
+    elif mode == QtFatalMsg:
+        mode = 'fatal'
+    else:
+        mode = 'Debug'
+    print("%s: %s" % (mode, message))
+
 
 if __name__ == '__main__':
+    if stm32pio.settings.my_os == 'Windows':
+        qInstallMessageHandler(qt_message_handler)
+
     app = QGuiApplication(sys.argv)
 
     engine = QQmlApplicationEngine()
