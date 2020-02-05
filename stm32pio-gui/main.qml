@@ -11,8 +11,8 @@ import ProjectListItem 1.0
 ApplicationWindow {
     id: mainWindow
     visible: true
-    width: 830
-    height: 480
+    width: 1130
+    height: 550
     title: "stm32pio"
     color: "whitesmoke"
 
@@ -93,7 +93,7 @@ ApplicationWindow {
                     Connections {
                         target: listItem  // sender
                         onLogAdded: {
-                            log.append(message);
+                            log.append('<font color="red">' + message + '</font>');
                         }
                         onNameChanged: {
                             for (let i = 0; i < buttonsModel.count; ++i) {
@@ -137,7 +137,6 @@ ApplicationWindow {
                         onStateReceived: {
                             if (active && index == swipeView.currentIndex && !lock) {
                                 // console.log('onStateReceived', active, index, !lock);
-
                                 const state = projectsModel.getProject(swipeView.currentIndex).state;
                                 listItem.stageChanged();
 
@@ -153,18 +152,12 @@ ApplicationWindow {
                                     console.log('no .ioc file');
                                 } else if (state['EMPTY']) {
                                     // listView.currentItem.running = false;
-                                    Object.keys(state).forEach(key => {
-                                        for (let i = 0; i < buttonsModel.count; ++i) {
-                                            if (buttonsModel.get(i).state === key) {
-                                                if (state[key]) {
-                                                    row.children[i].palette.button = 'lightgreen';
-                                                } else {
-                                                    row.children[i].palette.button = 'lightgray';
-                                                }
-                                                break;
-                                            }
+                                    for (let i = 0; i < buttonsModel.count; ++i) {
+                                        row.children[i].palette.button = 'lightgray';
+                                        if (state[buttonsModel.get(i).state]) {
+                                            row.children[i].palette.button = 'lightgreen';
                                         }
-                                    });
+                                    }
                                 }
                             }
                         }
@@ -225,26 +218,31 @@ ApplicationWindow {
                                     name: 'Initialize'
                                     state: 'INITIALIZED'
                                     action: 'save_config'
+                                    shouldRunNext: false
                                 }
                                 ListElement {
                                     name: 'Generate'
                                     state: 'GENERATED'
                                     action: 'generate_code'
+                                    shouldRunNext: false
                                 }
                                 ListElement {
                                     name: 'Initialize PlatformIO'
                                     state: 'PIO_INITIALIZED'
                                     action: 'pio_init'
+                                    shouldRunNext: false
                                 }
                                 ListElement {
                                     name: 'Patch'
                                     state: 'PATCHED'
                                     action: 'patch'
+                                    shouldRunNext: false
                                 }
                                 ListElement {
                                     name: 'Build'
                                     state: 'BUILT'
                                     action: 'build'
+                                    shouldRunNext: false
                                 }
                             }
                             delegate: Button {
@@ -255,13 +253,14 @@ ApplicationWindow {
                                 Layout.margins: 10  // insets can be used too
                                 Layout.rightMargin: margin
                                 // rotation: -90
-                                function runAction() {
+                                function runOwnAction() {
                                     listView.currentItem.actionRunning = true;
+                                    palette.button = 'gold';
                                     const args = model.args ? model.args.split(' ') : [];
                                     listItem.run(model.action, args);
                                 }
                                 onClicked: {
-                                    runAction();
+                                    runOwnAction();
                                 }
                                 MouseArea {
                                     anchors.fill: parent
@@ -274,8 +273,8 @@ ApplicationWindow {
                                         console.log('Show "Start the editor after operation" message');  // not for a 'Open editor' button
                                     }
                                     function shiftHandler() {
-                                        console.log('shiftHandler', shiftPressed, index);
-                                        for (let i = 2; i <= index; ++i) {
+                                        // console.log('shiftHandler', shiftPressed, index);
+                                        for (let i = 2; i <= index; ++i) {  // TODO: magic number, actually...
                                             if (shiftPressed) {
                                                 if (Qt.colorEqual(row.children[i].palette.button, 'lightgray')) {
                                                     row.children[i].palette.button = 'honeydew';
@@ -288,13 +287,18 @@ ApplicationWindow {
                                         }
                                     }
                                     onClicked: {
-                                        parent.clicked();  // propagateComposedEvents: true  // doesn't work
                                         if (ctrlPressed && model.action !== 'start_editor') {
                                             model.shouldStartEditor = true;
                                         }
-                                        if (shiftPressed) {
+                                        if (shiftPressed && index >= 2) {
                                             // run all actions in series
+                                            for (let i = 2; i < index; ++i) {
+                                                buttonsModel.setProperty(i, 'shouldRunNext', true);
+                                            }
+                                            row.children[2].clicked();
+                                            return;
                                         }
+                                        parent.clicked();  // propagateComposedEvents doesn't work...
                                     }
                                     onPositionChanged: {
                                         if (mouse.modifiers & Qt.ControlModifier) {
@@ -342,11 +346,16 @@ ApplicationWindow {
                                             glow.visible = true;
                                             seq.start();
 
+                                            if (model.shouldRunNext) {
+                                                model.shouldRunNext = false;
+                                                row.children[index + 1].clicked();  // complete task
+                                            }
+
                                             if (model.shouldStartEditor) {
                                                 model.shouldStartEditor = false;
                                                 for (let i = 0; i < buttonsModel.count; ++i) {
                                                     if (buttonsModel.get(i).action === 'start_editor') {
-                                                        row.children[i].runAction();
+                                                        row.children[i].runOwnAction();  // no additional actions in outer handlers
                                                         break;
                                                     }
                                                 }
@@ -361,10 +370,6 @@ ApplicationWindow {
                                     cornerRadius: 25
                                     glowRadius: 20
                                     spread: 0.25
-                                    // radius: 10
-                                    // samples: 21
-                                    // color: 'lightgreen'
-                                    // source: actionButton
                                 }
                                 SequentialAnimation {
                                     id: seq
@@ -386,7 +391,7 @@ ApplicationWindow {
                         }
                     }
                     Rectangle {
-                        width: 500
+                        width: 800
                         height: 380
                         ScrollView {
                             anchors.fill: parent
@@ -399,6 +404,7 @@ ApplicationWindow {
                                 selectByMouse: true
                                 wrapMode: Text.WordWrap
                                 font.family: 'Courier'
+                                textFormat: TextEdit.RichText
                                 Component.onCompleted: listItem.completed()
                             }
                         }
