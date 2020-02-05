@@ -136,7 +136,7 @@ ApplicationWindow {
                         property bool lock: false
                         onStateReceived: {
                             if (active && index == swipeView.currentIndex && !lock) {
-                                console.log('onStateReceived', active, index, !lock);
+                                // console.log('onStateReceived', active, index, !lock);
 
                                 const state = projectsModel.getProject(swipeView.currentIndex).state;
                                 listItem.stageChanged();
@@ -203,20 +203,24 @@ ApplicationWindow {
                         text: "The project cannot be initialized"
                         color: 'red'
                     }
-                    Row {
+                    RowLayout {
                         id: row
-                        padding: 10
-                        spacing: 10
+                        // padding: 10
+                        // spacing: 10
                         z: 1
                         Repeater {
                             model: ListModel {
                                 id: buttonsModel
-                                // ListElement {
-                                //     // TODO: add margin or divider or smth to visually separate the Clean action as it doesn't represent any state
-                                //     name: 'Clean'
-                                //     // state: 'INITIALIZED'
-                                //     action: 'clean'
-                                // }
+                                ListElement {
+                                    name: 'Clean'
+                                    action: 'clean'
+                                }
+                                ListElement {
+                                    name: 'Open editor'
+                                    action: 'start_editor'
+                                    args: 'code'
+                                    margin: 15  // margin to visually separate the Clean action as it doesn't represent any state
+                                }
                                 ListElement {
                                     name: 'Initialize'
                                     state: 'INITIALIZED'
@@ -244,16 +248,85 @@ ApplicationWindow {
                                 }
                             }
                             delegate: Button {
-                                id: actionButton
                                 text: name
                                 enabled: false
                                 property alias glowingVisible: glow.visible
                                 property alias anim: seq
+                                Layout.margins: 10  // insets can be used too
+                                Layout.rightMargin: margin
                                 // rotation: -90
-                                onClicked: {
+                                function runAction() {
                                     listView.currentItem.actionRunning = true;
                                     const args = model.args ? model.args.split(' ') : [];
                                     listItem.run(model.action, args);
+                                }
+                                onClicked: {
+                                    runAction();
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    property bool ctrlPressed: false
+                                    property bool ctrlPressedLastState: false
+                                    property bool shiftPressed: false
+                                    property bool shiftPressedLastState: false
+                                    function h() {
+                                        console.log('Show "Start the editor after operation" message');  // not for a 'Open editor' button
+                                    }
+                                    function shiftHandler() {
+                                        console.log('shiftHandler', shiftPressed, index);
+                                        for (let i = 2; i <= index; ++i) {
+                                            if (shiftPressed) {
+                                                if (Qt.colorEqual(row.children[i].palette.button, 'lightgray')) {
+                                                    row.children[i].palette.button = 'honeydew';
+                                                }
+                                            } else {
+                                                if (Qt.colorEqual(row.children[i].palette.button, 'honeydew')) {
+                                                    row.children[i].palette.button = 'lightgray';
+                                                }
+                                            }
+                                        }
+                                    }
+                                    onClicked: {
+                                        parent.clicked();  // propagateComposedEvents: true  // doesn't work
+                                        if (ctrlPressed && model.action !== 'start_editor') {
+                                            model.shouldStartEditor = true;
+                                        }
+                                        if (shiftPressed) {
+                                            // run all actions in series
+                                        }
+                                    }
+                                    onPositionChanged: {
+                                        if (mouse.modifiers & Qt.ControlModifier) {
+                                            ctrlPressed = true;
+                                        } else {
+                                            ctrlPressed = false;
+                                        }
+                                        if (ctrlPressedLastState !== ctrlPressed) {
+                                            ctrlPressedLastState = ctrlPressed;
+                                            h();
+                                        }
+
+                                        if (mouse.modifiers & Qt.ShiftModifier) {
+                                            shiftPressed = true;
+                                        } else {
+                                            shiftPressed = false;
+                                        }
+                                        if (shiftPressedLastState !== shiftPressed) {
+                                            shiftPressedLastState = shiftPressed;
+                                            shiftHandler();
+                                        }
+                                    }
+                                    onExited: {
+                                        ctrlPressed = false;
+                                        ctrlPressedLastState = false;
+
+                                        if (shiftPressed || shiftPressedLastState) {
+                                            shiftPressed = false;
+                                            shiftPressedLastState = false;
+                                            shiftHandler();
+                                        }
+                                    }
                                 }
                                 Connections {
                                     target: buttonGroup
@@ -268,17 +341,30 @@ ApplicationWindow {
                                             }
                                             glow.visible = true;
                                             seq.start();
+
+                                            if (model.shouldStartEditor) {
+                                                model.shouldStartEditor = false;
+                                                for (let i = 0; i < buttonsModel.count; ++i) {
+                                                    if (buttonsModel.get(i).action === 'start_editor') {
+                                                        row.children[i].runAction();
+                                                        break;
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
-                                Glow {
+                                RectangularGlow {
                                     id: glow
                                     visible: false
-                                    anchors.fill: actionButton
-                                    radius: 10
-                                    samples: 21
-                                    color: 'lightgreen'
-                                    source: actionButton
+                                    anchors.fill: parent
+                                    cornerRadius: 25
+                                    glowRadius: 20
+                                    spread: 0.25
+                                    // radius: 10
+                                    // samples: 21
+                                    // color: 'lightgreen'
+                                    // source: actionButton
                                 }
                                 SequentialAnimation {
                                     id: seq

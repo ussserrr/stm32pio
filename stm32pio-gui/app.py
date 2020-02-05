@@ -94,7 +94,7 @@ class LoggingHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         msg = self.format(record)
-        print(msg)
+        # print(msg)
         # self.queued_buffer.append(record)
         if not self.parent_ready_event.is_set():
             self.temp_logs.append(msg)
@@ -210,11 +210,15 @@ class ProjectListItem(QObject):
             self._name = args[0]  # FIXME check if available
             self._state = { 'INIT_ERROR': True }
             self._current_stage = 'Initializing error'
-        self.qml_ready.wait()  # FIXME still not guaranteed, should check for ALL components to be loaded
-        self.nameChanged.emit()
-        self.stageChanged.emit()
-        self.stateChanged.emit()
-        # self.worker = ProjectActionWorker(self.logger, job)
+        else:
+            # TODO: maybe remove _-values
+            pass
+        finally:
+            self.qml_ready.wait()  # FIXME still not guaranteed, should check for ALL components to be loaded
+            self.nameChanged.emit()
+            self.stageChanged.emit()
+            self.stateChanged.emit()
+            # self.worker = ProjectActionWorker(self.logger, job)
 
     def at_exit(self):
         print('destroy', self)
@@ -256,6 +260,7 @@ class ProjectListItem(QObject):
 
     @Slot(str, 'QVariantList')
     def run(self, action, args):
+        # TODO: queue or smth of jobs
         self.worker = ProjectActionWorker(self.logger, getattr(self.project, action), args)
 
         self.worker.actionResult.connect(self.stateChanged)
