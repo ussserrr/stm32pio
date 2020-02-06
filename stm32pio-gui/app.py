@@ -203,7 +203,7 @@ class ProjectListItem(QObject):
             # import time
             # time.sleep(1)
             # if args[0] == '/Users/chufyrev/Documents/GitHub/stm32pio/Orange':
-            #     raise Exception("Error during initialization")
+            # raise Exception("Error during initialization")
             self.project = Stm32pio(*args, **kwargs)
         except Exception as e:
             self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
@@ -214,7 +214,7 @@ class ProjectListItem(QObject):
             # TODO: maybe remove _-values
             pass
         finally:
-            self.qml_ready.wait()  # FIXME still not guaranteed, should check for ALL components to be loaded
+            self.qml_ready.wait()
             self.nameChanged.emit()
             self.stageChanged.emit()
             self.stateChanged.emit()
