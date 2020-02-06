@@ -103,12 +103,12 @@ class LoggingHandler(logging.Handler):
                 self.temp_logs.reverse()
                 for i in range(len(self.temp_logs)):
                     m = self.temp_logs.pop()
-                    self.signal.emit(m)
-            self.signal.emit(msg)
+                    self.signal.emit(m, record.levelno)
+            self.signal.emit(msg, record.levelno)
 
 
 class HandlerWorker(QObject):
-    addLog = Signal(str)
+    addLog = Signal(str, int)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -147,7 +147,7 @@ class ProjectListItem(QObject):
     nameChanged = Signal()
     stateChanged = Signal()
     stageChanged = Signal()
-    logAdded = Signal(str, arguments=['message'])
+    logAdded = Signal(str, int, arguments=['message', 'level'])
     actionResult = Signal(str, bool, arguments=['action', 'success'])
     # ccompleted = Signal()
 
@@ -407,6 +407,14 @@ if __name__ == '__main__':
     # projects.add(ProjectListItem('../stm32pio-test-project', save_on_destruction=False))
 
     engine.rootContext().setContextProperty('projectsModel', projects)
+    engine.rootContext().setContextProperty('Logging', {
+        'CRITICAL': logging.CRITICAL,
+        'ERROR': logging.ERROR,
+        'WARNING': logging.WARNING,
+        'INFO': logging.INFO,
+        'DEBUG': logging.DEBUG,
+        'NOTSET': logging.NOTSET
+    })
     engine.load(QUrl.fromLocalFile('stm32pio-gui/main.qml'))
     # engine.quit.connect(app.quit)
 

@@ -106,7 +106,13 @@ ApplicationWindow {
                             Connections {
                                 target: listItem  // sender
                                 onLogAdded: {
-                                    log.append(message);  // '<font color="red">'
+                                    if (level === Logging.WARNING) {
+                                        log.append('<font color="goldenrod"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
+                                    } else if (level >= Logging.ERROR) {
+                                        log.append('<font color="red"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
+                                    } else {
+                                        log.append('<pre style="white-space: pre-wrap">' + message + '</pre>');
+                                    }
                                 }
                                 onNameChanged: {
                                     for (let i = 0; i < buttonsModel.count; ++i) {
@@ -417,7 +423,8 @@ ApplicationWindow {
                                         selectByMouse: true
                                         wrapMode: Text.WordWrap
                                         font.family: 'Courier'
-                                        // textFormat: TextEdit.RichText
+                                        font.pointSize: 10
+                                        textFormat: TextEdit.RichText
                                         // Component.onCompleted: console.log('textArea completed');
                                     }
                                 }
