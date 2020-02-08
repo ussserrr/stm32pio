@@ -15,7 +15,7 @@ import weakref
 
 from PySide2.QtCore import QCoreApplication, QUrl, QAbstractItemModel, Property, QAbstractListModel, QModelIndex, \
     QObject, Qt, Slot, Signal, QTimer, QThread, qInstallMessageHandler, QtInfoMsg, QtWarningMsg, QtCriticalMsg, \
-    QtFatalMsg
+    QtFatalMsg, QThreadPool, QRunnable
 from PySide2.QtGui import QGuiApplication
 from PySide2.QtQml import qmlRegisterType, QQmlEngine, QQmlComponent, QQmlApplicationEngine
 from PySide2.QtQuick import QQuickView
@@ -139,7 +139,11 @@ class HandlerWorker(QObject):
 
 
 class Stm32pio(stm32pio.lib.Stm32pio):
-    def save_config(self):
+    def save_config(self, parameters: dict = None):
+        if parameters is not None:
+            for section_name, section_value in parameters.items():
+                for key, value in section_value.items():
+                    self.config.set(section_name, key, value)
         self.config.save()
 
 
@@ -149,27 +153,29 @@ class ProjectListItem(QObject):
     stageChanged = Signal()
     logAdded = Signal(str, int, arguments=['message', 'level'])
     actionResult = Signal(str, bool, arguments=['action', 'success'])
-    # ccompleted = Signal()
 
     def __init__(self, project_args: list = None, project_kwargs: dict = None, parent: QObject = None):
-        QObject.__init__(self, parent=parent)
+        super().__init__(parent=parent)
 
         self.logThread = QThread()  # TODO: can be a 'daemon' type as it runs alongside the main for a long time
         self.handler = HandlerWorker()
         self.handler.moveToThread(self.logThread)
         self.handler.addLog.connect(self.logAdded)
-        # self.ccompleted.connect(self.handler.cccompleted)
 
         self.logger = logging.getLogger(f"{stm32pio.lib.__name__}.{id(self)}")
         self.logger.addHandler(self.handler.logging_handler)
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
         self.handler.logging_handler.setFormatter(stm32pio.util.DispatchingFormatter(
             f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s",
             special=special_formatters))
 
         self.logThread.start()
 
-        self.worker = ProjectActionWorker(self.logger, lambda: None)
+        self.workers_pool = QThreadPool()
+        self.workers_pool.setMaxThreadCount(1)
+        self.workers_pool.setExpiryTimeout(-1)
+
+        # self.worker = ProjectActionWorker(self.logger, lambda: None)
 
         self.project = None
         self._name = 'Loading...'
@@ -218,7 +224,6 @@ class ProjectListItem(QObject):
             self.nameChanged.emit()
             self.stageChanged.emit()
             self.stateChanged.emit()
-            # self.worker = ProjectActionWorker(self.logger, job)
 
     def at_exit(self):
         print('destroy', self)
@@ -235,7 +240,7 @@ class ProjectListItem(QObject):
     @Property('QVariant', notify=stateChanged)
     def state(self):
         if self.project is not None:
-            return { s.name: value for s, value in self.project.state.items() }
+            return { s.name: value for s, value in self.project.state.items() if s != stm32pio.lib.ProjectStage.UNDEFINED }
         else:
             return self._state
 
@@ -247,10 +252,6 @@ class ProjectListItem(QObject):
         else:
             return self._current_stage
 
-    # @Slot(result=bool)
-    # def is_present(self):
-    #     return self.state[stm32pio.lib.ProjectStage.EMPTY]
-
     @Slot()
     def completed(self):
         print('completed from QML')
@@ -261,30 +262,43 @@ class ProjectListItem(QObject):
     @Slot(str, 'QVariantList')
     def run(self, action, args):
         # TODO: queue or smth of jobs
-        self.worker = ProjectActionWorker(self.logger, getattr(self.project, action), args)
+        worker = NewProjectActionWorker(self.logger, getattr(self.project, action), args)
+        worker.actionResult.connect(self.stateChanged)
+        worker.actionResult.connect(self.stageChanged)
+        worker.actionResult.connect(self.actionResult)
 
-        self.worker.actionResult.connect(self.stateChanged)
-        self.worker.actionResult.connect(self.stageChanged)
-        self.worker.actionResult.connect(self.actionResult)
-
-
-    # @Slot(str)
-    # def stop(self, action):
-    #     if self.worker.thread.isRunning() and self.worker.name == action:
-    #         print('===============================', self.worker.thread.quit())
+        self.workers_pool.start(worker)
 
 
-    # def save_config(self):
-    #     return self.config.save()
 
-        # this = super()
-        # class Worker(QThread):
-        #     def run(self):
-        #         this.generate_code()
-        # self.w = Worker()
-        # self.w.start()
+class NewProjectActionWorker(QObject, QRunnable):
+    actionResult = Signal(str, bool, arguments=['action', 'success'])
 
-        # return super().generate_code()
+    def __init__(self, logger, func, args=None):
+        QObject.__init__(self, parent=None)
+        QRunnable.__init__(self)
+
+        self.logger = logger
+        self.func = func
+        if args is None:
+            self.args = []
+        else:
+            self.args = args
+        self.name = func.__name__
+
+    def run(self):
+        try:
+            result = self.func(*self.args)
+        except Exception as e:
+            if self.logger is not None:
+                self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
+            result = -1
+        if result is None or (type(result) == int and result == 0):
+            success = True
+        else:
+            success = False
+        self.actionResult.emit(self.name, success)
+
 
 
 class ProjectActionWorker(QObject):
@@ -350,7 +364,7 @@ class ProjectsList(QAbstractListModel):
     def addProject(self, path):
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
         project = ProjectListItem(project_args=[path.toLocalFile()],
-                                  project_kwargs=dict(save_on_destruction=False, parameters={'board': 'nucleo_f031k6'}))
+                                  project_kwargs=dict(save_on_destruction=False))
         # project = ProjectListItem()
         self.projects.append(project)
         self.endInsertRows()

@@ -26,6 +26,13 @@ ApplicationWindow {
 
         if (initInfo[projectIndex] === 2) {
             projectsModel.getProject(projectIndex).completed();
+            // const indexToOpen = listView.indexToOpenAfterAddition;
+            // console.log('indexToOpen', indexToOpen);
+            // if (indexToOpen !== -1) {
+            //     listView.indexToOpenAfterAddition = -1;
+            //     listView.currentIndex = indexToOpen;
+            //     swipeView.currentIndex = indexToOpen;
+            // }
         }
         // Object.keys(initInfo).forEach(key => console.log('index:', key, 'counter:', initInfo[key]));
     }
@@ -35,57 +42,74 @@ ApplicationWindow {
         columns: 2
         rows: 2
 
-        ListView {
-            id: listView
-            width: 250
-            height: 250
-            model: projectsModel
-            clip: true
-            delegate: Component {
-                Loader {
-                    onLoaded: {
-                        setInitInfo(index);
-                    }
-                    sourceComponent: Item {
-                        id: iii
-                        property bool loading: true
-                        property bool actionRunning: false
-                        width: listView.width
-                        height: 40
-                        property ProjectListItem listItem: projectsModel.getProject(index)
-                        Connections {
-                            target: listItem  // sender
-                            onNameChanged: {
-                                loading = false;
-                                // TODO: open the dialog where the user can enter board, editor etc.
-                            }
-                            onActionResult: {
-                                actionRunning = false;
-                            }
+        Column {
+            ListView {
+                id: listView
+                width: 250
+                height: 250
+                model: projectsModel
+                clip: true
+                property int indexToOpenAfterAddition: -1
+                highlight: Rectangle { color: "lightsteelblue"; radius: 5 }
+                // focus: true
+                delegate: Component {
+                    Loader {
+                        onLoaded: {
+                            setInitInfo(index);
                         }
-                        Row {
-                            Column {
-                                Text { text: '<b>Name:</b> ' + display.name }
-                                Text { text: '<b>Stage:</b> ' + display.current_stage }
+                        sourceComponent: Item {
+                            id: iii
+                            property bool loading: true
+                            property bool actionRunning: false
+                            width: listView.width
+                            height: 40
+                            property ProjectListItem listItem: projectsModel.getProject(index)
+                            Connections {
+                                target: listItem  // sender
+                                onNameChanged: {
+                                    loading = false;
+                                }
+                                onActionResult: {
+                                    actionRunning = false;
+                                }
                             }
-                            BusyIndicator {
-                                running: iii.loading || iii.actionRunning
-                                width: iii.height
-                                height: iii.height
+                            Row {
+                                Column {
+                                    Text { text: '<b>Name:</b> ' + display.name }
+                                    Text { text: '<b>Stage:</b> ' + display.current_stage }
+                                }
+                                BusyIndicator {
+                                    running: iii.loading || iii.actionRunning
+                                    width: iii.height
+                                    height: iii.height
+                                }
                             }
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: {
-                                listView.currentIndex = index;
-                                swipeView.currentIndex = index;
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: !parent.loading
+                                onClicked: {
+                                    listView.currentIndex = index;
+                                    swipeView.currentIndex = index;
+                                }
                             }
                         }
                     }
                 }
             }
-            highlight: Rectangle { color: "lightsteelblue"; radius: 5 }
-            // focus: true
+            QtLabs.FolderDialog {
+                id: folderDialog
+                currentFolder: QtLabs.StandardPaths.standardLocations(QtLabs.StandardPaths.HomeLocation)[0]
+                onAccepted: {
+                    listView.indexToOpenAfterAddition = listView.count;
+                    projectsModel.addProject(folder);
+                }
+            }
+            Button {
+                text: 'Add'
+                onClicked: {
+                    folderDialog.open();
+                }
+            }
         }
 
         SwipeView {
@@ -118,349 +142,439 @@ ApplicationWindow {
                                     for (let i = 0; i < buttonsModel.count; ++i) {
                                         row.children[i].enabled = true;
                                     }
-                                }
-                                // Component.onCompleted: {
-                                //     for (let i = 0; i < buttonsModel.count; ++i) {
-                                //         // row.children[i].enabled = false;
-                                //         // buttonsModel.get(i).stateChangedHandler();
-                                //         listItem.stateChanged.connect(row.children[i].haha);
-                                //     }
-                                // }
-                                // onStateChanged: {
-                                //     for (let i = 0; i < buttonsModel.count; ++i) {
-                                //         // row.children[i].palette.button = 'lightcoral';
-                                //         // buttonsModel.get(i).stateChangedHandler();
-                                //     }
-                                // }
-                            }
-                            QtDialogs.MessageDialog {
-                                id: projectIncorrectDialog
-                                text: "The project was modified outside of the stm32pio and .ioc file is no longer present. " +
-                                      "The project will be removed from the app. It will not affect any real content"
-                                icon: QtDialogs.StandardIcon.Critical
-                                onAccepted: {
-                                    console.log('on accepted');
-                                    const delIndex = swipeView.currentIndex;
-                                    listView.currentIndex = swipeView.currentIndex + 1;
-                                    swipeView.currentIndex = swipeView.currentIndex + 1;
-                                    projectsModel.removeProject(delIndex);
-                                    buttonGroup.lock = false;
-                                }
-                            }
-                            ButtonGroup {
-                                id: buttonGroup
-                                buttons: row.children
-                                signal stateReceived()
-                                signal actionResult(string actionDone, bool success)
-                                property bool lock: false
-                                onStateReceived: {
-                                    if (active && index == swipeView.currentIndex && !lock) {
-                                        // console.log('onStateReceived', active, index, !lock);
-                                        const state = projectsModel.getProject(swipeView.currentIndex).state;
-                                        listItem.stageChanged();
 
-                                        if (state['LOADING']) {
-                                            // listView.currentItem.running = true;
-                                        } else if (state['INIT_ERROR']) {
-                                            // listView.currentItem.running = false;
-                                            row.visible = false;
-                                            initErrorMessage.visible = true;
-                                        } else if (!state['EMPTY']) {
-                                            lock = true;  // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
-                                            projectIncorrectDialog.open();
-                                            console.log('no .ioc file');
-                                        } else if (state['EMPTY']) {
-                                            // listView.currentItem.running = false;
-                                            for (let i = 0; i < buttonsModel.count; ++i) {
-                                                row.children[i].palette.button = 'lightgray';
-                                                if (state[buttonsModel.get(i).state]) {
-                                                    row.children[i].palette.button = 'lightgreen';
-                                                }
-                                            }
-                                        }
+                                    const state = listItem.state;
+                                    const s = Object.keys(state).filter(stateName => state[stateName]);
+                                    if (s.length === 1 && s[0] === 'EMPTY') {
+                                        initDialogLoader.active = true;
+                                    } else {
+                                        content.visible = true;
                                     }
-                                }
-                                onActionResult: {
-                                    // stopActionButton.visible = false;
-                                    for (let i = 0; i < buttonsModel.count; ++i) {
-                                        row.children[i].enabled = true;
-                                    }
-                                }
-                                onClicked: {
-                                    // stopActionButton.visible = true;
-                                    // listView.currentItem.actionRunning = true;
-                                    for (let i = 0; i < buttonsModel.count; ++i) {
-                                        row.children[i].enabled = false;
-                                        row.children[i].glowingVisible = false;
-                                        row.children[i].anim.complete();
-                                        // if (buttonsModel.get(i).name === button.text) {
-                                        //     const b = buttonsModel.get(i);
-                                        //     const args = b.args ? b.args.split(' ') : [];
-                                        //     listItem.run(b.action, args);
-                                        // }
-                                    }
-                                }
-                                Component.onCompleted: {
-                                    listItem.stateChanged.connect(stateReceived);
-                                    swipeView.currentItemChanged.connect(stateReceived);
-                                    mainWindow.activeChanged.connect(stateReceived);
-
-                                    listItem.actionResult.connect(actionResult);
                                 }
                             }
-                            Text {
-                                id: initErrorMessage
+                            Column {
+                                id: content
                                 visible: false
-                                padding: 10
-                                text: "The project cannot be initialized"
-                                color: 'red'
-                            }
-                            RowLayout {
-                                id: row
-                                // padding: 10
-                                // spacing: 10
-                                z: 1
-                                Repeater {
-                                    model: ListModel {
-                                        id: buttonsModel
-                                        ListElement {
-                                            name: 'Clean'
-                                            action: 'clean'
-                                        }
-                                        ListElement {
-                                            name: 'Open editor'
-                                            action: 'start_editor'
-                                            args: 'code'
-                                            margin: 15  // margin to visually separate the Clean action as it doesn't represent any state
-                                        }
-                                        ListElement {
-                                            name: 'Initialize'
-                                            state: 'INITIALIZED'
-                                            action: 'save_config'
-                                            shouldRunNext: false
-                                        }
-                                        ListElement {
-                                            name: 'Generate'
-                                            state: 'GENERATED'
-                                            action: 'generate_code'
-                                            shouldRunNext: false
-                                        }
-                                        ListElement {
-                                            name: 'Initialize PlatformIO'
-                                            state: 'PIO_INITIALIZED'
-                                            action: 'pio_init'
-                                            shouldRunNext: false
-                                        }
-                                        ListElement {
-                                            name: 'Patch'
-                                            state: 'PATCHED'
-                                            action: 'patch'
-                                            shouldRunNext: false
-                                        }
-                                        ListElement {
-                                            name: 'Build'
-                                            state: 'BUILT'
-                                            action: 'build'
-                                            shouldRunNext: false
-                                        }
+                                QtDialogs.MessageDialog {
+                                    id: projectIncorrectDialog
+                                    text: "The project was modified outside of the stm32pio and .ioc file is no longer present. " +
+                                        "The project will be removed from the app. It will not affect any real content"
+                                    icon: QtDialogs.StandardIcon.Critical
+                                    onAccepted: {
+                                        console.log('on accepted');
+                                        const delIndex = swipeView.currentIndex;
+                                        listView.currentIndex = swipeView.currentIndex + 1;
+                                        swipeView.currentIndex = swipeView.currentIndex + 1;
+                                        projectsModel.removeProject(delIndex);
+                                        buttonGroup.lock = false;
                                     }
-                                    delegate: Button {
-                                        text: name
-                                        enabled: false
-                                        property alias glowingVisible: glow.visible
-                                        property alias anim: seq
-                                        Layout.margins: 10  // insets can be used too
-                                        Layout.rightMargin: margin
-                                        // rotation: -90
-                                        function runOwnAction() {
-                                            listView.currentItem.item.actionRunning = true;
-                                            palette.button = 'gold';
-                                            const args = model.args ? model.args.split(' ') : [];
-                                            listItem.run(model.action, args);
-                                        }
-                                        onClicked: {
-                                            runOwnAction();
-                                        }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            property bool ctrlPressed: false
-                                            property bool ctrlPressedLastState: false
-                                            property bool shiftPressed: false
-                                            property bool shiftPressedLastState: false
-                                            function h() {
-                                                console.log('Show "Start the editor after operation" message');  // not for a 'Open editor' button
-                                            }
-                                            function shiftHandler() {
-                                                // console.log('shiftHandler', shiftPressed, index);
-                                                for (let i = 2; i <= index; ++i) {  // TODO: magic number, actually...
-                                                    if (shiftPressed) {
-                                                        if (Qt.colorEqual(row.children[i].palette.button, 'lightgray')) {
-                                                            row.children[i].palette.button = 'honeydew';
-                                                        }
-                                                    } else {
-                                                        if (Qt.colorEqual(row.children[i].palette.button, 'honeydew')) {
-                                                            row.children[i].palette.button = 'lightgray';
-                                                        }
+                                }
+                                ButtonGroup {
+                                    id: buttonGroup
+                                    buttons: row.children
+                                    signal stateReceived()
+                                    signal actionResult(string actionDone, bool success)
+                                    property bool lock: false
+                                    onStateReceived: {
+                                        if (active && index == swipeView.currentIndex && !lock) {
+                                            // console.log('onStateReceived', active, index, !lock);
+                                            const state = listItem.state;
+                                            listItem.stageChanged();
+
+                                            if (state['LOADING']) {
+                                                // listView.currentItem.running = true;
+                                            } else if (state['INIT_ERROR']) {
+                                                // listView.currentItem.running = false;
+                                                row.visible = false;
+                                                initErrorMessage.visible = true;
+                                            } else if (!state['EMPTY']) {
+                                                lock = true;  // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
+                                                projectIncorrectDialog.open();
+                                                console.log('no .ioc file');
+                                            } else if (state['EMPTY']) {
+                                                // listView.currentItem.running = false;
+                                                for (let i = 0; i < buttonsModel.count; ++i) {
+                                                    row.children[i].palette.button = 'lightgray';
+                                                    if (state[buttonsModel.get(i).state]) {
+                                                        row.children[i].palette.button = 'lightgreen';
                                                     }
                                                 }
+                                            }
+                                        }
+                                    }
+                                    onActionResult: {
+                                        // stopActionButton.visible = false;
+                                        for (let i = 0; i < buttonsModel.count; ++i) {
+                                            row.children[i].enabled = true;
+                                        }
+                                    }
+                                    onClicked: {
+                                        // stopActionButton.visible = true;
+                                        // listView.currentItem.actionRunning = true;
+                                        for (let i = 0; i < buttonsModel.count; ++i) {
+                                            row.children[i].enabled = false;
+                                            row.children[i].glowingVisible = false;
+                                            row.children[i].anim.complete();
+                                            // if (buttonsModel.get(i).name === button.text) {
+                                            //     const b = buttonsModel.get(i);
+                                            //     const args = b.args ? b.args.split(' ') : [];
+                                            //     listItem.run(b.action, args);
+                                            // }
+                                        }
+                                    }
+                                    Component.onCompleted: {
+                                        listItem.stateChanged.connect(stateReceived);
+                                        swipeView.currentItemChanged.connect(stateReceived);
+                                        mainWindow.activeChanged.connect(stateReceived);
+
+                                        listItem.actionResult.connect(actionResult);
+                                    }
+                                }
+                                Text {
+                                    id: initErrorMessage
+                                    visible: false
+                                    padding: 10
+                                    text: "The project cannot be initialized"
+                                    color: 'red'
+                                }
+                                RowLayout {
+                                    id: row
+                                    // padding: 10
+                                    // spacing: 10
+                                    z: 1
+                                    Repeater {
+                                        model: ListModel {
+                                            id: buttonsModel
+                                            ListElement {
+                                                name: 'Clean'
+                                                action: 'clean'
+                                                shouldStartEditor: false
+                                            }
+                                            ListElement {
+                                                name: 'Open editor'
+                                                action: 'start_editor'
+                                                args: 'code'
+                                                margin: 15  // margin to visually separate the Clean action as it doesn't represent any state
+                                            }
+                                            ListElement {
+                                                name: 'Initialize'
+                                                state: 'INITIALIZED'
+                                                action: 'save_config'
+                                                shouldRunNext: false
+                                                shouldStartEditor: false
+                                            }
+                                            ListElement {
+                                                name: 'Generate'
+                                                state: 'GENERATED'
+                                                action: 'generate_code'
+                                                shouldRunNext: false
+                                                shouldStartEditor: false
+                                            }
+                                            ListElement {
+                                                name: 'Initialize PlatformIO'
+                                                state: 'PIO_INITIALIZED'
+                                                action: 'pio_init'
+                                                shouldRunNext: false
+                                                shouldStartEditor: false
+                                            }
+                                            ListElement {
+                                                name: 'Patch'
+                                                state: 'PATCHED'
+                                                action: 'patch'
+                                                shouldRunNext: false
+                                                shouldStartEditor: false
+                                            }
+                                            ListElement {
+                                                name: 'Build'
+                                                state: 'BUILT'
+                                                action: 'build'
+                                                shouldRunNext: false
+                                                shouldStartEditor: false
+                                            }
+                                        }
+                                        delegate: Button {
+                                            text: name
+                                            enabled: false
+                                            property alias glowingVisible: glow.visible
+                                            property alias anim: seq
+                                            Layout.margins: 10  // insets can be used too
+                                            Layout.rightMargin: margin
+                                            // rotation: -90
+                                            function runOwnAction() {
+                                                listView.currentItem.item.actionRunning = true;
+                                                palette.button = 'gold';
+                                                const args = model.args ? model.args.split(' ') : [];
+                                                listItem.run(model.action, args);
                                             }
                                             onClicked: {
-                                                if (ctrlPressed && model.action !== 'start_editor') {
-                                                    model.shouldStartEditor = true;
-                                                }
-                                                if (shiftPressed && index >= 2) {
-                                                    // run all actions in series
-                                                    for (let i = 2; i < index; ++i) {
-                                                        buttonsModel.setProperty(i, 'shouldRunNext', true);
+                                                runOwnAction();
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                property bool ctrlPressed: false
+                                                property bool ctrlPressedLastState: false
+                                                property bool shiftPressed: false
+                                                property bool shiftPressedLastState: false
+                                                // function h() {
+                                                //     console.log('Show "Start the editor after operation" message');  // not for a 'Open editor' button
+                                                // }
+                                                function shiftHandler() {
+                                                    // console.log('shiftHandler', shiftPressed, index);
+                                                    for (let i = 2; i <= index; ++i) {  // TODO: magic number, actually...
+                                                        if (shiftPressed) {
+                                                            // if (Qt.colorEqual(row.children[i].palette.button, 'lightgray')) {
+                                                                row.children[i].palette.button = 'honeydew';
+                                                            // }
+                                                        } else {
+                                                            buttonGroup.stateReceived();
+                                                            // if (Qt.colorEqual(row.children[i].palette.button, 'honeydew')) {
+                                                            //     row.children[i].palette.button = 'lightgray';
+                                                            // }
+                                                        }
                                                     }
-                                                    row.children[2].clicked();
-                                                    return;
                                                 }
-                                                parent.clicked();  // propagateComposedEvents doesn't work...
-                                            }
-                                            onPositionChanged: {
-                                                if (mouse.modifiers & Qt.ControlModifier) {
-                                                    ctrlPressed = true;
-                                                } else {
-                                                    ctrlPressed = false;
+                                                onClicked: {
+                                                    if (ctrlPressed && model.action !== 'start_editor') {
+                                                        model.shouldStartEditor = true;
+                                                    }
+                                                    if (shiftPressed && index >= 2) {
+                                                        // run all actions in series
+                                                        for (let i = 2; i < index; ++i) {
+                                                            buttonsModel.setProperty(i, 'shouldRunNext', true);
+                                                        }
+                                                        row.children[2].clicked();
+                                                        return;
+                                                    }
+                                                    parent.clicked();  // propagateComposedEvents doesn't work...
                                                 }
-                                                if (ctrlPressedLastState !== ctrlPressed) {
-                                                    ctrlPressedLastState = ctrlPressed;
-                                                    h();
-                                                }
-
-                                                if (mouse.modifiers & Qt.ShiftModifier) {
-                                                    shiftPressed = true;
-                                                } else {
-                                                    shiftPressed = false;
-                                                }
-                                                if (shiftPressedLastState !== shiftPressed) {
-                                                    shiftPressedLastState = shiftPressed;
-                                                    shiftHandler();
-                                                }
-                                            }
-                                            onExited: {
-                                                ctrlPressed = false;
-                                                ctrlPressedLastState = false;
-
-                                                if (shiftPressed || shiftPressedLastState) {
-                                                    shiftPressed = false;
-                                                    shiftPressedLastState = false;
-                                                    shiftHandler();
-                                                }
-                                            }
-                                        }
-                                        Connections {
-                                            target: buttonGroup
-                                            onActionResult: {
-                                                // console.log('actionDone', actionDone, model.name);
-                                                if (actionDone === model.action) {
-                                                    if (success) {
-                                                        glow.color = 'lightgreen';
+                                                onPositionChanged: {
+                                                    if (mouse.modifiers & Qt.ControlModifier) {
+                                                        ctrlPressed = true;
                                                     } else {
-                                                        palette.button = 'lightcoral';
-                                                        glow.color = 'lightcoral';
+                                                        ctrlPressed = false;
                                                     }
-                                                    glow.visible = true;
-                                                    seq.start();
-
-                                                    if (model.shouldRunNext) {
-                                                        model.shouldRunNext = false;
-                                                        row.children[index + 1].clicked();  // complete task
+                                                    if (ctrlPressedLastState !== ctrlPressed) {
+                                                        ctrlPressedLastState = ctrlPressed;
                                                     }
 
-                                                    if (model.shouldStartEditor) {
-                                                        model.shouldStartEditor = false;
-                                                        for (let i = 0; i < buttonsModel.count; ++i) {
-                                                            if (buttonsModel.get(i).action === 'start_editor') {
-                                                                row.children[i].runOwnAction();  // no additional actions in outer handlers
-                                                                break;
+                                                    if (mouse.modifiers & Qt.ShiftModifier) {
+                                                        shiftPressed = true;
+                                                    } else {
+                                                        shiftPressed = false;
+                                                    }
+                                                    if (shiftPressedLastState !== shiftPressed) {
+                                                        shiftPressedLastState = shiftPressed;
+                                                        shiftHandler();
+                                                    }
+                                                }
+                                                onEntered: {
+                                                    statusBar.text = '<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b> after the operation, <b>Shift</b>-click to perform all actions prior this one (including). <b>Ctrl</b>-<b>Shift</b>-click for both';
+                                                }
+                                                onExited: {
+                                                    statusBar.text = '';
+
+                                                    ctrlPressed = false;
+                                                    ctrlPressedLastState = false;
+
+                                                    if (shiftPressed || shiftPressedLastState) {
+                                                        shiftPressed = false;
+                                                        shiftPressedLastState = false;
+                                                        shiftHandler();
+                                                    }
+                                                }
+                                            }
+                                            Connections {
+                                                target: buttonGroup
+                                                onActionResult: {
+                                                    // console.log('actionDone', actionDone, model.name);
+                                                    if (actionDone === model.action) {
+                                                        if (success) {
+                                                            glow.color = 'lightgreen';
+                                                        } else {
+                                                            palette.button = 'lightcoral';
+                                                            glow.color = 'lightcoral';
+                                                        }
+                                                        glow.visible = true;
+                                                        seq.start();
+
+                                                        if (model.shouldRunNext) {
+                                                            model.shouldRunNext = false;
+                                                            row.children[index + 1].clicked();  // complete task
+                                                        }
+
+                                                        if (model.shouldStartEditor) {
+                                                            model.shouldStartEditor = false;
+                                                            for (let i = 0; i < buttonsModel.count; ++i) {
+                                                                if (buttonsModel.get(i).action === 'start_editor') {
+                                                                    row.children[i].runOwnAction();  // no additional actions in outer handlers
+                                                                    break;
+                                                                }
                                                             }
                                                         }
                                                     }
                                                 }
                                             }
-                                        }
-                                        RectangularGlow {
-                                            id: glow
-                                            visible: false
-                                            anchors.fill: parent
-                                            cornerRadius: 25
-                                            glowRadius: 20
-                                            spread: 0.25
-                                        }
-                                        SequentialAnimation {
-                                            id: seq
-                                            loops: 3
-                                            OpacityAnimator {
-                                                target: glow
-                                                from: 0
-                                                to: 1
-                                                duration: 1000
+                                            RectangularGlow {
+                                                id: glow
+                                                visible: false
+                                                anchors.fill: parent
+                                                cornerRadius: 25
+                                                glowRadius: 20
+                                                spread: 0.25
                                             }
-                                            OpacityAnimator {
-                                                target: glow
-                                                from: 1
-                                                to: 0
-                                                duration: 1000
+                                            SequentialAnimation {
+                                                id: seq
+                                                loops: 3
+                                                OpacityAnimator {
+                                                    target: glow
+                                                    from: 0
+                                                    to: 1
+                                                    duration: 1000
+                                                }
+                                                OpacityAnimator {
+                                                    target: glow
+                                                    from: 1
+                                                    to: 0
+                                                    duration: 1000
+                                                }
                                             }
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    width: 800
+                                    height: 380
+                                    ScrollView {
+                                        anchors.fill: parent
+                                        TextArea {
+                                            id: log
+                                            // anchors.fill: parent
+                                            width: 500
+                                            height: 380
+                                            readOnly: true
+                                            selectByMouse: true
+                                            wrapMode: Text.WordWrap
+                                            font.family: 'Courier'
+                                            font.pointSize: 10
+                                            textFormat: TextEdit.RichText
+                                            // Component.onCompleted: console.log('textArea completed');
                                         }
                                     }
                                 }
                             }
-                            Rectangle {
-                                width: 800
-                                height: 380
-                                ScrollView {
-                                    anchors.fill: parent
-                                    TextArea {
-                                        id: log
-                                        // anchors.fill: parent
-                                        width: 500
-                                        height: 380
-                                        readOnly: true
-                                        selectByMouse: true
-                                        wrapMode: Text.WordWrap
-                                        font.family: 'Courier'
-                                        font.pointSize: 10
-                                        textFormat: TextEdit.RichText
-                                        // Component.onCompleted: console.log('textArea completed');
+                            Loader {
+                                id: initDialogLoader
+                                active: false
+                                sourceComponent: Column {
+                                    Text {
+                                        text: 'To complete initialization you can provide PlatformIO name of the board'
                                     }
-                                }
-                            }
-                            // Button {
-                            //     text: 'test'
-                            //     onClicked: {
-                            //         row.visible = false;
-                            //     }
-                            // }
-                            // Button {
-                            //     id: stopActionButton
-                            //     text: 'Stop'
-                            //     visible: false
-                            //     palette.button: 'lightcoral'
-                            //     onClicked: {
-                            //         // projectIncorrectDialog.open();
-                            //         console.log(listItem.stop('generate_code'));
-                            //     }
-                            // }
-                            Column {
-                                id: initDialog
-                                // visible: false
-                                Text {
-                                    text: 'You can specify blabla'
-                                }
-                                Row {
-                                    TextField {
-                                        placeholderText: 'Board'
+                                    Row {
+                                        ComboBox {
+                                            id: board
+                                            editable: true
+                                            model: ListModel {
+                                                ListElement { text: "None" }
+                                                ListElement { text: "Banana" }
+                                                ListElement { text: "Apple" }
+                                                ListElement { text: "Coconut" }
+                                                ListElement { text: "nucleo_f031k6" }
+                                            }
+                                            onAccepted: {
+                                                focus = false;
+                                            }
+                                            onActivated: {
+                                                focus = false;
+                                            }
+                                            onFocusChanged: {
+                                                if (!focus) {
+                                                    if (find(editText) === -1) {
+                                                        editText = textAt(0);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        CheckBox {
+                                            id: runCheckBox
+                                            text: 'Run'
+                                            enabled: false
+                                            ToolTip {
+                                                visible: runCheckBox.hovered
+                                                delay: 250
+                                                enter: Transition {
+                                                    NumberAnimation { property: 'opacity'; from: 0.0; to: 1.0 }
+                                                }
+                                                exit: Transition {
+                                                    NumberAnimation { property: 'opacity'; from: 1.0; to: 0.0 }
+                                                }
+                                                Component.onCompleted: {
+                                                    const actions = [];
+                                                    for (let i = 3; i < buttonsModel.count; ++i) {
+                                                        actions.push(`<b>${buttonsModel.get(i).name}</b>`);
+                                                    }
+                                                    text = `Do: ${actions.join(' → ')}`;
+                                                }
+                                            }
+                                            Connections {
+                                                target: board
+                                                onFocusChanged: {
+                                                    if (!board.focus) {
+                                                        if (board.editText === board.textAt(0)) {
+                                                            runCheckBox.checked = false;
+                                                            runCheckBox.enabled = false;
+                                                        } else {
+                                                            runCheckBox.enabled = true;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        CheckBox {
+                                            id: openEditor
+                                            text: 'Open editor'
+                                            ToolTip {
+                                                text: 'Start the editor specified in the <b>Settings</b> after the completion'
+                                                visible: openEditor.hovered
+                                                delay: 250
+                                                enter: Transition {
+                                                    NumberAnimation { property: 'opacity'; from: 0.0; to: 1.0 }
+                                                }
+                                                exit: Transition {
+                                                    NumberAnimation { property: 'opacity'; from: 1.0; to: 0.0 }
+                                                }
+                                            }
+                                        }
                                     }
-                                    TextField {
-                                        placeholderText: 'Editor'
-                                    }
-                                    CheckBox {
-                                        text: 'Build'
-                                        enabled: false
+                                    Button {
+                                        text: 'OK'
+                                        onClicked: {
+                                            listView.currentItem.item.actionRunning = true;
+
+                                            listItem.run('save_config', [{
+                                                'project': {
+                                                    'board': board.editText === board.textAt(0) ? '' : board.editText
+                                                }
+                                            }]);
+
+                                            if (runCheckBox.checked) {
+                                                for (let i = 3; i < buttonsModel.count - 1; ++i) {
+                                                    buttonsModel.setProperty(i, 'shouldRunNext', true);
+                                                }
+                                                row.children[3].clicked();
+                                            }
+
+                                            if (openEditor.checked) {
+                                                if (runCheckBox.checked) {
+                                                    buttonsModel.setProperty(buttonsModel.count - 1, 'shouldStartEditor', true);
+                                                } else {
+                                                    row.children[1].clicked();
+                                                }
+                                            }
+
+                                            initDialogLoader.sourceComponent = undefined;
+                                            content.visible = true;
+                                        }
                                     }
                                 }
                             }
@@ -470,24 +584,14 @@ ApplicationWindow {
             }
         }
 
-        QtLabs.FolderDialog {
-            id: folderDialog
-            currentFolder: QtLabs.StandardPaths.standardLocations(QtLabs.StandardPaths.HomeLocation)[0]
-            onAccepted: {
-                // popup.open();
-                projectsModel.addProject(folder);
-
-                // listView.currentIndex = listView.count;
-                // swipeView.currentIndex = listView.count;
-            }
-        }
-        Button {
-            text: 'Add'
-            onClicked: {
-                folderDialog.open();
-            }
+        Text {
+            id: statusBar
+            padding: 10
+            Layout.columnSpan: 2
+            // text: 'Status bar'
         }
     }
+
 
     // onClosing: Qt.quit()
     // onActiveChanged: {

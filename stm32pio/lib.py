@@ -397,9 +397,9 @@ class Stm32pio:
         error_msg = "PlatformIO project initialization error"
         if result.returncode == 0:
             # PlatformIO returns 0 even on some errors (e.g. no '--board' argument)
-            if 'ERROR' in result.stdout:
+            if 'error' in result.stdout.lower():
                 self.logger.error(result.stdout)
-                raise Exception(error_msg)
+                raise Exception('\n' + error_msg)
             self.logger.debug(result.stdout, 'from_subprocess')
             self.logger.info("successful PlatformIO project initialization")
             return result.returncode
