@@ -25,17 +25,37 @@ ApplicationWindow {
         }
 
         if (initInfo[projectIndex] === 2) {
+            delete initInfo[projectIndex];  // index can be reused
             projectsModel.getProject(projectIndex).completed();
-            // const indexToOpen = listView.indexToOpenAfterAddition;
-            // console.log('indexToOpen', indexToOpen);
-            // if (indexToOpen !== -1) {
-            //     listView.indexToOpenAfterAddition = -1;
-            //     listView.currentIndex = indexToOpen;
-            //     swipeView.currentIndex = indexToOpen;
-            // }
+            const indexToOpen = listView.indexToOpenAfterAddition;
+            console.log('indexToOpen', indexToOpen);
+            if (indexToOpen !== -1) {
+                listView.indexToOpenAfterAddition = -1;
+                listView.currentIndex = indexToOpen;
+                swipeView.currentIndex = indexToOpen;
+            }
         }
         // Object.keys(initInfo).forEach(key => console.log('index:', key, 'counter:', initInfo[key]));
     }
+
+    // property var indexChangeInfo: ({})
+    // function setIndexChangeInfo(projectIndex) {
+    //     if (projectIndex in indexChangeInfo) {
+    //         indexChangeInfo[projectIndex]++;
+    //     } else {
+    //         indexChangeInfo[projectIndex] = 1;
+    //     }
+
+    //     if (indexChangeInfo[projectIndex] === 2) {
+    //         delete indexChangeInfo[projectIndex];  // index can be reused
+    //         const indexToRemove = listView.indexToRemoveAfterChangingCurrentIndex;
+    //         if (indexToRemove !== -1) {
+    //             console.log('should remove', indexToRemove, 'based on changing to', projectIndex);
+    //             listView.indexToRemoveAfterChangingCurrentIndex = -1;
+    //             projectsModel.removeProject(indexToRemove);
+    //         }
+    //     }
+    // }
 
     GridLayout {
         id: mainGrid
@@ -50,7 +70,10 @@ ApplicationWindow {
                 model: projectsModel
                 clip: true
                 property int indexToOpenAfterAddition: -1
-                highlight: Rectangle { color: "lightsteelblue"; radius: 5 }
+                // property int indexToRemoveAfterChangingCurrentIndex: -1
+                highlight: Rectangle { color: 'lightsteelblue'; radius: 5 }
+                highlightMoveDuration: 0
+                highlightMoveVelocity: -1
                 // focus: true
                 delegate: Component {
                     Loader {
@@ -104,10 +127,75 @@ ApplicationWindow {
                     projectsModel.addProject(folder);
                 }
             }
-            Button {
-                text: 'Add'
-                onClicked: {
-                    folderDialog.open();
+            Row {
+                padding: 10
+                spacing: 10
+                Button {
+                    text: 'Add'
+                    display: AbstractButton.TextBesideIcon
+                    icon.source: 'icons/add.svg'
+                    onClicked: {
+                        folderDialog.open();
+                    }
+                }
+                Button {
+                    id: removeButton
+                    text: 'Remove'
+                    display: AbstractButton.TextBesideIcon
+                    icon.source: 'icons/remove.svg'
+                    onClicked: {
+                        let indexToRemove = listView.currentIndex;
+                        let indexToMove;
+                        if (indexToRemove === (listView.count - 1)) {
+                            if (listView.count === 1) {
+                                indexToMove = -1;
+                            } else {
+                                indexToMove = indexToRemove - 1;
+                            }
+                        } else {
+                            indexToMove = indexToRemove + 1;
+                        }
+                        console.log('indexToMove', indexToMove, 'indexToRemove', indexToRemove);
+                        // listView.indexToRemoveAfterChangingCurrentIndex = indexToRemove;
+
+                        // let cnt = 0;
+                        // function bnbn() {
+                        //     cnt++;
+                        //     if (cnt === 2) {
+                        //         function MyTimer() {
+                        //             return Qt.createQmlObject("import QtQuick 2.0; Timer {}", removeButton);
+                        //         }
+
+                        //         const t = new MyTimer();
+                        //         t.interval = 1000;
+                        //         t.repeat = false;
+                        //         t.triggered.connect(function () {
+                        //             projectsModel.removeProject(indexToRemove);
+                        //             // console.log('after remove', listView.currentIndex);
+                        //             // projectsModel.getProject(listView.currentIndex).stateChanged();
+                        //         })
+
+                        //         t.start();
+
+                        //         const t2 = new MyTimer();
+                        //         t2.interval = 2000;
+                        //         t2.repeat = false;
+                        //         t2.triggered.connect(function () {
+                        //             // projectsModel.removeProject(indexToRemove);
+                        //             console.log('after remove', listView.currentIndex);
+                        //             projectsModel.getProject(listView.currentIndex).stateChanged();
+                        //         })
+
+                        //         t2.start();
+                        //     }
+                        // }
+                        // listView.currentIndexChanged.connect(bnbn);
+                        // swipeView.currentIndexChanged.connect(bnbn);
+
+                        listView.currentIndex = indexToMove;
+                        swipeView.currentIndex = indexToMove;
+                        projectsModel.removeProject(indexToRemove);
+                    }
                 }
             }
         }

@@ -157,7 +157,7 @@ class ProjectListItem(QObject):
     def __init__(self, project_args: list = None, project_kwargs: dict = None, parent: QObject = None):
         super().__init__(parent=parent)
 
-        self.logThread = QThread()  # TODO: can be a 'daemon' type as it runs alongside the main for a long time
+        self.logThread = QThread()
         self.handler = HandlerWorker()
         self.handler.moveToThread(self.logThread)
         self.handler.addLog.connect(self.logAdded)
@@ -206,7 +206,7 @@ class ProjectListItem(QObject):
 
     def init_project(self, *args, **kwargs):
         try:
-            # import time
+            # print('start to init in python')
             # time.sleep(1)
             # if args[0] == '/Users/chufyrev/Documents/GitHub/stm32pio/Orange':
             # raise Exception("Error during initialization")
@@ -221,6 +221,7 @@ class ProjectListItem(QObject):
             pass
         finally:
             self.qml_ready.wait()
+            # print('end to init in python')
             self.nameChanged.emit()
             self.stageChanged.emit()
             self.stateChanged.emit()
@@ -254,7 +255,7 @@ class ProjectListItem(QObject):
 
     @Slot()
     def completed(self):
-        print('completed from QML')
+        # print('completed from QML')
         self.qml_ready.set()
         self.handler.parent_ready.set()
         # self.handler.cccompleted()
@@ -346,7 +347,15 @@ class ProjectsList(QAbstractListModel):
 
     @Slot(int, result=ProjectListItem)
     def getProject(self, index):
-        return self.projects[index]
+        if index >= 0 and index < len(self.projects):
+            return self.projects[index]
+        # try:
+        #     print('get index', index)
+        #     p = self.projects[index]
+        #     print('return instance', p)
+        #     return p
+        # except Exception as e:
+        #     print(e)
 
     def rowCount(self, parent=None, *args, **kwargs):
         return len(self.projects)
@@ -379,13 +388,27 @@ class ProjectsList(QAbstractListModel):
 
     @Slot(int)
     def removeProject(self, index):
-        self.beginRemoveRows(QModelIndex(), index, index)
-        self.projects.pop(index)
-        self.endRemoveRows()
+        # print('pop index', index)
+        try:
+            self.projects[index]
+        except Exception as e:
+            print(e)
+        else:
+            self.beginRemoveRows(QModelIndex(), index, index)
+            self.projects.pop(index)
+            self.endRemoveRows()
+            # print('removed')
 
     def at_exit(self):
         print('destroy', self)
         # self.logger.removeHandler(self.handler)
+
+    @Slot()
+    def resetMe(self):
+        print('resetting...')
+        self.beginResetModel()
+        self.projects = []
+        self.endResetModel()
 
 
 def qt_message_handler(mode, context, message):
@@ -414,7 +437,7 @@ if __name__ == '__main__':
 
     projects = ProjectsList([
         ProjectListItem(project_args=['Apple'], project_kwargs=dict(save_on_destruction=False, parameters={ 'board': 'nucleo_f031k6' })),
-        # ProjectListItem(project_args=['Orange'], project_kwargs=dict(save_on_destruction=False, parameters={ 'board': 'nucleo_f031k6' })),
+        ProjectListItem(project_args=['Orange'], project_kwargs=dict(save_on_destruction=False, parameters={ 'board': 'nucleo_f031k6' })),
         # ProjectListItem(project_args=['Peach'], project_kwargs=dict(save_on_destruction=False, parameters={ 'board': 'nucleo_f031k6' }))
     ])
     # projects.addProject('Apple')
