@@ -11,6 +11,7 @@
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
  - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list. Ask the confirmation of a user by-defualt and add additional option for quiet performance
  - [x] `status` CLI subcommand, why not?..
+ - [ ] check for all tools to be present in the system (both CLI and GUI)
  - [ ] exclude tests from the bundle (see `setup.py` options)
  - [ ] generate code docs (help user to understand an internal kitchen, e.g. for embedding)
  - [ ] handle the project folder renaming/movement to other location and/or describe in README

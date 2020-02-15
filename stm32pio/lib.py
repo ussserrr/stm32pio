@@ -174,10 +174,10 @@ class Stm32pio:
         # Given parameter takes precedence over the saved one
         board = ''
         if 'board' in parameters and parameters['board'] is not None:
-            try:
-                board = self._resolve_board(parameters['board'])
-            except Exception as e:
-                self.logger.warning(e)
+            if parameters['board'] in stm32pio.util.get_platformio_boards():
+                board = parameters['board']
+            else:
+                self.logger.warning(f"'{parameters['board']}' was not found in PlatformIO. Run 'platformio boards' for possible names")
             self.config.set('project', 'board', board)
         elif self.config.get('project', 'board', fallback=None) is None:
             self.config.set('project', 'board', board)
@@ -307,31 +307,31 @@ class Stm32pio:
             return resolved_path
 
 
-    def _resolve_board(self, board: str) -> str:
-        """
-        Check if given board is a correct board name in the PlatformIO database. Simply get the whole list of all boards
-        using CLI command and search in the STDOUT
-
-        Args:
-            board: string representing PlatformIO board name (for example, 'nucleo_f031k6')
-
-        Returns:
-            same board that has been given if it was found, raise an exception otherwise
-        """
-
-        self.logger.debug("searching for PlatformIO board...")
-        result = subprocess.run([self.config.get('app', 'platformio_cmd'), 'boards'], encoding='utf-8',
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # Or, for Python 3.7 and above:
-        # result = subprocess.run(['platformio', 'boards'], encoding='utf-8', capture_output=True)
-        if result.returncode == 0:
-            if board not in result.stdout.split():
-                raise Exception("wrong PlatformIO STM32 board. Run 'platformio boards' for possible names")
-            else:
-                self.logger.debug(f"PlatformIO board {board} was found")
-                return board
-        else:
-            raise Exception("failed to search for PlatformIO boards")
+    # def _resolve_board(self, board: str) -> str:
+    #     """
+    #     Check if given board is a correct board name in the PlatformIO database. Simply get the whole list of all boards
+    #     using CLI command and search in the STDOUT
+    #
+    #     Args:
+    #         board: string representing PlatformIO board name (for example, 'nucleo_f031k6')
+    #
+    #     Returns:
+    #         same board that has been given if it was found, raise an exception otherwise
+    #     """
+    #
+    #     self.logger.debug("searching for PlatformIO board...")
+    #     result = subprocess.run([self.config.get('app', 'platformio_cmd'), 'boards'], encoding='utf-8',
+    #                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    #     # Or, for Python 3.7 and above:
+    #     # result = subprocess.run(['platformio', 'boards'], encoding='utf-8', capture_output=True)
+    #     if result.returncode == 0:
+    #         if board not in result.stdout.split():
+    #             raise Exception("wrong PlatformIO STM32 board. Run 'platformio boards' for possible names")
+    #         else:
+    #             self.logger.debug(f"PlatformIO board {board} was found")
+    #             return board
+    #     else:
+    #         raise Exception("failed to search for PlatformIO boards")
 
 
     def generate_code(self) -> int:

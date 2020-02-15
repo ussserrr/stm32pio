@@ -16,6 +16,9 @@ ApplicationWindow {
     title: 'stm32pio'
     color: 'whitesmoke'
 
+    signal backendLoaded()
+    onBackendLoaded: popup.close()
+
     property var initInfo: ({})
     function setInitInfo(projectIndex) {
         if (projectIndex in initInfo) {
@@ -27,40 +30,58 @@ ApplicationWindow {
         if (initInfo[projectIndex] === 2) {
             delete initInfo[projectIndex];  // index can be reused
             projectsModel.getProject(projectIndex).completed();
-            const indexToOpen = listView.indexToOpenAfterAddition;
-            console.log('indexToOpen', indexToOpen);
-            if (indexToOpen !== -1) {
-                listView.indexToOpenAfterAddition = -1;
-                listView.currentIndex = indexToOpen;
-                swipeView.currentIndex = indexToOpen;
-            }
         }
-        // Object.keys(initInfo).forEach(key => console.log('index:', key, 'counter:', initInfo[key]));
     }
 
-    // property var indexChangeInfo: ({})
-    // function setIndexChangeInfo(projectIndex) {
-    //     if (projectIndex in indexChangeInfo) {
-    //         indexChangeInfo[projectIndex]++;
-    //     } else {
-    //         indexChangeInfo[projectIndex] = 1;
-    //     }
+    Popup {
+        id: popup
 
-    //     if (indexChangeInfo[projectIndex] === 2) {
-    //         delete indexChangeInfo[projectIndex];  // index can be reused
-    //         const indexToRemove = listView.indexToRemoveAfterChangingCurrentIndex;
-    //         if (indexToRemove !== -1) {
-    //             console.log('should remove', indexToRemove, 'based on changing to', projectIndex);
-    //             listView.indexToRemoveAfterChangingCurrentIndex = -1;
-    //             projectsModel.removeProject(indexToRemove);
-    //         }
-    //     }
-    // }
+        visible: true
+
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        background: Rectangle { opacity: 0.0 }
+        closePolicy: Popup.NoAutoClose
+
+        contentItem: Column {
+            BusyIndicator {}
+            Text { text: 'Loading...' }
+        }
+    }
+
+    QtDialogs.Dialog {
+        id: settingsDialog
+        title: 'Settings'
+        standardButtons: QtDialogs.StandardButton.Save | QtDialogs.StandardButton.Cancel
+        GridLayout {
+            columns: 2
+
+            Label { text: 'Editor' }
+            TextField {}
+
+            Label { text: 'Verbose output' }
+            CheckBox {}
+        }
+        onAccepted: {
+
+        }
+    }
+
+    menuBar: MenuBar {
+        Menu {
+            title: '&Menu'
+            Action { text: '&Settings'; onTriggered: settingsDialog.open() }
+            Action { text: '&About' }
+            MenuSeparator { }
+            Action { text: '&Quit'; onTriggered: Qt.quit() }
+        }
+    }
 
     GridLayout {
         id: mainGrid
         columns: 2
-        rows: 2
+        rows: 1
 
         Column {
             ListView {
@@ -69,8 +90,6 @@ ApplicationWindow {
                 height: 250
                 model: projectsModel
                 clip: true
-                property int indexToOpenAfterAddition: -1
-                // property int indexToRemoveAfterChangingCurrentIndex: -1
                 highlight: Rectangle { color: 'lightsteelblue'; radius: 5 }
                 highlightMoveDuration: 0
                 highlightMoveVelocity: -1
@@ -155,42 +174,6 @@ ApplicationWindow {
                         } else {
                             indexToMove = indexToRemove + 1;
                         }
-                        console.log('indexToMove', indexToMove, 'indexToRemove', indexToRemove);
-                        // listView.indexToRemoveAfterChangingCurrentIndex = indexToRemove;
-
-                        // let cnt = 0;
-                        // function bnbn() {
-                        //     cnt++;
-                        //     if (cnt === 2) {
-                        //         function MyTimer() {
-                        //             return Qt.createQmlObject("import QtQuick 2.0; Timer {}", removeButton);
-                        //         }
-
-                        //         const t = new MyTimer();
-                        //         t.interval = 1000;
-                        //         t.repeat = false;
-                        //         t.triggered.connect(function () {
-                        //             projectsModel.removeProject(indexToRemove);
-                        //             // console.log('after remove', listView.currentIndex);
-                        //             // projectsModel.getProject(listView.currentIndex).stateChanged();
-                        //         })
-
-                        //         t.start();
-
-                        //         const t2 = new MyTimer();
-                        //         t2.interval = 2000;
-                        //         t2.repeat = false;
-                        //         t2.triggered.connect(function () {
-                        //             // projectsModel.removeProject(indexToRemove);
-                        //             console.log('after remove', listView.currentIndex);
-                        //             projectsModel.getProject(listView.currentIndex).stateChanged();
-                        //         })
-
-                        //         t2.start();
-                        //     }
-                        // }
-                        // listView.currentIndexChanged.connect(bnbn);
-                        // swipeView.currentIndexChanged.connect(bnbn);
 
                         listView.currentIndex = indexToMove;
                         swipeView.currentIndex = indexToMove;
@@ -200,11 +183,9 @@ ApplicationWindow {
             }
         }
 
-        SwipeView {
+        StackLayout {
             id: swipeView
             clip: true
-            interactive: false
-            orientation: Qt.Vertical
             Repeater {
                 model: projectsModel
                 delegate: Component {
@@ -242,19 +223,24 @@ ApplicationWindow {
                             }
                             Column {
                                 id: content
-                                visible: false
+                                visible: false  // StackLayout can be used to show only single widget at a time
                                 QtDialogs.MessageDialog {
                                     id: projectIncorrectDialog
                                     text: "The project was modified outside of the stm32pio and .ioc file is no longer present. " +
-                                        "The project will be removed from the app. It will not affect any real content"
+                                          "The project will be removed from the app. It will not affect any real content"
                                     icon: QtDialogs.StandardIcon.Critical
                                     onAccepted: {
-                                        console.log('on accepted');
                                         const delIndex = swipeView.currentIndex;
                                         listView.currentIndex = swipeView.currentIndex + 1;
                                         swipeView.currentIndex = swipeView.currentIndex + 1;
                                         projectsModel.removeProject(delIndex);
                                         buttonGroup.lock = false;
+                                    }
+                                }
+                                Button {
+                                    text: 'Test'
+                                    onClicked: {
+                                        listItem.test();
                                     }
                                 }
                                 ButtonGroup {
@@ -264,8 +250,8 @@ ApplicationWindow {
                                     signal actionResult(string actionDone, bool success)
                                     property bool lock: false
                                     onStateReceived: {
-                                        if (active && index == swipeView.currentIndex && !lock) {
-                                            // console.log('onStateReceived', active, index, !lock);
+                                        if (mainWindow.active && (index === swipeView.currentIndex) && !lock) {
+                                            // console.log('onStateReceived', mainWindow.active, index, !lock);
                                             const state = listItem.state;
                                             listItem.stageChanged();
 
@@ -312,7 +298,7 @@ ApplicationWindow {
                                     }
                                     Component.onCompleted: {
                                         listItem.stateChanged.connect(stateReceived);
-                                        swipeView.currentItemChanged.connect(stateReceived);
+                                        swipeView.currentIndexChanged.connect(stateReceived);
                                         mainWindow.activeChanged.connect(stateReceived);
 
                                         listItem.actionResult.connect(actionResult);
@@ -562,13 +548,8 @@ ApplicationWindow {
                                         ComboBox {
                                             id: board
                                             editable: true
-                                            model: ListModel {
-                                                ListElement { text: "None" }
-                                                ListElement { text: "Banana" }
-                                                ListElement { text: "Apple" }
-                                                ListElement { text: "Coconut" }
-                                                ListElement { text: "nucleo_f031k6" }
-                                            }
+                                            model: boardsModel
+                                            textRole: 'display'
                                             onAccepted: {
                                                 focus = false;
                                             }
@@ -671,15 +652,14 @@ ApplicationWindow {
                 }
             }
         }
-
-        Text {
-            id: statusBar
-            padding: 10
-            Layout.columnSpan: 2
-            // text: 'Status bar'
-        }
     }
 
+    footer: Text {
+        id: statusBar
+        // padding: 10
+        // Layout.columnSpan: 2
+        text: 'Status bar'
+    }
 
     // onClosing: Qt.quit()
     // onActiveChanged: {

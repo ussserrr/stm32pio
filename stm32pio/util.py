@@ -2,6 +2,8 @@ import logging
 import os
 import threading
 
+from platformio.managers.platform import PlatformManager
+
 
 module_logger = logging.getLogger(__name__)
 
@@ -34,6 +36,7 @@ class DispatchingFormatter(logging.Formatter):
             try:
                 return self._formatters['subprocess'].format(record)
             except AttributeError:
+                # module_logger.warning
                 pass
         return super().format(record)
 
@@ -70,3 +73,8 @@ class LogPipe(threading.Thread):
         process will be done anyway
         """
         os.close(self.fd_write)
+
+
+def get_platformio_boards():
+    pm = PlatformManager()
+    return [b['id'] for b in pm.get_all_boards() if 'stm32cube' in b['frameworks']]
