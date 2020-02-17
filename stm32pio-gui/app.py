@@ -4,21 +4,18 @@
 from __future__ import annotations
 
 import collections
-import functools
 import logging
 import pathlib
-import queue
 import sys
 import threading
 import time
 import weakref
 
-from PySide2.QtCore import QCoreApplication, QUrl, QAbstractItemModel, Property, QAbstractListModel, QModelIndex, \
+from PySide2.QtCore import QCoreApplication, QUrl, Property, QAbstractListModel, QModelIndex, \
     QObject, Qt, Slot, Signal, QTimer, QThread, qInstallMessageHandler, QtInfoMsg, QtWarningMsg, QtCriticalMsg, \
-    QtFatalMsg, QThreadPool, QRunnable, QStringListModel
+    QtFatalMsg, QThreadPool, QRunnable, QStringListModel, QSettings
 from PySide2.QtGui import QGuiApplication
-from PySide2.QtQml import qmlRegisterType, QQmlEngine, QQmlComponent, QQmlApplicationEngine
-from PySide2.QtQuick import QQuickView
+from PySide2.QtQml import qmlRegisterType, QQmlApplicationEngine
 
 
 sys.path.insert(0, str(pathlib.Path(sys.path[0]).parent))
@@ -31,60 +28,6 @@ import stm32pio.util
 
 special_formatters = {'subprocess': logging.Formatter('%(message)s')}
 
-
-# class RepetitiveTimer(threading.Thread):
-#     def __init__(self, stopped, callable, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.stopped = stopped
-#         self.callable = callable
-#
-#     def run(self) -> None:
-#         print('start')
-#         while not self.stopped.wait(timeout=0.005):
-#             self.callable()
-#         print('exitttt')
-#
-#
-# class InternalHandler(logging.Handler):
-#     def __init__(self, parent: QObject):
-#         super().__init__()
-#         self.parent = parent
-#         # self.temp_logs = []
-#
-#         self.queued_buffer = collections.deque()
-#
-#         self.stopped = threading.Event()
-#         self.timer = RepetitiveTimer(self.stopped, self.log)
-#         self.timer.start()
-#
-#         self._finalizer = weakref.finalize(self, self.at_exit)
-#
-#     def at_exit(self):
-#         print('exit')
-#         self.stopped.set()
-#
-#     def log(self):
-#         if self.parent.is_bound:
-#             try:
-#                 m = self.format(self.queued_buffer.popleft())
-#                 # print('initialized', m)
-#                 self.parent.logAdded.emit(m)
-#             except IndexError:
-#                 pass
-#
-#     def emit(self, record: logging.LogRecord) -> None:
-#         # msg = self.format(record)
-#         # print(msg)
-#         self.queued_buffer.append(record)
-#         # if not self.parent.is_bound:
-#         #     self.temp_logs.append(msg)
-#         # else:
-#         #     if len(self.temp_logs):
-#         #         self.temp_logs.reverse()
-#         #         for i in range(len(self.temp_logs)):
-#         #             m = self.temp_logs.pop()
-#         #             self.parent.logAdded.emit(m)
-#         #     self.parent.logAdded.emit(msg)
 
 class LoggingHandler(logging.Handler):
     def __init__(self, buffer):
@@ -129,25 +72,6 @@ class LoggingWorker(QObject):
         print('quit logging thread')
         self.thread.quit()
 
-        # self.queued_buffer = collections.deque()
-
-    # @Slot()
-    # def cccompleted(self):
-    #     print('completed from ProjectListItem')
-    #     self.parent_ready.set()
-
-    #     self.stopped = threading.Event()
-    #     self.timer = RepetitiveTimer(self.stopped, self.log)
-    #     self.timer.start()
-    #
-    # def log(self):
-    #     if self.parent_ready:
-    #         try:
-    #             m = self.format(self.queued_buffer.popleft())
-    #             # print('initialized', m)
-    #             self.addLog.emit(m)
-    #         except IndexError:
-    #             pass
 
 
 class Stm32pio(stm32pio.lib.Stm32pio):
@@ -169,17 +93,14 @@ class ProjectListItem(QObject):
     def __init__(self, project_args: list = None, project_kwargs: dict = None, parent: QObject = None):
         super().__init__(parent=parent)
 
-
         self.logger = logging.getLogger(f"{stm32pio.lib.__name__}.{id(self)}")
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
         self.logging_worker = LoggingWorker(self.logger)
         self.logging_worker.addLog.connect(self.logAdded)
 
         self.workers_pool = QThreadPool()
         self.workers_pool.setMaxThreadCount(1)
         self.workers_pool.setExpiryTimeout(-1)
-
-        # self.worker = ProjectActionWorker(self.logger, lambda: None)
 
         self.project = None
         self._name = 'Loading...'
@@ -188,7 +109,6 @@ class ProjectListItem(QObject):
 
         self.qml_ready = threading.Event()
 
-        # self.destroyed.connect(self.at_exit)
         self._finalizer2 = weakref.finalize(self, self.at_exit)
 
         if project_args is not None:
@@ -197,16 +117,7 @@ class ProjectListItem(QObject):
 
             self.init_thread = threading.Thread(target=self.init_project, args=project_args, kwargs=project_kwargs)
             self.init_thread.start()
-            # self.init_project(*project_args, **project_kwargs)
 
-        # def update_value():
-        #     # m = 'SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND SEND '
-        #     # print(m, flush=True)
-        #     self.config.save()
-        #     self.stateChanged.emit()
-        #     # self.logAdded.emit(m)
-        # self.timer = threading.Timer(5, update_value)
-        # self.timer.start()
 
     def init_project(self, *args, **kwargs):
         try:
@@ -263,7 +174,6 @@ class ProjectListItem(QObject):
         print('completed from QML')
         self.qml_ready.set()
         self.logging_worker.can_flush_log.set()
-        # self.handler.cccompleted()
 
     @Slot(str, 'QVariantList')
     def run(self, action, args):
@@ -310,41 +220,6 @@ class NewProjectActionWorker(QObject, QRunnable):
 
 
 
-class ProjectActionWorker(QObject):
-    actionResult = Signal(str, bool, arguments=['action', 'success'])
-
-    def __init__(self, logger, func, args=None):
-        super().__init__(parent=None)  # QObject with a parent cannot be moved to any thread
-
-        self.logger = logger
-        self.func = func
-        if args is None:
-            self.args = []
-        else:
-            self.args = args
-        self.name = func.__name__
-
-        self.thread = QThread()
-        self.moveToThread(self.thread)
-        self.actionResult.connect(self.thread.quit)
-
-        self.thread.started.connect(self.job)
-        self.thread.start()
-
-
-    def job(self):
-        try:
-            result = self.func(*self.args)
-        except Exception as e:
-            if self.logger is not None:
-                self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
-            result = -1
-        if result is None or (type(result) == int and result == 0):
-            success = True
-        else:
-            success = False
-        self.actionResult.emit(self.name, success)
-
 
 class ProjectsList(QAbstractListModel):
 
@@ -355,15 +230,8 @@ class ProjectsList(QAbstractListModel):
 
     @Slot(int, result=ProjectListItem)
     def getProject(self, index):
-        if index >= 0 and index < len(self.projects):
+        if index in range(len(self.projects)):
             return self.projects[index]
-        # try:
-        #     print('get index', index)
-        #     p = self.projects[index]
-        #     print('return instance', p)
-        #     return p
-        # except Exception as e:
-        #     print(e)
 
     def rowCount(self, parent=None, *args, **kwargs):
         return len(self.projects)
@@ -383,6 +251,14 @@ class ProjectsList(QAbstractListModel):
         project = ProjectListItem(project_args=[path.toLocalFile()],
                                   project_kwargs=dict(save_on_destruction=False))
         self.projects.append(project)
+
+        settings.beginGroup('app')
+        settings.beginWriteArray('projects')
+        settings.setArrayIndex(len(self.projects) - 1)
+        settings.setValue('path', path.toLocalFile())
+        settings.endArray()
+        settings.endGroup()
+
         self.endInsertRows()
 
     @Slot(int)
@@ -395,6 +271,16 @@ class ProjectsList(QAbstractListModel):
         else:
             self.beginRemoveRows(QModelIndex(), index, index)
             self.projects.pop(index)
+
+            settings.beginGroup('app')
+            settings.remove('projects')
+            settings.beginWriteArray('projects')
+            for index in range(len(self.projects)):
+                settings.setArrayIndex(index)
+                settings.setValue('path', str(self.projects[index].path))
+            settings.endArray()
+            settings.endGroup()
+
             self.endRemoveRows()
             # print('removed')
 
@@ -407,7 +293,7 @@ class ProjectsList(QAbstractListModel):
 def loading():
     # time.sleep(3)
     global boards
-    boards = stm32pio.util.get_platformio_boards()
+    boards = ['None'] + stm32pio.util.get_platformio_boards()
 
 
 def qt_message_handler(mode, context, message):
@@ -424,47 +310,88 @@ def qt_message_handler(mode, context, message):
     print("%s: %s" % (mode, message))
 
 
+DEFAULT_SETTINGS = {
+    'editor': '',
+    'verbose': False
+}
+
+class Settings(QSettings):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for key, value in DEFAULT_SETTINGS.items():
+            if not self.contains('app/settings/' + key):
+                self.setValue('app/settings/' + key, value)
+
+    @Slot(str, result='QVariant')
+    def get(self, key):
+        return self.value('app/settings/' + key)
+
+    @Slot(str, 'QVariant')
+    def set(self, key, value):
+        self.setValue('app/settings/' + key, value)
+
+        if key == 'verbose':
+            for project in projects_model.projects:
+                project.logger.setLevel(logging.DEBUG if value else logging.INFO)
+
+
 if __name__ == '__main__':
     if stm32pio.settings.my_os == 'Windows':
         qInstallMessageHandler(qt_message_handler)
 
     app = QGuiApplication(sys.argv)
+    app.setOrganizationName('ussserrr')
+    app.setApplicationName('stm32pio')
+
+    # settings = Settings()
+    # # settings.remove('app/settings')
+    # settings.beginGroup('app')
+    # projects_paths = []
+    # for index in range(settings.beginReadArray('projects')):
+    #     settings.setArrayIndex(index)
+    #     projects_paths.append(settings.value('path'))
+    # settings.endArray()
+    # settings.endGroup()
 
     engine = QQmlApplicationEngine()
 
     qmlRegisterType(ProjectListItem, 'ProjectListItem', 1, 0, 'ProjectListItem')
+    qmlRegisterType(Settings, 'Settings', 1, 0, 'Settings')
+    #
+    # projects_model = ProjectsList()
+    # boards = []
+    # boards_model = QStringListModel()
+    #
+    # engine.rootContext().setContextProperty('Logging', {
+    #     'CRITICAL': logging.CRITICAL,
+    #     'ERROR': logging.ERROR,
+    #     'WARNING': logging.WARNING,
+    #     'INFO': logging.INFO,
+    #     'DEBUG': logging.DEBUG,
+    #     'NOTSET': logging.NOTSET
+    # })
+    # engine.rootContext().setContextProperty('projectsModel', projects_model)
+    # engine.rootContext().setContextProperty('boardsModel', boards_model)
+    # engine.rootContext().setContextProperty('appSettings', settings)
 
-    projects_model = ProjectsList()
-    boards = []
-    boards_model = QStringListModel()
-
-    engine.rootContext().setContextProperty('Logging', {
-        'CRITICAL': logging.CRITICAL,
-        'ERROR': logging.ERROR,
-        'WARNING': logging.WARNING,
-        'INFO': logging.INFO,
-        'DEBUG': logging.DEBUG,
-        'NOTSET': logging.NOTSET
-    })
-    engine.rootContext().setContextProperty('projectsModel', projects_model)
-    engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.load(QUrl.fromLocalFile('stm32pio-gui/main.qml'))
 
-    main_window = engine.rootObjects()[0]
-
-    def on_loading():
-        boards_model.setStringList(boards)
-        projects = [
-            ProjectListItem(project_args=['Apple'], project_kwargs=dict(save_on_destruction=False)),
-            ProjectListItem(project_args=['Orange'], project_kwargs=dict(save_on_destruction=False)),
-            ProjectListItem(project_args=['Peach'], project_kwargs=dict(save_on_destruction=False))
-        ]
-        for p in projects:
-            projects_model.add(p)
-        main_window.backendLoaded.emit()
-
-    loader = NewProjectActionWorker(loading)
-    loader.actionResult.connect(on_loading)
-    QThreadPool.globalInstance().start(loader)
+    # main_window = engine.rootObjects()[0]
+    #
+    # def on_loading():
+    #     boards_model.setStringList(boards)
+    #     projects = [ProjectListItem(project_args=[path], project_kwargs=dict(save_on_destruction=False)) for path in projects_paths]
+    #     # projects = [
+    #     #     ProjectListItem(project_args=['Apple'], project_kwargs=dict(save_on_destruction=False)),
+    #     #     ProjectListItem(project_args=['Orange'], project_kwargs=dict(save_on_destruction=False)),
+    #     #     ProjectListItem(project_args=['Peach'], project_kwargs=dict(save_on_destruction=False))
+    #     # ]
+    #     for p in projects:
+    #         projects_model.add(p)
+    #     main_window.backendLoaded.emit()
+    #
+    # loader = NewProjectActionWorker(loading)
+    # loader.actionResult.connect(on_loading)
+    # QThreadPool.globalInstance().start(loader)
 
     sys.exit(app.exec_())
