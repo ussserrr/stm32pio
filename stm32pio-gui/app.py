@@ -76,6 +76,7 @@ class LoggingWorker(QObject):
 
 class Stm32pio(stm32pio.lib.Stm32pio):
     def save_config(self, parameters: dict = None):
+        # raise Exception('test')
         if parameters is not None:
             for section_name, section_value in parameters.items():
                 for key, value in section_value.items():
@@ -122,7 +123,7 @@ class ProjectListItem(QObject):
     def init_project(self, *args, **kwargs):
         try:
             # print('start to init in python')
-            # time.sleep(1)
+            # time.sleep(3)
             # if args[0] == '/Users/chufyrev/Documents/GitHub/stm32pio/Orange':
             # raise Exception("Error during initialization")
             self.project = Stm32pio(*args, **kwargs)
@@ -277,7 +278,7 @@ class ProjectsList(QAbstractListModel):
             settings.beginWriteArray('projects')
             for index in range(len(self.projects)):
                 settings.setArrayIndex(index)
-                settings.setValue('path', str(self.projects[index].path))
+                settings.setValue('path', str(self.projects[index].project.path))
             settings.endArray()
             settings.endGroup()
 
@@ -343,55 +344,56 @@ if __name__ == '__main__':
     app.setOrganizationName('ussserrr')
     app.setApplicationName('stm32pio')
 
-    # settings = Settings()
-    # # settings.remove('app/settings')
-    # settings.beginGroup('app')
-    # projects_paths = []
-    # for index in range(settings.beginReadArray('projects')):
-    #     settings.setArrayIndex(index)
-    #     projects_paths.append(settings.value('path'))
-    # settings.endArray()
-    # settings.endGroup()
+    settings = Settings()
+    # settings.remove('app/settings')
+    # settings.remove('app/projects')
+    settings.beginGroup('app')
+    projects_paths = []
+    for index in range(settings.beginReadArray('projects')):
+        settings.setArrayIndex(index)
+        projects_paths.append(settings.value('path'))
+    settings.endArray()
+    settings.endGroup()
 
     engine = QQmlApplicationEngine()
 
     qmlRegisterType(ProjectListItem, 'ProjectListItem', 1, 0, 'ProjectListItem')
     qmlRegisterType(Settings, 'Settings', 1, 0, 'Settings')
-    #
-    # projects_model = ProjectsList()
-    # boards = []
-    # boards_model = QStringListModel()
-    #
-    # engine.rootContext().setContextProperty('Logging', {
-    #     'CRITICAL': logging.CRITICAL,
-    #     'ERROR': logging.ERROR,
-    #     'WARNING': logging.WARNING,
-    #     'INFO': logging.INFO,
-    #     'DEBUG': logging.DEBUG,
-    #     'NOTSET': logging.NOTSET
-    # })
-    # engine.rootContext().setContextProperty('projectsModel', projects_model)
-    # engine.rootContext().setContextProperty('boardsModel', boards_model)
-    # engine.rootContext().setContextProperty('appSettings', settings)
+
+    projects_model = ProjectsList()
+    boards = []
+    boards_model = QStringListModel()
+
+    engine.rootContext().setContextProperty('Logging', {
+        'CRITICAL': logging.CRITICAL,
+        'ERROR': logging.ERROR,
+        'WARNING': logging.WARNING,
+        'INFO': logging.INFO,
+        'DEBUG': logging.DEBUG,
+        'NOTSET': logging.NOTSET
+    })
+    engine.rootContext().setContextProperty('projectsModel', projects_model)
+    engine.rootContext().setContextProperty('boardsModel', boards_model)
+    engine.rootContext().setContextProperty('appSettings', settings)
 
     engine.load(QUrl.fromLocalFile('stm32pio-gui/main.qml'))
 
-    # main_window = engine.rootObjects()[0]
-    #
-    # def on_loading():
-    #     boards_model.setStringList(boards)
-    #     projects = [ProjectListItem(project_args=[path], project_kwargs=dict(save_on_destruction=False)) for path in projects_paths]
-    #     # projects = [
-    #     #     ProjectListItem(project_args=['Apple'], project_kwargs=dict(save_on_destruction=False)),
-    #     #     ProjectListItem(project_args=['Orange'], project_kwargs=dict(save_on_destruction=False)),
-    #     #     ProjectListItem(project_args=['Peach'], project_kwargs=dict(save_on_destruction=False))
-    #     # ]
-    #     for p in projects:
-    #         projects_model.add(p)
-    #     main_window.backendLoaded.emit()
-    #
-    # loader = NewProjectActionWorker(loading)
-    # loader.actionResult.connect(on_loading)
-    # QThreadPool.globalInstance().start(loader)
+    main_window = engine.rootObjects()[0]
+
+    def on_loading():
+        boards_model.setStringList(boards)
+        projects = [ProjectListItem(project_args=[path], project_kwargs=dict(save_on_destruction=False)) for path in projects_paths]
+        # projects = [
+        #     ProjectListItem(project_args=['Apple'], project_kwargs=dict(save_on_destruction=False)),
+        #     ProjectListItem(project_args=['Orange'], project_kwargs=dict(save_on_destruction=False)),
+        #     ProjectListItem(project_args=['Peach'], project_kwargs=dict(save_on_destruction=False))
+        # ]
+        for p in projects:
+            projects_model.add(p)
+        main_window.backendLoaded.emit()
+
+    loader = NewProjectActionWorker(loading)
+    loader.actionResult.connect(on_loading)
+    QThreadPool.globalInstance().start(loader)
 
     sys.exit(app.exec_())

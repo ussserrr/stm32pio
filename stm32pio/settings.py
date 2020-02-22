@@ -27,12 +27,18 @@ config_default = collections.OrderedDict(
     },
     project={
         # (default is OK) See CubeMX user manual PDF (UM1718) to get other useful options
-        'cubemx_script_content': "config load $cubemx_ioc_full_filename\ngenerate code $project_path\nexit",
+        'cubemx_script_content': inspect.cleandoc('''
+            config load $cubemx_ioc_full_filename
+            generate code $project_path
+            exit
+        ''') + '\n',
 
         # Override the defaults to comply with CubeMX project structure. This should meet INI-style requirements. You
         # can include existing sections, too (e.g.
+        #
         #   [env:nucleo_f031k6]
-        #   key=value
+        #   key = value
+        #
         # will add a 'key' parameter)
         'platformio_ini_patch_content': inspect.cleandoc('''
             [platformio]
