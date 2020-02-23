@@ -333,6 +333,8 @@ ApplicationWindow {
                                                     if (find(editText) === -1) {
                                                         editText = textAt(0);
                                                     }
+                                                } else {
+                                                    selectAll();
                                                 }
                                             }
                                         }

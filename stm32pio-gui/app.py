@@ -14,6 +14,8 @@ import weakref
 from PySide2.QtCore import QCoreApplication, QUrl, Property, QAbstractListModel, QModelIndex, \
     QObject, Qt, Slot, Signal, QTimer, QThread, qInstallMessageHandler, QtInfoMsg, QtWarningMsg, QtCriticalMsg, \
     QtFatalMsg, QThreadPool, QRunnable, QStringListModel, QSettings
+# for Manjaro
+# from PySide2.QtWidgets import QApplication
 from PySide2.QtGui import QGuiApplication
 from PySide2.QtQml import qmlRegisterType, QQmlApplicationEngine
 
