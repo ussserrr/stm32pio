@@ -26,4 +26,5 @@
  - [ ] CHANGELOG markdown markup
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
  - [ ] shlex for 'build' command option sanitizing
- - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature). Also, maybe move `save_on_desctruction` parameter there
+ - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature). Also, maybe move `save_on_desctruction` parameter there. Maybe separate on `project_params` and `instance_opts`
+ - [ ] parse `platformio.ini` to check its correctness in state getter

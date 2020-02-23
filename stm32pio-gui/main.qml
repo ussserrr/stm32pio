@@ -172,7 +172,7 @@ ApplicationWindow {
                                     Layout.preferredWidth: busy.running ?
                                                            (projectsListView.width - parent.height - leftPadding) :
                                                            projectsListView.width
-                                    elide: Text.ElideRight
+                                    elide: Text.ElideMiddle
                                     maximumLineCount: 1
                                     text: `<b>${display.name}</b>`
                                 }

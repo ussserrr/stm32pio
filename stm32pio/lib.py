@@ -27,12 +27,13 @@ class ProjectStage(enum.IntEnum):
 
     Hint: Files/folders to be present on every project state:
         UNDEFINED: use this state to indicate none of the states below. Also, when we do not have any .ioc file the
-                   Stm32pio class cannot be instantiated (constructor raises an exception)
+                   Stm32pio class instance cannot be created (constructor raises an exception)
+        EMPTY: ['project.ioc']
         INITIALIZED: ['project.ioc', 'stm32pio.ini']
         GENERATED: ['Inc', 'Src', 'project.ioc', 'stm32pio.ini']
         PIO_INITIALIZED (on case-sensitive FS): ['test', 'include', 'Inc', 'platformio.ini', '.gitignore', 'Src', 'lib',
                                                  'project.ioc', '.travis.yml', 'src']
-        PIO_INI_PATCHED: ['test', 'Inc', 'platformio.ini', '.gitignore', 'Src', 'lib', 'project.ioc', '.travis.yml']
+        PATCHED: ['test', 'Inc', 'platformio.ini', '.gitignore', 'Src', 'lib', 'project.ioc', '.travis.yml']
         BUILT: same as above + '.pio' folder with build artifacts (such as .pio/build/nucleo_f031k6/firmware.bin,
                                                                            .pio/build/nucleo_f031k6/firmware.elf)
     """
@@ -59,38 +60,61 @@ class ProjectStage(enum.IntEnum):
 
 class ProjectState(collections.OrderedDict):
     """
-    is not protected from incorrect usage (no checks)
+    The ordered dictionary subclass suitable for storing the Stm32pio instances state. For example:
+      {
+        ProjectStage.UNDEFINED:         True,  # doesn't necessarily means that the project is messed up, see below
+        ProjectStage.EMPTY:             True,
+        ProjectStage.INITIALIZED:       True,
+        ProjectStage.GENERATED:         False,
+        ProjectStage.PIO_INITIALIZED:   False,
+        ProjectStage.PATCHED:           False,
+        ProjectStage.BUILT:             False,
+      }
+    It is also extended with additional properties providing useful information such as obtaining the project current
+    stage.
+
+    The class has no special constructor so its filling - both stages and their order - is a responsibility of the
+    external code. It also has no protection nor checks for its internal correctness. Anyway, it is intended to be used
+    (i.e. creating) only by the internal code of this library so there should not be any worries.
     """
 
     def __str__(self):
-        return '\n'.join(f"{'✅ ' if state_value else '❌ '} {str(state_name)}"
-                         for state_name, state_value in self.items() if state_name != ProjectStage.UNDEFINED)
+        """
+        Pretty human-readable complete representation of the project state (not including the service one UNDEFINED to
+        not confuse the end-user)
+        """
+        return '\n'.join(f"{'✅ ' if stage_value else '❌ '} {str(stage_name)}"
+                         for stage_name, stage_value in self.items() if stage_name != ProjectStage.UNDEFINED)
 
     @property
-    def current_stage(self):
-        last_consistent_state = ProjectStage.UNDEFINED
-        zero_found = False
+    def current_stage(self) -> ProjectStage:
+        last_consistent_stage = ProjectStage.UNDEFINED
+        break_found = False
 
-        # Search for a consecutive sequence of 1's and find the last of them. For example, if the array is
-        #   [1,1,1,0,1,0,0]
+        # Search for a consecutive sequence of True's and find the last of them. For example, if the array is
+        #   [1,1,1,0,0,0,0]
         #        ^
         # we should consider 2 as the last index
         for name, value in self.items():
             if value:
-                if zero_found:
-                    # Fall back to the UNDEFINED stage if we have breaks in conditions results array. For example, in [1,1,1,0,1,0,0]
-                    # we still return UNDEFINED as it doesn't look like a correct combination of files actually
-                    last_consistent_state = ProjectStage.UNDEFINED
+                if break_found:
+                    # Fall back to the UNDEFINED stage if we have breaks in conditions results array. E.g., for
+                    #   [1,1,1,0,1,0,0]
+                    # we should return UNDEFINED as it doesn't look like a correct set of files actually
+                    last_consistent_stage = ProjectStage.UNDEFINED
                     break
                 else:
-                    last_consistent_state = name
+                    last_consistent_stage = name
             else:
-                zero_found = True
+                break_found = True
 
-        return last_consistent_state
+        return last_consistent_stage
 
     @property
-    def is_consistent(self):
+    def is_consistent(self) -> bool:
+        """
+        Whether the state has been went through the stages consequentially or not (the method is currently unused)
+        """
         return self.current_stage != ProjectStage.UNDEFINED
 
 
@@ -118,7 +142,8 @@ class Config(configparser.ConfigParser):
             self.project.logger.debug("stm32pio.ini config file has been saved")
             return 0
         except Exception as e:
-            self.project.logger.warning(f"cannot save the config: {e}", exc_info=self.project.logger.isEnabledFor(logging.DEBUG))
+            self.project.logger.warning(f"cannot save the config: {e}",
+                                        exc_info=self.project.logger.isEnabledFor(logging.DEBUG))
             return -1
 
 
@@ -143,12 +168,18 @@ class Stm32pio:
         dirty_path (str): path to the project
         parameters (dict): additional parameters to set on initialization stage
         save_on_destruction (bool): register or not the finalizer that saves the config to file
+        logger (logging.Logger): if an external logger is given, it will be used, otherwise the new one will be created
+                                 (unique for every instance)
     """
 
-    def __init__(self, dirty_path: str, parameters: dict = None, save_on_destruction: bool = True, logger: logging.Logger = None):
+    def __init__(self, dirty_path: str, parameters: dict = None, save_on_destruction: bool = True,
+                 logger: logging.Logger = None):
+
         if parameters is None:
             parameters = {}
 
+        # The individual loggers for every single project allow to fine-tune the output when multiple projects are
+        # created by the third-party code.
         if logger is not None:
             self.logger = logger
         else:
@@ -177,7 +208,8 @@ class Stm32pio:
             if parameters['board'] in stm32pio.util.get_platformio_boards():
                 board = parameters['board']
             else:
-                self.logger.warning(f"'{parameters['board']}' was not found in PlatformIO. Run 'platformio boards' for possible names")
+                self.logger.warning(f"'{parameters['board']}' was not found in PlatformIO. "
+                                    "Run 'platformio boards' for possible names")
             self.config.set('project', 'board', board)
         elif self.config.get('project', 'board', fallback=None) is None:
             self.config.set('project', 'board', board)
@@ -191,37 +223,39 @@ class Stm32pio:
 
 
     @property
-    def state(self):
+    def state(self) -> ProjectState:
         """
+        Constructing and returning the current state of the project (tweaked dict, see ProjectState docs)
         """
 
         # self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
 
         try:
             platformio_ini_is_patched = self.platformio_ini_is_patched()
-        except:
+        except (FileNotFoundError, ValueError):
             platformio_ini_is_patched = False
 
-        states_conditions = collections.OrderedDict()
-        # Fill the ordered dictionary with the conditions results
-        states_conditions[ProjectStage.UNDEFINED] = [True]
-        states_conditions[ProjectStage.EMPTY] = [self.ioc_file.is_file()]
-        states_conditions[ProjectStage.INITIALIZED] = [self.path.joinpath(stm32pio.settings.config_file_name).is_file()]
-        states_conditions[ProjectStage.GENERATED] = [self.path.joinpath('Inc').is_dir() and
+        # Create the temporary ordered dictionary and fill it with the conditions results arrays
+        stages_conditions = collections.OrderedDict()
+        stages_conditions[ProjectStage.UNDEFINED] = [True]
+        stages_conditions[ProjectStage.EMPTY] = [self.ioc_file.is_file()]
+        stages_conditions[ProjectStage.INITIALIZED] = [self.path.joinpath(stm32pio.settings.config_file_name).is_file()]
+        stages_conditions[ProjectStage.GENERATED] = [self.path.joinpath('Inc').is_dir() and
                                                      len(list(self.path.joinpath('Inc').iterdir())) > 0,
                                                      self.path.joinpath('Src').is_dir() and
                                                      len(list(self.path.joinpath('Src').iterdir())) > 0]
-        states_conditions[ProjectStage.PIO_INITIALIZED] = [
+        stages_conditions[ProjectStage.PIO_INITIALIZED] = [
             self.path.joinpath('platformio.ini').is_file() and
             self.path.joinpath('platformio.ini').stat().st_size > 0]
-        states_conditions[ProjectStage.PATCHED] = [
+        stages_conditions[ProjectStage.PATCHED] = [
             platformio_ini_is_patched, not self.path.joinpath('include').is_dir()]
-        states_conditions[ProjectStage.BUILT] = [
+        stages_conditions[ProjectStage.BUILT] = [
             self.path.joinpath('.pio').is_dir() and
             any([item.is_file() for item in self.path.joinpath('.pio').rglob('*firmware*')])]
 
+        # Fold arrays and save results in ProjectState instance
         conditions_results = ProjectState()
-        for state, conditions in states_conditions.items():
+        for state, conditions in stages_conditions.items():
             conditions_results[state] = all(condition is True for condition in conditions)
 
         return conditions_results
@@ -229,7 +263,7 @@ class Stm32pio:
 
     def _find_ioc_file(self) -> pathlib.Path:
         """
-        Find and return an .ioc file. If there are more than one, return first. If no .ioc file is present raise
+        Find and return an .ioc file. If there are more than one return first. If no .ioc file is present raise
         FileNotFoundError exception
 
         Returns:
@@ -242,7 +276,7 @@ class Stm32pio:
         if ioc_file:
             ioc_file = pathlib.Path(ioc_file).expanduser().resolve()
             self.logger.debug(f"use {ioc_file.name} file from the INI config")
-            if (not ioc_file.is_file()):
+            if not ioc_file.is_file():
                 raise FileNotFoundError(error_message)
             return ioc_file
         else:
@@ -292,7 +326,7 @@ class Stm32pio:
     @staticmethod
     def _resolve_project_path(dirty_path: str) -> pathlib.Path:
         """
-        Handle 'path/to/proj' and 'path/to/proj/', '.' (current directory) and other cases
+        Handle 'path/to/proj', 'path/to/proj/', '.', '../proj' and other cases
 
         Args:
             dirty_path (str): some directory in the filesystem
@@ -307,43 +341,17 @@ class Stm32pio:
             return resolved_path
 
 
-    # def _resolve_board(self, board: str) -> str:
-    #     """
-    #     Check if given board is a correct board name in the PlatformIO database. Simply get the whole list of all boards
-    #     using CLI command and search in the STDOUT
-    #
-    #     Args:
-    #         board: string representing PlatformIO board name (for example, 'nucleo_f031k6')
-    #
-    #     Returns:
-    #         same board that has been given if it was found, raise an exception otherwise
-    #     """
-    #
-    #     self.logger.debug("searching for PlatformIO board...")
-    #     result = subprocess.run([self.config.get('app', 'platformio_cmd'), 'boards'], encoding='utf-8',
-    #                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    #     # Or, for Python 3.7 and above:
-    #     # result = subprocess.run(['platformio', 'boards'], encoding='utf-8', capture_output=True)
-    #     if result.returncode == 0:
-    #         if board not in result.stdout.split():
-    #             raise Exception("wrong PlatformIO STM32 board. Run 'platformio boards' for possible names")
-    #         else:
-    #             self.logger.debug(f"PlatformIO board {board} was found")
-    #             return board
-    #     else:
-    #         raise Exception("failed to search for PlatformIO boards")
-
-
     def generate_code(self) -> int:
         """
-        Call STM32CubeMX app as a 'java -jar' file to generate the code from the .ioc file. Pass commands to the
+        Call STM32CubeMX app as 'java -jar' file to generate the code from the .ioc file. Pass commands to the
         STM32CubeMX in a temp file
 
         Returns:
             return code on success, raises an exception otherwise
         """
 
-        # Use mkstemp() instead of higher-level API for compatibility with Windows (see tempfile docs for more details)
+        # Use mkstemp() instead of the higher-level API for the compatibility with the Windows (see tempfile docs for
+        # more details)
         cubemx_script_file, cubemx_script_name = tempfile.mkstemp()
 
         # We should necessarily remove the temp directory, so do not let any exception break our plans
@@ -355,14 +363,16 @@ class Stm32pio:
 
                 self.logger.info("starting to generate a code from the CubeMX .ioc file...")
                 command_arr = [self.config.get('app', 'java_cmd'), '-jar', self.config.get('app', 'cubemx_cmd'), '-q',
-                               cubemx_script_name, '-s']  # -q: read commands from file, -s: silent performance
+                               cubemx_script_name, '-s']  # -q: read the commands from the file, -s: silent performance
                 with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log_pipe:
                     result = subprocess.run(command_arr, stdout=log_pipe, stderr=log_pipe)
         except Exception as e:
-            raise e  # re-raise an exception after the final block
+            raise e  # re-raise an exception after the 'finally' block
         finally:
             pathlib.Path(cubemx_script_name).unlink()
 
+        # TODO: doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was
+        #  chosen), probably should analyze the output
         if result.returncode == 0:
             self.logger.info("successful code generation")
             return result.returncode
@@ -375,7 +385,7 @@ class Stm32pio:
     def pio_init(self) -> int:
         """
         Call PlatformIO CLI to initialize a new project. It uses parameters (path, board) collected before so the
-        confirmation of the data presence is on a user
+        confirmation of the data presence is lying on the invoking code
 
         Returns:
             return code of the PlatformIO on success, raises an exception otherwise
@@ -411,7 +421,7 @@ class Stm32pio:
     def platformio_ini_is_patched(self) -> bool:
         """
         Check whether 'platformio.ini' config file is patched or not. It doesn't check for complete project patching
-        (e.g. unnecessary folders deletion). Throws an error on non-existing file and on incorrect patch or file
+        (e.g. unnecessary folders deletion). Throws errors on non-existing file and on incorrect patch or file
 
         Returns:
             boolean indicating a result
@@ -424,13 +434,14 @@ class Stm32pio:
         except FileNotFoundError as e:
             raise e
         except Exception as e:
-            raise Exception("'platformio.ini' file is incorrect") from e
+            # Re-raise parsing exceptions as ValueError
+            raise ValueError("'platformio.ini' file is incorrect") from e
 
         patch_config = configparser.ConfigParser(interpolation=None)
         try:
             patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
         except Exception as e:
-            raise Exception("Desired patch content is invalid (should satisfy INI-format requirements)") from e
+            raise ValueError("Desired patch content is invalid (should satisfy INI-format requirements)") from e
 
         for patch_section in patch_config.sections():
             if platformio_ini.has_section(patch_section):
@@ -449,7 +460,7 @@ class Stm32pio:
     def patch(self) -> None:
         """
         Patch platformio.ini file by a user's patch. By default, it sets the created earlier (by CubeMX 'Src' and 'Inc')
-        folders as sources. configparser doesn't preserve any comments unfortunately so keep in mid that all of them
+        folders as sources. configparser doesn't preserve any comments unfortunately so keep in mind that all of them
         will be lost at this stage. Also, the order may be violated. In the end, remove old empty folders
         """
 

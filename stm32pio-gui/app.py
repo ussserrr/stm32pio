@@ -28,8 +28,6 @@ import stm32pio.util
 
 
 
-special_formatters = {'subprocess': logging.Formatter('%(message)s')}
-
 
 class LoggingHandler(logging.Handler):
     def __init__(self, buffer):
@@ -54,7 +52,7 @@ class LoggingWorker(QObject):
         logger.addHandler(self.logging_handler)
         self.logging_handler.setFormatter(stm32pio.util.DispatchingFormatter(
             f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s",
-            special=special_formatters))
+            special=stm32pio.util.special_formatters))
 
         self.thread = QThread()
         self.moveToThread(self.thread)
