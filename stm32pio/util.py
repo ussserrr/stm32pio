@@ -5,6 +5,7 @@ Some auxiliary entities not falling into other categories
 import logging
 import os
 import threading
+from typing import List
 
 from platformio.managers.platform import PlatformManager
 
@@ -113,7 +114,7 @@ class LogPipe(threading.Thread):
 
 
 
-def get_platformio_boards() -> list:
+def get_platformio_boards() -> List[str]:
     """
     Use PlatformIO Python sources to obtain the boards list. As we interested only in STM32 ones, cut off all the
     others.

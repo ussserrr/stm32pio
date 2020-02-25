@@ -34,7 +34,7 @@ ApplicationWindow {
 
         if (initInfo[projectIndex] === 2) {
             delete initInfo[projectIndex];  // index can be reused
-            projectsModel.getProject(projectIndex).completed();
+            projectsModel.getProject(projectIndex).qmlLoaded();
         }
     }
 
@@ -158,7 +158,7 @@ ApplicationWindow {
                                 onNameChanged: {
                                     loading = false;
                                 }
-                                onActionResult: {
+                                onActionDone: {
                                     actionRunning = false;
                                 }
                             }
@@ -441,7 +441,7 @@ ApplicationWindow {
                                     id: projActionsButtonGroup
                                     buttons: projActionsRow.children
                                     signal stateReceived()
-                                    signal actionResult(string actionDone, bool success)
+                                    signal actionDone(string actionDone, bool success)
                                     property bool lock: false
                                     onStateReceived: {
                                         if (mainWindow.active && (index === projectsWorkspaceView.currentIndex) && !lock) {
@@ -466,7 +466,7 @@ ApplicationWindow {
                                             }
                                         }
                                     }
-                                    onActionResult: {
+                                    onActionDone: {
                                         for (let i = 0; i < buttonsModel.count; ++i) {
                                             projActionsRow.children[i].enabled = true;
                                         }
@@ -482,7 +482,7 @@ ApplicationWindow {
                                         projectsWorkspaceView.currentIndexChanged.connect(stateReceived);
                                         mainWindow.activeChanged.connect(stateReceived);
 
-                                        project.actionResult.connect(actionResult);
+                                        project.actionDone.connect(actionDone);
                                     }
                                 }
                                 RowLayout {
@@ -627,7 +627,7 @@ ApplicationWindow {
                                             }
                                             Connections {
                                                 target: projActionsButtonGroup
-                                                onActionResult: {
+                                                onActionDone: {
                                                     if (actionDone === model.action) {
                                                         if (success) {
                                                             glow.color = 'lightgreen';

@@ -183,7 +183,7 @@ class Stm32pio:
         if logger is not None:
             self.logger = logger
         else:
-            self.logger = logging.getLogger(f"{__name__}.{id(self)}")
+            self.logger = logging.getLogger(f"{__name__}.{id(self)}")  # use id() as uniqueness guarantee
 
         # The path is a unique identifier of the project so it would be great to remake Stm32pio class as a subclass of
         # pathlib.Path and then reference it like self and not self.path. It is more consistent also, as now path is
@@ -202,7 +202,7 @@ class Stm32pio:
                                                                   cubemx_ioc_full_filename=self.ioc_file)
         self.config.set('project', 'cubemx_script_content', cubemx_script_content)
 
-        # Given parameter takes precedence over the saved one
+        # General rule: given parameter takes precedence over the saved one
         board = ''
         if 'board' in parameters and parameters['board'] is not None:
             if parameters['board'] in stm32pio.util.get_platformio_boards():
@@ -364,6 +364,7 @@ class Stm32pio:
                 self.logger.info("starting to generate a code from the CubeMX .ioc file...")
                 command_arr = [self.config.get('app', 'java_cmd'), '-jar', self.config.get('app', 'cubemx_cmd'), '-q',
                                cubemx_script_name, '-s']  # -q: read the commands from the file, -s: silent performance
+                # Redirect the output of the subprocess into the logging module (with DEBUG level)
                 with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log_pipe:
                     result = subprocess.run(command_arr, stdout=log_pipe, stderr=log_pipe)
         except Exception as e:
@@ -371,8 +372,6 @@ class Stm32pio:
         finally:
             pathlib.Path(cubemx_script_name).unlink()
 
-        # TODO: doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was
-        #  chosen), probably should analyze the output
         if result.returncode == 0:
             self.logger.info("successful code generation")
             return result.returncode
@@ -448,11 +447,11 @@ class Stm32pio:
                 for patch_key, patch_value in patch_config.items(patch_section):
                     platformio_ini_value = platformio_ini.get(patch_section, patch_key, fallback=None)
                     if platformio_ini_value != patch_value:
-                        self.logger.debug(f"[{patch_section}]{patch_key}: patch value is\n{patch_value}\nbut "
-                                          f"platformio.ini contains\n{platformio_ini_value}")
+                        self.logger.debug(f"[{patch_section}]{patch_key}: patch value is\n  {patch_value}\nbut "
+                                          f"platformio.ini contains\n  {platformio_ini_value}")
                         return False
             else:
-                self.logger.debug(f"platformio.ini has not {patch_section} section")
+                self.logger.debug(f"platformio.ini has no '{patch_section}' section")
                 return False
         return True
 
@@ -493,6 +492,7 @@ class Stm32pio:
 
         try:
             shutil.rmtree(self.path.joinpath('include'))
+            self.logger.debug("'include' folder has been removed")
         except:
             self.logger.info("cannot delete 'include' folder", exc_info=self.logger.isEnabledFor(logging.DEBUG))
         # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check

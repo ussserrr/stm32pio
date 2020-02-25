@@ -6,6 +6,7 @@
  - [ ] GUI. For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output. At left is a list of recent projects
  - [ ] GUI. Indicate the progress as states goes forward during the run (see `scratch.py`)
  - [ ] GUI. Tests
+ - [ ] GUI. Logging of the internal processes (module-level logger)
  - [ ] VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (also related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
@@ -27,4 +28,6 @@
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
  - [ ] shlex for 'build' command option sanitizing
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature). Also, maybe move `save_on_desctruction` parameter there. Maybe separate on `project_params` and `instance_opts`
+ - [ ] General algo of merging a given dict of parameters with the saved one
  - [ ] parse `platformio.ini` to check its correctness in state getter
+ - [ ] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen), probably should somehow analyze the output

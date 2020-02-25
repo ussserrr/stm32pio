@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from __future__ import annotations
+# from __future__ import annotations
 
 import collections
 import logging
@@ -11,26 +11,28 @@ import threading
 import time
 import weakref
 
-from PySide2.QtCore import QCoreApplication, QUrl, Property, QAbstractListModel, QModelIndex, \
-    QObject, Qt, Slot, Signal, QTimer, QThread, qInstallMessageHandler, QtInfoMsg, QtWarningMsg, QtCriticalMsg, \
-    QtFatalMsg, QThreadPool, QRunnable, QStringListModel, QSettings
-# for Manjaro
-# from PySide2.QtWidgets import QApplication
-from PySide2.QtGui import QGuiApplication
-from PySide2.QtQml import qmlRegisterType, QQmlApplicationEngine
-
-
 sys.path.insert(0, str(pathlib.Path(sys.path[0]).parent))
-
 import stm32pio.settings
 import stm32pio.lib
 import stm32pio.util
 
+from PySide2.QtCore import QUrl, Property, QAbstractListModel, QModelIndex, QObject, Qt, Slot, Signal, QThread, qInstallMessageHandler, QtInfoMsg, QtWarningMsg, QtCriticalMsg, QtFatalMsg, QThreadPool, QRunnable, QStringListModel, QSettings
+if stm32pio.settings.my_os == 'Linux':
+    # Most UNIX systems does not provide QtDialogs implementation...
+    from PySide2.QtWidgets import QApplication
+else:
+    from PySide2.QtGui import QGuiApplication, QIcon
+from PySide2.QtQml import qmlRegisterType, QQmlApplicationEngine
 
 
 
-class LoggingHandler(logging.Handler):
-    def __init__(self, buffer):
+
+
+class BufferedLoggingHandler(logging.Handler):
+    """
+    Simple logging.Handler subclass putting all incoming records into the given buffer
+    """
+    def __init__(self, buffer: collections.deque):
         super().__init__()
         self.buffer = buffer
 
@@ -39,15 +41,27 @@ class LoggingHandler(logging.Handler):
 
 
 class LoggingWorker(QObject):
-    addLog = Signal(str, int)
+    """
+    QObject living in a separate QThread, logging everything it receiving. Intended to be an attached Stm32pio project
+    class property. Stringifies log records using DispatchingFormatter and passes them via Signal interface so they can
+    be conveniently received by any Qt entity. Also, the level of the message is attaching so the reader can interpret
+    them differently.
 
-    def __init__(self, logger):
+    Can be controlled by two threading.Event's:
+      stopped - on activation, leads to thread termination
+      can_flush_log - use this to temporarily save the logs in an internal buffer while waiting for some event to occurs
+        (for example GUI widgets to load), and then flush them when time has come
+    """
+
+    sendLog = Signal(str, int)
+
+    def __init__(self, logger: logging.Logger):
         super().__init__(parent=None)
 
         self.buffer = collections.deque()
         self.stopped = threading.Event()
         self.can_flush_log = threading.Event()
-        self.logging_handler = LoggingHandler(self.buffer)
+        self.logging_handler = BufferedLoggingHandler(self.buffer)
 
         logger.addHandler(self.logging_handler)
         self.logging_handler.setFormatter(stm32pio.util.DispatchingFormatter(
@@ -60,36 +74,50 @@ class LoggingWorker(QObject):
         self.thread.started.connect(self.routine)
         self.thread.start()
 
-    def routine(self):
+    def routine(self) -> None:
+        """
+        The worker constantly querying the buffer on the new log messages availability.
+        """
         while not self.stopped.wait(timeout=0.050):
             if self.can_flush_log.is_set():
-                try:
+                if len(self.buffer):
                     record = self.buffer.popleft()
-                    m = self.logging_handler.format(record)
-                    self.addLog.emit(m, record.levelno)
-                except IndexError:
-                    pass
-        print('quit logging thread')
+                    self.sendLog.emit(self.logging_handler.format(record), record.levelno)
         self.thread.quit()
 
 
 
 class Stm32pio(stm32pio.lib.Stm32pio):
+    """
+    Other project actions are methods of the class but the config saving by default is not. So we define save_config()
+    method for consistency.
+    """
+
     def save_config(self, parameters: dict = None):
-        # raise Exception('test')
+        """
+        Flushes the internal configparser.ConfigParser to the file. Also, applies parameters from the dict argument, if
+        it was given. Keys of the dict are section names in a config whereas values are key-value pairs of the items
+        inside this section.
+        """
         if parameters is not None:
             for section_name, section_value in parameters.items():
                 for key, value in section_value.items():
                     self.config.set(section_name, key, value)
-        self.config.save()
+        return self.config.save()
 
 
 class ProjectListItem(QObject):
-    nameChanged = Signal()
+    """
+    The core functionality class - GUI representation of the Stm32pio project
+    """
+
+    nameChanged = Signal()  # properties notifiers
     stateChanged = Signal()
     stageChanged = Signal()
-    logAdded = Signal(str, int, arguments=['message', 'level'])
-    actionResult = Signal(str, bool, arguments=['action', 'success'])
+
+    logAdded = Signal(str, int, arguments=['message', 'level'])  # send the log message to the front-end
+    actionDone = Signal(str, bool, arguments=['action', 'success'])  # emit when the action has executed
+
 
     def __init__(self, project_args: list = None, project_kwargs: dict = None, parent: QObject = None):
         super().__init__(parent=parent)
@@ -97,56 +125,71 @@ class ProjectListItem(QObject):
         self.logger = logging.getLogger(f"{stm32pio.lib.__name__}.{id(self)}")
         self.logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
         self.logging_worker = LoggingWorker(self.logger)
-        self.logging_worker.addLog.connect(self.logAdded)
+        self.logging_worker.sendLog.connect(self.logAdded)
 
+        # QThreadPool can automatically queue new incoming tasks if a number of them are larger than maxThreadCount
         self.workers_pool = QThreadPool()
         self.workers_pool.setMaxThreadCount(1)
-        self.workers_pool.setExpiryTimeout(-1)
+        self.workers_pool.setExpiryTimeout(-1)  # tasks forever wait for the available spot
 
+        # These values are valid till the Stm32pio project does not initialize itself (or failed to)
         self.project = None
         self._name = 'Loading...'
         self._state = { 'LOADING': True }
         self._current_stage = 'Loading...'
 
-        self.qml_ready = threading.Event()
+        self.qml_ready = threading.Event()  # the front and the back both should know when each other is initialized
 
-        self._finalizer2 = weakref.finalize(self, self.at_exit)
+        self._finalizer = weakref.finalize(self, self.at_exit)  # register some kind of deconstruction handler
 
         if project_args is not None:
             if 'logger' not in project_kwargs:
                 project_kwargs['logger'] = self.logger
 
+            # Start the Stm32pio part initialization right after. It can take some time so we schedule it in a dedicated
+            # thread
             self.init_thread = threading.Thread(target=self.init_project, args=project_args, kwargs=project_kwargs)
             self.init_thread.start()
 
 
-    def init_project(self, *args, **kwargs):
+    def init_project(self, *args, **kwargs) -> None:
+        """
+        Initialize the underlying Stm32pio project.
+
+        Args:
+            *args: positional arguments of the Stm32pio constructor
+            **kwargs: keyword arguments of the Stm32pio constructor
+        """
         try:
             # print('start to init in python')
             # time.sleep(3)
             # if args[0] == '/Users/chufyrev/Documents/GitHub/stm32pio/Orange':
             # raise Exception("Error during initialization")
-            self.project = Stm32pio(*args, **kwargs)
+            self.project = Stm32pio(*args, **kwargs)  # our slightly tweaked subclass
         except Exception as e:
+            # Error during the initialization
             self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
-            self._name = args[0]  # FIXME check if available
+            if len(args):
+                self._name = args[0]  # use project path string (probably) as a name
+            else:
+                self._name = 'No name'
             self._state = { 'INIT_ERROR': True }
             self._current_stage = 'Initializing error'
         else:
-            # TODO: maybe remove _-values
-            pass
+            self._name = 'Project'  # successful initialization. These values should not be used anymore
+            self._state = {}
+            self._current_stage = 'Initialized'
         finally:
-            self.qml_ready.wait()
+            self.qml_ready.wait()  # wait for the GUI to initialized
             # print('end to init in python')
-            self.nameChanged.emit()
+            self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
             self.stateChanged.emit()
 
     def at_exit(self):
-        print('destroy', self)
-        self.workers_pool.waitForDone(msecs=-1)
-        self.logging_worker.stopped.set()
-        # self.logThread.quit()
+        print('destroy', self.project)
+        self.workers_pool.waitForDone(msecs=-1)  # wait for all jobs to complete. Currently, we cannot abort them...
+        self.logging_worker.stopped.set()  # stop the logging worker in the end
 
     @Property(str, notify=nameChanged)
     def name(self):
@@ -158,7 +201,9 @@ class ProjectListItem(QObject):
     @Property('QVariant', notify=stateChanged)
     def state(self):
         if self.project is not None:
-            return { s.name: value for s, value in self.project.state.items() if s != stm32pio.lib.ProjectStage.UNDEFINED }
+            # Convert to normal dict (JavaScript object) and exclude UNDEFINED key
+            return { stage.name: value for stage, value in self.project.state.items()
+                     if stage != stm32pio.lib.ProjectStage.UNDEFINED }
         else:
             return self._state
 
@@ -170,31 +215,44 @@ class ProjectListItem(QObject):
         else:
             return self._current_stage
 
+
     @Slot()
-    def completed(self):
-        print('completed from QML')
+    def qmlLoaded(self):
+        """
+        Event signaling the complete loading of needed frontend components.
+        """
+        # print('completed from QML')
         self.qml_ready.set()
         self.logging_worker.can_flush_log.set()
 
+
     @Slot(str, 'QVariantList')
-    def run(self, action, args):
-        # TODO: queue or smth of jobs
-        worker = NewProjectActionWorker(getattr(self.project, action), args, self.logger)
-        worker.actionResult.connect(self.stateChanged)
-        worker.actionResult.connect(self.stageChanged)
-        worker.actionResult.connect(self.actionResult)
+    def run(self, action: str, args: list):
+        """
+        Asynchronously perform Stm32pio actions (generate, build, etc.) (dispatch all business logic).
 
-        self.workers_pool.start(worker)
+        Args:
+            action: method name of the corresponding Stm32pio action
+            args: list of positional arguments for the action
+        """
 
-    @Slot()
-    def test(self):
-        print('test')
+        worker = ProjectActionWorker(getattr(self.project, action), args, self.logger)
+        worker.actionDone.connect(self.stateChanged)
+        worker.actionDone.connect(self.stageChanged)
+        worker.actionDone.connect(self.actionDone)
+
+        self.workers_pool.start(worker)  # will automatically place to the queue
 
 
-class NewProjectActionWorker(QObject, QRunnable):
-    actionResult = Signal(str, bool, arguments=['action', 'success'])
 
-    def __init__(self, func, args=None, logger=None):
+class ProjectActionWorker(QObject, QRunnable):
+    """
+    QObject + QRunnable combination. First allows to attach Qt signals, second is compatible with QThreadPool
+    """
+
+    actionDone = Signal(str, bool, arguments=['action', 'success'])
+
+    def __init__(self, func, args: list = None, logger: logging.Logger = None):
         QObject.__init__(self, parent=None)
         QRunnable.__init__(self)
 
@@ -217,14 +275,23 @@ class NewProjectActionWorker(QObject, QRunnable):
             success = True
         else:
             success = False
-        self.actionResult.emit(self.name, success)
+        self.actionDone.emit(self.name, success)  # notify the caller
 
 
 
 
 class ProjectsList(QAbstractListModel):
+    """
+    QAbstractListModel implementation - describe basic operations and delegate all main functionality to the
+    ProjectListItem.
+    """
 
-    def __init__(self, projects: list = None, parent=None):
+    def __init__(self, projects: list = None, parent: QObject = None):
+        """
+        Args:
+            projects: initial list of projects
+            parent: QObject to be parented to
+        """
         super().__init__(parent=parent)
         self.projects = projects if projects is not None else []
         self._finalizer = weakref.finalize(self, self.at_exit)
@@ -337,10 +404,24 @@ class Settings(QSettings):
 
 
 if __name__ == '__main__':
+    # Use it as a console logger for whatever you want to
+    module_logger = logging.getLogger('stm32pio')
+    module_handler = logging.StreamHandler()
+    module_logger.addHandler(module_handler)
+    module_logger.setLevel(logging.DEBUG)
+
+    # Apparently Windows version of PySide2 doesn't have QML logging feature turn on so we fill this gap
     if stm32pio.settings.my_os == 'Windows':
         qInstallMessageHandler(qt_message_handler)
 
-    app = QGuiApplication(sys.argv)
+    # Most Linux distros should be linked with the QWidgets' QApplication instead of the QGuiApplication to enable
+    # QtDialogs
+    if stm32pio.settings.my_os == 'Linux':
+        app = QApplication(sys.argv)
+    else:
+        app = QGuiApplication(sys.argv)
+
+    # Used as a settings identifier too
     app.setOrganizationName('ussserrr')
     app.setApplicationName('stm32pio')
 
@@ -379,6 +460,7 @@ if __name__ == '__main__':
     engine.load(QUrl.fromLocalFile('stm32pio-gui/main.qml'))
 
     main_window = engine.rootObjects()[0]
+    app.setWindowIcon(QIcon('stm32pio-gui/icons/icon.svg'))
 
     def on_loading():
         boards_model.setStringList(boards)
@@ -392,8 +474,8 @@ if __name__ == '__main__':
             projects_model.add(p)
         main_window.backendLoaded.emit()
 
-    loader = NewProjectActionWorker(loading)
-    loader.actionResult.connect(on_loading)
+    loader = ProjectActionWorker(loading)
+    loader.actionDone.connect(on_loading)
     QThreadPool.globalInstance().start(loader)
 
     sys.exit(app.exec_())
