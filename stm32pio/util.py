@@ -14,7 +14,7 @@ module_logger = logging.getLogger(__name__)
 
 
 
-# Do not add or remove any information from the message and simply pass it 'as-is'
+# Do not add or remove any information from the message and simply pass it "as-is"
 special_formatters = { 'subprocess': logging.Formatter('%(message)s') }
 
 default_log_record_factory = logging.getLogRecordFactory()

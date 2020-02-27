@@ -89,7 +89,7 @@ class ProjectState(collections.OrderedDict):
     @property
     def current_stage(self) -> ProjectStage:
         last_consistent_stage = ProjectStage.UNDEFINED
-        break_found = False
+        zero_found = False
 
         # Search for a consecutive sequence of True's and find the last of them. For example, if the array is
         #   [1,1,1,0,0,0,0]
@@ -97,7 +97,7 @@ class ProjectState(collections.OrderedDict):
         # we should consider 2 as the last index
         for name, value in self.items():
             if value:
-                if break_found:
+                if zero_found:
                     # Fall back to the UNDEFINED stage if we have breaks in conditions results array. E.g., for
                     #   [1,1,1,0,1,0,0]
                     # we should return UNDEFINED as it doesn't look like a correct set of files actually
@@ -106,7 +106,7 @@ class ProjectState(collections.OrderedDict):
                 else:
                     last_consistent_stage = name
             else:
-                break_found = True
+                zero_found = True
 
         return last_consistent_stage
 

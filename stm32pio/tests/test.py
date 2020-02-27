@@ -10,7 +10,9 @@ To get the test coverage install and use 'coverage':
 """
 
 import configparser
+import contextlib
 import inspect
+import io
 import pathlib
 import platform
 import re
@@ -38,7 +40,8 @@ if not TEST_PROJECT_PATH.is_dir() or not TEST_PROJECT_PATH.joinpath('stm32pio-te
 # proceeding)
 TEST_PROJECT_BOARD = 'nucleo_f031k6'
 
-# Instantiate a temporary folder on every fixture run. It is used across all tests and is deleted on shutdown
+# Instantiate a temporary folder on every fixture run. It is used across all the tests and is deleted on shutdown
+# automatically
 temp_dir = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
 
@@ -198,19 +201,19 @@ class TestUnit(CustomTestCase):
             }
         }
 
-        for command, name in editors.items():
+        for editor, editor_process_names in editors.items():
             # Look for the command presence in the system so we test only installed editors
             if platform.system() == 'Windows':
-                command_str = f"where {command} /q"
+                command_str = f"where {editor} /q"
             else:
-                command_str = f"command -v {command}"
+                command_str = f"command -v {editor}"
             editor_exists = False
             if subprocess.run(command_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode == 0:
                 editor_exists = True
 
             if editor_exists:
-                with self.subTest(command=command, name=name[platform.system()]):
-                    project.start_editor(command)
+                with self.subTest(command=editor, name=editor_process_names[platform.system()]):
+                    project.start_editor(editor)
 
                     time.sleep(1)  # wait a little bit for app to start
 
@@ -223,7 +226,7 @@ class TestUnit(CustomTestCase):
                                             encoding='utf-8')
                     # Or, for Python 3.7 and above:
                     # result = subprocess.run(command_arr, capture_output=True, encoding='utf-8')
-                    self.assertIn(name[platform.system()], result.stdout)
+                    self.assertIn(editor_process_names[platform.system()], result.stdout)
 
     def test_init_path_not_found_should_raise(self):
         """
@@ -380,7 +383,10 @@ class TestIntegration(CustomTestCase):
         project.clean()
         self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.EMPTY)
 
-        # TODO: should be undefined when the project is messed up
+        # Should be UNDEFINED when the project is messed up
+        project.pio_init()
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.UNDEFINED)
+        self.assertFalse(project.state.is_consistent)
 
 
 class TestCLI(CustomTestCase):
@@ -467,25 +473,24 @@ class TestCLI(CustomTestCase):
             ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} (?=(build|pio_init|...) {0,26})(?=.{26} [^ ]))
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
-        methods = [method[0] for method in inspect.getmembers(project, predicate=inspect.ismethod)]
-        methods.append('main')
+        methods = [member[0] for member in inspect.getmembers(project, predicate=inspect.ismethod)] + ['main']
 
-        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'generate', '-d', str(FIXTURE_PATH)],
-                                encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        buffer_stdout, buffer_stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(buffer_stderr):
+            return_code = stm32pio.app.main(sys_argv=['-v', 'generate', '-d', str(FIXTURE_PATH)])
 
-        self.assertEqual(result.returncode, 0, msg="Non-zero return code")
-        # Somehow stderr and not stdout contains the actual output but we check both
-        self.assertTrue('DEBUG' in result.stderr or 'DEBUG' in result.stdout,
-                        msg="Verbose logging output hasn't been enabled on stderr")
+        self.assertEqual(return_code, 0, msg="Non-zero return code")
+        # stderr and not stdout contains the actual output (by default for logging module)
+        self.assertIn('DEBUG', buffer_stderr.getvalue(), msg="Verbose logging output hasn't been enabled on stderr")
         # Inject all methods' names in the regex. Inject the width of field in a log format string
         regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" + '|'.join(methods) + ") {0," +
                            str(stm32pio.settings.log_fieldwidth_function) + "})(?=.{" +
-                           str(stm32pio.settings.log_fieldwidth_function) + "} [^ ]))",
-                           flags=re.MULTILINE)
-        self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1, msg="Logs messages doesn't match the format")
+                           str(stm32pio.settings.log_fieldwidth_function) + "} [^ ]))", flags=re.MULTILINE)
+        self.assertGreaterEqual(len(re.findall(regex, buffer_stderr.getvalue())), 1,
+                                msg="Logs messages doesn't match the format")
 
-        self.assertEqual(len(result.stdout), 0, msg="Process has printed something directly into STDOUT bypassing "
-                                                    "logging")
+        self.assertEqual(len(buffer_stdout.getvalue()), 0,
+                         msg="Process has printed something directly into STDOUT bypassing logging")
 
     def test_non_verbose(self):
         """
@@ -498,17 +503,19 @@ class TestCLI(CustomTestCase):
         methods = [method[0] for method in inspect.getmembers(project, predicate=inspect.ismethod)]
         methods.append('main')
 
-        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(FIXTURE_PATH)],
-                                encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        buffer_stdout, buffer_stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(buffer_stderr):
+            return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(FIXTURE_PATH)])
 
-        self.assertEqual(result.returncode, 0, msg="Non-zero return code")
-        self.assertNotIn('DEBUG', result.stderr, msg="Verbose logging output has been enabled on stderr")
-        self.assertNotIn('DEBUG', result.stdout, msg="Verbose logging output has been enabled on stdout")
+        self.assertEqual(return_code, 0, msg="Non-zero return code")
+        self.assertNotIn('DEBUG', buffer_stderr.getvalue(), msg="Verbose logging output has been enabled on stderr")
+        self.assertNotIn('DEBUG', buffer_stdout.getvalue(), msg="Verbose logging output has been enabled on stdout")
 
         regex = re.compile("^(?=(INFO) {0,4})(?=.{8} ((?!( |" + '|'.join(methods) + "))))", flags=re.MULTILINE)
-        self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1, msg="Logs messages doesn't match the format")
+        self.assertGreaterEqual(len(re.findall(regex, buffer_stderr.getvalue())), 1,
+                                msg="Logs messages doesn't match the format")
 
-        self.assertNotIn('Starting STM32CubeMX', result.stderr, msg="STM32CubeMX printed its logs")
+        self.assertNotIn('Starting STM32CubeMX', buffer_stderr.getvalue(), msg="STM32CubeMX printed its logs")
 
     def test_init(self):
         """
@@ -529,6 +536,32 @@ class TestCLI(CustomTestCase):
                     self.assertIsNotNone(config.get(section, option, fallback=None))
         self.assertEqual(config.get('project', 'board', fallback="Not found"), TEST_PROJECT_BOARD,
                          msg="'board' has not been set")
+
+    def test_status(self):
+        """
+        Test the output returning by the app on a request to the 'status' command
+        """
+
+        buffer_stdout = io.StringIO()
+        with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(None):
+            return_code = stm32pio.app.main(sys_argv=['status', '-d', str(FIXTURE_PATH)])
+
+        self.assertEqual(return_code, 0, msg="Non-zero return code")
+
+        matches_counter = 0
+        last_stage_pos = -1
+        for stage in stm32pio.lib.ProjectStage:
+            # print(str(stage))
+            if stage != stm32pio.lib.ProjectStage.UNDEFINED:
+                match = re.search(r"^[✅❌]  " + str(stage) + '$', buffer_stdout.getvalue(), re.MULTILINE)
+                # print(match)
+                self.assertTrue(match, msg="Status information was not found on STDOUT")
+                if match:
+                    matches_counter += 1
+                    self.assertGreater(match.start(), last_stage_pos, msg="The order of stages is messed up")
+                    last_stage_pos = match.start()
+
+        self.assertEqual(matches_counter, len(stm32pio.lib.ProjectStage) - 1)
 
 
 if __name__ == '__main__':

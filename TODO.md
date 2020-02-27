@@ -31,3 +31,4 @@
  - [ ] General algo of merging a given dict of parameters with the saved one
  - [ ] parse `platformio.ini` to check its correctness in state getter
  - [ ] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen), probably should somehow analyze the output
+ - [ ] Dispatch tests on several files (too many code actually)

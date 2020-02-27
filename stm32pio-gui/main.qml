@@ -379,6 +379,8 @@ ApplicationWindow {
                                         text: 'OK'
                                         topInset: 15
                                         leftInset: 10
+                                        topPadding: 20
+                                        leftPadding: 18
                                         onClicked: {
                                             projectsListView.currentItem.item.actionRunning = true;
 
