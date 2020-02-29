@@ -7,14 +7,14 @@
  - [ ] GUI. Indicate the progress as states goes forward during the run (see `scratch.py`)
  - [ ] GUI. Tests
  - [ ] GUI. Logging of the internal processes (module-level logger)
+ - [ ] GUI. Reduce number of calls to 'state' (many IO operations)
  - [ ] VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (also related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
  - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list. Ask the confirmation of a user by-defualt and add additional option for quiet performance
- - [x] `status` CLI subcommand, why not?..
  - [ ] check for all tools to be present in the system (both CLI and GUI)
  - [ ] exclude tests from the bundle (see `setup.py` options)
- - [ ] generate code docs (help user to understand an internal kitchen, e.g. for embedding)
+ - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding)
  - [ ] handle the project folder renaming/movement to other location and/or describe in README
  - [ ] colored logs, maybe...
  - [ ] check logging work when embed stm32pio lib in third-party stuff
@@ -26,9 +26,9 @@
  - [ ] `stm32pio.ini` config file validation
  - [ ] CHANGELOG markdown markup
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
- - [ ] shlex for 'build' command option sanitizing
+ - [ ] `shlex` for `build` command option sanitizing
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature). Also, maybe move `save_on_desctruction` parameter there. Maybe separate on `project_params` and `instance_opts`
- - [ ] General algo of merging a given dict of parameters with the saved one
+ - [ ] General algo of merging a given dict of parameters with the saved one on project initialization
  - [ ] parse `platformio.ini` to check its correctness in state getter
  - [ ] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen), probably should somehow analyze the output
  - [ ] Dispatch tests on several files (too many code actually)

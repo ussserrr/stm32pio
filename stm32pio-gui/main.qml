@@ -216,7 +216,7 @@ ApplicationWindow {
             QtLabs.FolderDialog {
                 id: addProjectFolderDialog
                 currentFolder: QtLabs.StandardPaths.standardLocations(QtLabs.StandardPaths.HomeLocation)[0]
-                onAccepted: projectsModel.addProject(folder)
+                onAccepted: projectsModel.addProjectByPath(folder)
             }
             RowLayout {
                 Layout.alignment: Qt.AlignBottom | Qt.AlignHCenter

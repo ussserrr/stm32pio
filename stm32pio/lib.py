@@ -83,7 +83,8 @@ class ProjectState(collections.OrderedDict):
         Pretty human-readable complete representation of the project state (not including the service one UNDEFINED to
         not confuse the end-user)
         """
-        return '\n'.join(f"{'✅ ' if stage_value else '❌ '} {str(stage_name)}"
+        # Need 2 spaces between the icon and the text to look fine
+        return '\n'.join(f"{'✅' if stage_value else '❌'}  {str(stage_name)}"
                          for stage_name, stage_value in self.items() if stage_name != ProjectStage.UNDEFINED)
 
     @property
@@ -116,35 +117,6 @@ class ProjectState(collections.OrderedDict):
         Whether the state has been went through the stages consequentially or not (the method is currently unused)
         """
         return self.current_stage != ProjectStage.UNDEFINED
-
-
-class Config(configparser.ConfigParser):
-    """
-    A simple subclass that has additional save() method for the better logic encapsulation
-    """
-
-    def __init__(self, project: Stm32pio, *args, **kwargs):
-        """
-        Args:
-            location: project path (where to store the config file)
-            *args, **kwargs: passes to the parent's constructor
-        """
-        super().__init__(*args, **kwargs)
-        self.project = project
-
-    def save(self) -> int:
-        """
-        Tries to save the config to the file and gently log if any error occurs
-        """
-        try:
-            with self.project.path.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
-                self.write(config_file)
-            self.project.logger.debug("stm32pio.ini config file has been saved")
-            return 0
-        except Exception as e:
-            self.project.logger.warning(f"cannot save the config: {e}",
-                                        exc_info=self.project.logger.isEnabledFor(logging.DEBUG))
-            return -1
 
 
 class Stm32pio:
@@ -192,7 +164,7 @@ class Stm32pio:
         # subclassable by-design, unfortunately. See https://bugs.python.org/issue24132
         self.path = self._resolve_project_path(dirty_path)
 
-        self.config = self._load_config_file()
+        self.config = self._load_config()
 
         self.ioc_file = self._find_ioc_file()
         self.config.set('project', 'ioc_file', str(self.ioc_file))
@@ -215,7 +187,8 @@ class Stm32pio:
             self.config.set('project', 'board', board)
 
         if save_on_destruction:
-            self._finalizer = weakref.finalize(self, self.config.save)
+            # Save the config on an instance destruction
+            self._finalizer = weakref.finalize(self, self._save_config, self.config, self.path, self.logger)
 
 
     def __repr__(self):
@@ -292,18 +265,18 @@ class Stm32pio:
                 return candidates[0]
 
 
-    def _load_config_file(self) -> Config:
+    def _load_config(self) -> configparser.ConfigParser:
         """
-        Prepare configparser config for the project. First, read the default config and then mask these values with user
-        ones
+        Prepare ConfigParser config for the project. First, read the default config and then mask these values with user
+        ones.
 
         Returns:
-            custom configparser.ConfigParser instance
+            new configparser.ConfigParser instance
         """
 
         self.logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
 
-        config = Config(self, interpolation=None)
+        config = configparser.ConfigParser(interpolation=None)
 
         # Fill with default values
         config.read_dict(stm32pio.settings.config_default)
@@ -321,6 +294,49 @@ class Stm32pio:
             self.logger.debug(debug_str)
 
         return config
+
+    @staticmethod
+    def _save_config(config: configparser.ConfigParser, path: pathlib.Path, logger: logging.Logger) -> int:
+        """
+        Writes ConfigParser config to the file path and logs using Logger logger.
+
+        We declare this helper function which can be safely invoked by both internal methods and outer code. The latter
+        case is suitable for using in weakref' finalizer objects as one of its main requirement is to not keep
+        references to the destroyable object in any of the finalizer argument so the ordinary bound class method does
+        not fit well.
+
+        Returns:
+            0 on success, -1 otherwise
+        """
+        try:
+            with path.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
+                config.write(config_file)
+            logger.debug("stm32pio.ini config file has been saved")
+            return 0
+        except Exception as e:
+            logger.warning(f"cannot save the config: {e}", exc_info=logger.isEnabledFor(logging.DEBUG))
+            return -1
+
+    def save_config(self, parameters: dict = None) -> int:
+        """
+        Invokes base _save_config function. Preliminarily, updates the config with given parameters dictionary. It
+        should has the following format:
+            {
+                'section1_name': {
+                    'key1': 'value1',
+                    'key2': 'value2'
+                },
+                ...
+            }
+
+        Returns:
+            passes forward _save_config result
+        """
+        if parameters is not None:
+            for section_name, section_value in parameters.items():
+                for key, value in section_value.items():
+                    self.config.set(section_name, key, value)
+        return self._save_config(self.config, self.path, self.logger)
 
 
     @staticmethod

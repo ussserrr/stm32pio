@@ -87,25 +87,6 @@ class LoggingWorker(QObject):
 
 
 
-class Stm32pio(stm32pio.lib.Stm32pio):
-    """
-    Other project actions are methods of the class but the config saving by default is not. So we define save_config()
-    method for consistency.
-    """
-
-    def save_config(self, parameters: dict = None):
-        """
-        Flushes the internal configparser.ConfigParser to the file. Also, applies parameters from the dict argument, if
-        it was given. Keys of the dict are section names in a config whereas values are key-value pairs of the items
-        inside this section.
-        """
-        if parameters is not None:
-            for section_name, section_value in parameters.items():
-                for key, value in section_value.items():
-                    self.config.set(section_name, key, value)
-        return self.config.save()
-
-
 class ProjectListItem(QObject):
     """
     The core functionality class - GUI representation of the Stm32pio project
@@ -165,7 +146,7 @@ class ProjectListItem(QObject):
             # time.sleep(3)
             # if args[0] == '/Users/chufyrev/Documents/GitHub/stm32pio/Orange':
             # raise Exception("Error during initialization")
-            self.project = Stm32pio(*args, **kwargs)  # our slightly tweaked subclass
+            self.project = stm32pio.lib.Stm32pio(*args, **kwargs)  # our slightly tweaked subclass
         except Exception as e:
             # Error during the initialization
             self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
@@ -294,10 +275,10 @@ class ProjectsList(QAbstractListModel):
         """
         super().__init__(parent=parent)
         self.projects = projects if projects is not None else []
-        self._finalizer = weakref.finalize(self, self.at_exit)
+        # self._finalizer = weakref.finalize(self, self.at_exit)
 
     @Slot(int, result=ProjectListItem)
-    def getProject(self, index):
+    def getProject(self, index: int):
         if index in range(len(self.projects)):
             return self.projects[index]
 
@@ -305,16 +286,16 @@ class ProjectsList(QAbstractListModel):
         return len(self.projects)
 
     def data(self, index: QModelIndex, role=None):
-        if role == Qt.DisplayRole:
+        if role == Qt.DisplayRole or role is None:
             return self.projects[index.row()]
 
-    def add(self, project):
+    def addProject(self, project: ProjectListItem):
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
         self.projects.append(project)
         self.endInsertRows()
 
     @Slot(QUrl)
-    def addProject(self, path):
+    def addProjectByPath(self, path: QUrl):
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
         project = ProjectListItem(project_args=[path.toLocalFile()],
                                   project_kwargs=dict(save_on_destruction=False))
@@ -343,18 +324,15 @@ class ProjectsList(QAbstractListModel):
             settings.beginGroup('app')
             settings.remove('projects')
             settings.beginWriteArray('projects')
-            for index in range(len(self.projects)):
-                settings.setArrayIndex(index)
-                settings.setValue('path', str(self.projects[index].project.path))
+            for idx in range(len(self.projects)):
+                settings.setArrayIndex(idx)
+                settings.setValue('path', str(self.projects[idx].project.path))
             settings.endArray()
             settings.endGroup()
 
             self.endRemoveRows()
             # print('removed')
 
-    def at_exit(self):
-        print('destroy', self)
-        # self.logger.removeHandler(self.handler)
 
 
 
@@ -405,7 +383,7 @@ class Settings(QSettings):
 
 if __name__ == '__main__':
     # Use it as a console logger for whatever you want to
-    module_logger = logging.getLogger('stm32pio')
+    module_logger = logging.getLogger(__name__)
     module_handler = logging.StreamHandler()
     module_logger.addHandler(module_handler)
     module_logger.setLevel(logging.DEBUG)
@@ -471,7 +449,7 @@ if __name__ == '__main__':
         #     ProjectListItem(project_args=['Peach'], project_kwargs=dict(save_on_destruction=False))
         # ]
         for p in projects:
-            projects_model.add(p)
+            projects_model.addProject(p)
         main_window.backendLoaded.emit()
 
     loader = ProjectActionWorker(loading)

@@ -1,10 +1,10 @@
 """
-Make sure the test project tree is clean before running the tests
+NOTE: make sure the test project tree is clean before running the tests!
 
-'pyenv' was used to perform tests with different Python versions under Ubuntu:
+'pyenv' was used to perform tests with different Python versions (under Ubuntu):
 https://www.tecmint.com/pyenv-install-and-manage-multiple-python-versions-in-linux/
 
-To get the test coverage install and use 'coverage':
+To get the test coverage install and use 'coverage' package:
     $  coverage run -m stm32pio.tests.test -b
     $  coverage html
 """
@@ -26,6 +26,7 @@ import unittest
 import stm32pio.app
 import stm32pio.lib
 import stm32pio.settings
+import stm32pio.util
 
 
 STM32PIO_MAIN_SCRIPT: str = inspect.getfile(stm32pio.app)  # absolute path to the main stm32pio script
@@ -40,7 +41,7 @@ if not TEST_PROJECT_PATH.is_dir() or not TEST_PROJECT_PATH.joinpath('stm32pio-te
 # proceeding)
 TEST_PROJECT_BOARD = 'nucleo_f031k6'
 
-# Instantiate a temporary folder on every fixture run. It is used across all the tests and is deleted on shutdown
+# Instantiate a temporary folder on every test suite run. It is used across all the tests and is deleted on shutdown
 # automatically
 temp_dir = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
@@ -247,7 +248,7 @@ class TestUnit(CustomTestCase):
         # 'board' is non-default, 'project'-section parameter
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
-        project.config.save()
+        project.save_config()
 
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
                         msg=f"{stm32pio.settings.config_file_name} file hasn't been created")
@@ -263,6 +264,13 @@ class TestUnit(CustomTestCase):
 
         self.assertEqual(config.get('project', 'board', fallback="Not found"), TEST_PROJECT_BOARD,
                          msg="'board' has not been set")
+
+    def test_get_platformio_boards(self):
+        """
+        PlatformIO identifiers of boards are requested using PlatformIO Python API (not sure it can be called public,
+        though...)
+        """
+        self.assertIsInstance(stm32pio.util.get_platformio_boards(), list)
 
 
 class TestIntegration(CustomTestCase):
@@ -365,7 +373,7 @@ class TestIntegration(CustomTestCase):
                                         save_on_destruction=False)
         self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.EMPTY)
 
-        project.config.save()
+        project.save_config()
         self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.INITIALIZED)
 
         project.generate_code()
@@ -480,8 +488,11 @@ class TestCLI(CustomTestCase):
             return_code = stm32pio.app.main(sys_argv=['-v', 'generate', '-d', str(FIXTURE_PATH)])
 
         self.assertEqual(return_code, 0, msg="Non-zero return code")
-        # stderr and not stdout contains the actual output (by default for logging module)
+        # stderr and not stdout contains the actual output (by default for the logging module)
+        self.assertEqual(len(buffer_stdout.getvalue()), 0,
+                         msg="Process has printed something directly into STDOUT bypassing logging")
         self.assertIn('DEBUG', buffer_stderr.getvalue(), msg="Verbose logging output hasn't been enabled on stderr")
+
         # Inject all methods' names in the regex. Inject the width of field in a log format string
         regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" + '|'.join(methods) + ") {0," +
                            str(stm32pio.settings.log_fieldwidth_function) + "})(?=.{" +
@@ -489,8 +500,7 @@ class TestCLI(CustomTestCase):
         self.assertGreaterEqual(len(re.findall(regex, buffer_stderr.getvalue())), 1,
                                 msg="Logs messages doesn't match the format")
 
-        self.assertEqual(len(buffer_stdout.getvalue()), 0,
-                         msg="Process has printed something directly into STDOUT bypassing logging")
+        self.assertIn('Starting STM32CubeMX', buffer_stderr.getvalue(), msg="STM32CubeMX has not printed its logs")
 
     def test_non_verbose(self):
         """
@@ -508,14 +518,15 @@ class TestCLI(CustomTestCase):
             return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(FIXTURE_PATH)])
 
         self.assertEqual(return_code, 0, msg="Non-zero return code")
+        # stderr and not stdout contains the actual output (by default for the logging module)
         self.assertNotIn('DEBUG', buffer_stderr.getvalue(), msg="Verbose logging output has been enabled on stderr")
-        self.assertNotIn('DEBUG', buffer_stdout.getvalue(), msg="Verbose logging output has been enabled on stdout")
+        self.assertEqual(len(buffer_stdout.getvalue()), 0, msg="All app output should flow through the logging module")
 
         regex = re.compile("^(?=(INFO) {0,4})(?=.{8} ((?!( |" + '|'.join(methods) + "))))", flags=re.MULTILINE)
         self.assertGreaterEqual(len(re.findall(regex, buffer_stderr.getvalue())), 1,
                                 msg="Logs messages doesn't match the format")
 
-        self.assertNotIn('Starting STM32CubeMX', buffer_stderr.getvalue(), msg="STM32CubeMX printed its logs")
+        self.assertNotIn('Starting STM32CubeMX', buffer_stderr.getvalue(), msg="STM32CubeMX has printed its logs")
 
     def test_init(self):
         """
@@ -551,10 +562,8 @@ class TestCLI(CustomTestCase):
         matches_counter = 0
         last_stage_pos = -1
         for stage in stm32pio.lib.ProjectStage:
-            # print(str(stage))
             if stage != stm32pio.lib.ProjectStage.UNDEFINED:
-                match = re.search(r"^[✅❌]  " + str(stage) + '$', buffer_stdout.getvalue(), re.MULTILINE)
-                # print(match)
+                match = re.search(r"^[✅❌] {2}" + str(stage) + '$', buffer_stdout.getvalue(), re.MULTILINE)
                 self.assertTrue(match, msg="Status information was not found on STDOUT")
                 if match:
                     matches_counter += 1
