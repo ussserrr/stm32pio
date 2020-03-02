@@ -68,7 +68,7 @@ class ProjectState(collections.OrderedDict):
         ProjectStage.GENERATED:         False,
         ProjectStage.PIO_INITIALIZED:   False,
         ProjectStage.PATCHED:           False,
-        ProjectStage.BUILT:             False,
+        ProjectStage.BUILT:             False
       }
     It is also extended with additional properties providing useful information such as obtaining the project current
     stage.
@@ -222,6 +222,7 @@ class Stm32pio:
             self.path.joinpath('platformio.ini').stat().st_size > 0]
         stages_conditions[ProjectStage.PATCHED] = [
             platformio_ini_is_patched, not self.path.joinpath('include').is_dir()]
+        # Hidden folder! Can be not visible in your familiar file manager and cause a confusion
         stages_conditions[ProjectStage.BUILT] = [
             self.path.joinpath('.pio').is_dir() and
             any([item.is_file() for item in self.path.joinpath('.pio').rglob('*firmware*')])]

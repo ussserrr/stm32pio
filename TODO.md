@@ -3,11 +3,10 @@
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
- - [ ] GUI. For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output. At left is a list of recent projects
  - [ ] GUI. Indicate the progress as states goes forward during the run (see `scratch.py`)
  - [ ] GUI. Tests
- - [ ] GUI. Logging of the internal processes (module-level logger)
  - [ ] GUI. Reduce number of calls to 'state' (many IO operations)
+ - [ ] GUI. Drag and drop the new folder into the app window
  - [ ] VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (also related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
@@ -32,3 +31,6 @@
  - [ ] parse `platformio.ini` to check its correctness in state getter
  - [ ] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen), probably should somehow analyze the output
  - [ ] Dispatch tests on several files (too many code actually)
+ - [ ] Note on README that projects are not portable (stores values in .ini file)
+ - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe replace current scheme
+ - [ ] UML diagrams (core, GUI back- and front-ends)

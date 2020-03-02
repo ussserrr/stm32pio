@@ -13,31 +13,17 @@ import Settings 1.0
 ApplicationWindow {
     id: mainWindow
     visible: true
-    minimumWidth: 980
+    minimumWidth: 980  // comfortable initial size
     minimumHeight: 300
     height: 530
     title: 'stm32pio'
     color: 'whitesmoke'
 
-    property Settings settings: appSettings
-
+    /*
+       Notify the front-end about the end of an initial loading
+    */
     signal backendLoaded()
     onBackendLoaded: loadingOverlay.close()
-
-    property var initInfo: ({})
-    function setInitInfo(projectIndex) {
-        if (projectIndex in initInfo) {
-            initInfo[projectIndex]++;
-        } else {
-            initInfo[projectIndex] = 1;
-        }
-
-        if (initInfo[projectIndex] === 2) {
-            delete initInfo[projectIndex];  // index can be reused
-            projectsModel.getProject(projectIndex).qmlLoaded();
-        }
-    }
-
     Popup {
         id: loadingOverlay
         visible: true
@@ -53,6 +39,10 @@ ApplicationWindow {
         }
     }
 
+    /*
+       Slightly customized QSettings
+    */
+    property Settings settings: appSettings
     QtDialogs.Dialog {
         id: settingsDialog
         title: 'Settings'
@@ -115,6 +105,45 @@ ApplicationWindow {
         }
     }
 
+    /*
+       Project representation is, in fact, split in two main parts: one in a list and one is an actual workspace.
+       To avoid some possible bloopers we should make sure that both of them are loaded before performing
+       any actions with the project. To not reveal QML-side implementation details to the backend we define
+       this helper function that counts number of widgets currently loaded for each project in model and informs
+       the Qt-side right after all necessary components went ready.
+    */
+    property var initInfo: ({})
+    function setInitInfo(projectIndex) {
+        if (projectIndex in initInfo) {
+            initInfo[projectIndex]++;
+        } else {
+            initInfo[projectIndex] = 1;
+        }
+
+        if (initInfo[projectIndex] === 2) {
+            delete initInfo[projectIndex];  // index can be reused
+            projectsModel.getProject(projectIndex).qmlLoaded();
+        }
+    }
+
+    // TODO: fix (jumps skipping next)
+    function moveToNextAndRemove() {
+        // Select and go to some adjacent index before deleting the current project. -1 is a correct
+        // QML index (note that for Python it can jump to the end of the list, ensure a consistency!)
+        const indexToRemove = projectsListView.currentIndex;
+        let indexToMoveTo;
+        if (indexToRemove === (projectsListView.count - 1)) {
+            indexToMoveTo = indexToRemove - 1;
+        } else {
+            indexToMoveTo = indexToRemove + 1;
+        }
+
+        projectsListView.currentIndex = indexToMoveTo;
+        projectsWorkspaceView.currentIndex = indexToMoveTo;
+
+        projectsModel.removeProject(indexToRemove);
+    }
+
     menuBar: MenuBar {
         Menu {
             title: '&Menu'
@@ -125,38 +154,51 @@ ApplicationWindow {
         }
     }
 
+    /*
+       All layouts and widgets try to be adaptive to variable parents, siblings, window and whatever else sizes
+       so we extensively using Grid, Column and Row layouts. The most high-level one is a composition of the list
+       and the workspace in two columns
+    */
     GridLayout {
         anchors.fill: parent
         rows: 1
-        z: 2
+        z: 2  // do not clip glow animation (see below)
 
         ColumnLayout {
             Layout.preferredWidth: 2.6 * parent.width / 12
             Layout.fillHeight: true
 
+            /*
+               The dynamic list of projects (initially loaded from the QSettings, can be modified later)
+            */
             ListView {
                 id: projectsListView
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: true
+                clip: true  // crawls under the Add/Remove buttons otherwise
 
                 highlight: Rectangle { color: 'darkseagreen' }
-                highlightMoveDuration: 0
+                highlightMoveDuration: 0  // turn off animations
                 highlightMoveVelocity: -1
 
-                model: projectsModel
+                model: projectsModel  // backend-side
                 delegate: Component {
+                    /*
+                       (See setInitInfo docs) One of the two main widgets representing the project. Use Loader component
+                       as it can give us the relible time of all its children loading completion (unlike Component.onCompleted)
+                    */
                     Loader {
                         onLoaded: setInitInfo(index)
                         sourceComponent: RowLayout {
                             id: projectsListItem
-                            property bool loading: true
+                            property bool initloading: true  // initial waiting for the backend-side
                             property bool actionRunning: false
                             property ProjectListItem project: projectsModel.getProject(index)
                             Connections {
-                                target: project  // sender
+                                target: project  // (newbie hint) sender
                                 onNameChanged: {
-                                    loading = false;
+                                    // Currently, this event is equivalent to the complete initialization of the backend side of the project
+                                    initloading = false;
                                 }
                                 onActionDone: {
                                     actionRunning = false;
@@ -194,7 +236,7 @@ ApplicationWindow {
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredWidth: parent.height
                                 Layout.preferredHeight: parent.height
-                                running: projectsListItem.loading || projectsListItem.actionRunning
+                                running: projectsListItem.initloading || projectsListItem.actionRunning
                             }
 
                             MouseArea {
@@ -202,7 +244,7 @@ ApplicationWindow {
                                 y: parent.y
                                 width: parent.width
                                 height: parent.height
-                                enabled: !parent.loading
+                                enabled: !parent.initloading
                                 onClicked: {
                                     projectsListView.currentIndex = index;
                                     projectsWorkspaceView.currentIndex = index;
@@ -234,29 +276,16 @@ ApplicationWindow {
                     Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
                     display: AbstractButton.TextBesideIcon
                     icon.source: 'icons/remove.svg'
-                    onClicked: {
-                        const indexToRemove = projectsListView.currentIndex;
-                        let indexToMoveTo;
-                        if (indexToRemove === (projectsListView.count - 1)) {
-                            if (projectsListView.count === 1) {
-                                indexToMoveTo = -1;
-                            } else {
-                                indexToMoveTo = indexToRemove - 1;
-                            }
-                        } else {
-                            indexToMoveTo = indexToRemove + 1;
-                        }
-
-                        projectsListView.currentIndex = indexToMoveTo;
-                        projectsWorkspaceView.currentIndex = indexToMoveTo;
-                        projectsModel.removeProject(indexToRemove);
-                    }
+                    onClicked: moveToNextAndRemove()
                 }
             }
         }
 
 
-        // Screen per project
+        /*
+           Main workspace. StackLayout's Repeater component seamlessly uses the same projects model (showing one -
+           current - project per screen) so all data is synchronized without any additional effort.
+        */
         StackLayout {
             id: projectsWorkspaceView
             Layout.preferredWidth: 9.4 * parent.width / 12
@@ -267,13 +296,17 @@ ApplicationWindow {
             // clip: true  // do not use as it'll clip glow animation
 
             Repeater {
+                // Use similar to ListView pattern (same projects model, Loader component)
                 model: projectsModel
                 delegate: Component {
                     Loader {
                         onLoaded: setInitInfo(index)
-                        // Init screen or Work screen
+                        /*
+                           Use another one StackLayout to separate Project initialization "screen" and Main one
+                        */
                         sourceComponent: StackLayout {
-                            currentIndex: -1
+                            id: mainOrInitScreen  // for clarity
+                            currentIndex: -1  // at widget creation we do not show main nor init screen
 
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -299,9 +332,9 @@ ApplicationWindow {
                                     const s = Object.keys(state).filter(stateName => state[stateName]);
                                     if (s.length === 1 && s[0] === 'EMPTY') {
                                         initDialogLoader.active = true;
-                                        currentIndex = 0;  // show init dialog
+                                        mainOrInitScreen.currentIndex = 0;  // show init dialog
                                     } else {
-                                        currentIndex = 1;  // show main view
+                                        mainOrInitScreen.currentIndex = 1;  // show main view
                                     }
                                 }
                             }
@@ -405,7 +438,7 @@ ApplicationWindow {
                                                 }
                                             }
 
-                                            currentIndex = 1;
+                                            mainOrInitScreen.currentIndex = 1;
                                             initDialogLoader.sourceComponent = undefined;
                                         }
                                     }
@@ -423,10 +456,7 @@ ApplicationWindow {
                                            The project will be removed from the app. It will not affect any real content`
                                     icon: QtDialogs.StandardIcon.Critical
                                     onAccepted: {
-                                        const indexToRemove = projectsWorkspaceView.currentIndex;
-                                        projectsListView.currentIndex = projectsWorkspaceView.currentIndex + 1;
-                                        projectsWorkspaceView.currentIndex = projectsWorkspaceView.currentIndex + 1;
-                                        projectsModel.removeProject(indexToRemove);
+                                        moveToNextAndRemove();
                                         projActionsButtonGroup.lock = false;
                                     }
                                 }
