@@ -196,8 +196,8 @@ ApplicationWindow {
                             property ProjectListItem project: projectsModel.getProject(index)
                             Connections {
                                 target: project  // (newbie hint) sender
+                                // Currently, this event is equivalent to the complete initialization of the backend side of the project
                                 onNameChanged: {
-                                    // Currently, this event is equivalent to the complete initialization of the backend side of the project
                                     initloading = false;
                                 }
                                 onActionDone: {
@@ -323,15 +323,16 @@ ApplicationWindow {
                                         log.append('<pre style="white-space: pre-wrap">' + message + '</pre>');
                                     }
                                 }
+                                // Currently, this event is equivalent to the complete initialization of the backend side of the project
                                 onNameChanged: {
                                     for (let i = 0; i < buttonsModel.count; ++i) {
                                         projActionsRow.children[i].enabled = true;
                                     }
 
                                     const state = project.state;
-                                    const s = Object.keys(state).filter(stateName => state[stateName]);
-                                    if (s.length === 1 && s[0] === 'EMPTY') {
-                                        initDialogLoader.active = true;
+                                    const completedStages = Object.keys(state).filter(stateName => state[stateName]);
+                                    if (completedStages.length === 1 && completedStages[0] === 'EMPTY') {
+                                        initScreenLoader.active = true;
                                         mainOrInitScreen.currentIndex = 0;  // show init dialog
                                     } else {
                                         mainOrInitScreen.currentIndex = 1;  // show main view
@@ -339,8 +340,11 @@ ApplicationWindow {
                                 }
                             }
 
+                            /*
+                               Prompt a user to perform initial setup
+                            */
                             Loader {
-                                id: initDialogLoader
+                                id: initScreenLoader
                                 active: false
                                 sourceComponent: Column {
                                     Text {
@@ -353,7 +357,7 @@ ApplicationWindow {
                                         ComboBox {
                                             id: board
                                             editable: true
-                                            model: boardsModel
+                                            model: boardsModel  // backend-side (simple string model)
                                             textRole: 'display'
                                             onAccepted: {
                                                 focus = false;
@@ -364,13 +368,16 @@ ApplicationWindow {
                                             onFocusChanged: {
                                                 if (!focus) {
                                                     if (find(editText) === -1) {
-                                                        editText = textAt(0);
+                                                        editText = textAt(0);  // should be 'None' at index 0
                                                     }
                                                 } else {
                                                     selectAll();
                                                 }
                                             }
                                         }
+                                        /*
+                                           Trigger full run
+                                        */
                                         CheckBox {
                                             id: runCheckBox
                                             text: 'Run'
@@ -389,7 +396,7 @@ ApplicationWindow {
                                                 target: board
                                                 onFocusChanged: {
                                                     if (!board.focus) {
-                                                        if (board.editText === board.textAt(0)) {
+                                                        if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
                                                             runCheckBox.checked = false;
                                                             runCheckBox.enabled = false;
                                                         } else {
@@ -415,6 +422,7 @@ ApplicationWindow {
                                         topPadding: 20
                                         leftPadding: 18
                                         onClicked: {
+                                            // All operations will be queued
                                             projectsListView.currentItem.item.actionRunning = true;
 
                                             project.run('save_config', [{
@@ -438,8 +446,8 @@ ApplicationWindow {
                                                 }
                                             }
 
-                                            mainOrInitScreen.currentIndex = 1;
-                                            initDialogLoader.sourceComponent = undefined;
+                                            mainOrInitScreen.currentIndex = 1;  // go to main screen
+                                            initScreenLoader.sourceComponent = undefined;  // destroy init screen
                                         }
                                     }
                                 }
@@ -449,8 +457,11 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
 
+                                /*
+                                   Detect and reflect changes of a project outside of the app
+                                */
                                 QtDialogs.MessageDialog {
-                                    // TODO: .ioc file can be removed on init stage too (i.e. when initDialog is active)
+                                    // TODO: case: .ioc file can be removed on init stage too (i.e. when initDialog is active)
                                     id: projectIncorrectDialog
                                     text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
                                            The project will be removed from the app. It will not affect any real content`
@@ -461,6 +472,9 @@ ApplicationWindow {
                                     }
                                 }
 
+                                /*
+                                   Show this or action buttons
+                                */
                                 Text {
                                     id: initErrorMessage
                                     visible: false
@@ -469,13 +483,20 @@ ApplicationWindow {
                                     color: 'red'
                                 }
 
+                                /*
+                                   The core widget - a group of buttons mapping all main actions that can be performed on the given project.
+                                   They also serve the project state displaying - each button indicates a stage associated with it:
+                                    - green: done
+                                    - yellow: in progress right now
+                                    - red: an error has occured during the last execution
+                                */
                                 ButtonGroup {
                                     id: projActionsButtonGroup
                                     buttons: projActionsRow.children
                                     signal stateReceived()
                                     signal actionDone(string actionDone, bool success)
-                                    property bool lock: false
-                                    onStateReceived: {
+                                    property bool lock: false  // TODO: is it necessary? mb make a dialog modal or smth.
+                                    onStateReceived: {  // TODO: cache state!
                                         if (mainWindow.active && (index === projectsWorkspaceView.currentIndex) && !lock) {
                                             const state = project.state;
                                             project.stageChanged();
@@ -510,6 +531,10 @@ ApplicationWindow {
                                         }
                                     }
                                     Component.onCompleted: {
+                                        // Several events lead to a single handler:
+                                        //  - the state has changed and explicitly informs about it
+                                        //  - the project was selected in the list
+                                        //  - the app window has got the focus
                                         project.stateChanged.connect(stateReceived);
                                         projectsWorkspaceView.currentIndexChanged.connect(stateReceived);
                                         mainWindow.activeChanged.connect(stateReceived);
@@ -521,7 +546,7 @@ ApplicationWindow {
                                     id: projActionsRow
                                     Layout.fillWidth: true
                                     Layout.bottomMargin: 7
-                                    z: 1
+                                    z: 1  // for the glowing animation
                                     Repeater {
                                         model: ListModel {
                                             id: buttonsModel
@@ -533,7 +558,7 @@ ApplicationWindow {
                                             ListElement {
                                                 name: 'Open editor'
                                                 action: 'start_editor'
-                                                margin: 15  // margin to visually separate actions as they doesn't represent any state
+                                                margin: 15  // margin to visually separate first 2 actions as they doesn't represent any state
                                             }
                                             ListElement {
                                                 name: 'Initialize'
@@ -574,12 +599,12 @@ ApplicationWindow {
                                         delegate: Button {
                                             text: name
                                             Layout.rightMargin: model.margin
-                                            enabled: false
+                                            enabled: false  // turn on after project initialization
                                             property alias glowVisible: glow.visible
                                             function runOwnAction() {
                                                 projectsListView.currentItem.item.actionRunning = true;
                                                 palette.button = 'gold';
-                                                let args = [];
+                                                let args = [];  // JS array cannot be attached to a ListElement (at least in a non-hacky manner)
                                                 if (model.action === 'start_editor') {
                                                     args.push(settings.get('editor'));
                                                 }
@@ -588,6 +613,9 @@ ApplicationWindow {
                                             onClicked: {
                                                 runOwnAction();
                                             }
+                                            /*
+                                               Detect modifier keys. See status bar for information
+                                            */
                                             MouseArea {
                                                 anchors.fill: parent
                                                 hoverEnabled: true
@@ -671,7 +699,7 @@ ApplicationWindow {
 
                                                         if (model.shouldRunNext) {
                                                             model.shouldRunNext = false;
-                                                            projActionsRow.children[index + 1].clicked();  // complete task
+                                                            projActionsRow.children[index + 1].clicked();
                                                         }
 
                                                         if (model.shouldStartEditor) {
@@ -694,11 +722,7 @@ ApplicationWindow {
                                                 glowRadius: 20
                                                 spread: 0.25
                                                 onVisibleChanged: {
-                                                    if (visible) {
-                                                        glowAnimation.start();
-                                                    } else {
-                                                        glowAnimation.complete();
-                                                    }
+                                                    visible ? glowAnimation.start() : glowAnimation.complete();
                                                 }
                                                 SequentialAnimation {
                                                     id: glowAnimation

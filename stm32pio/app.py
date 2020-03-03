@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__version__ = '0.96'
+__version__ = '1.0'
 
 import argparse
 import logging

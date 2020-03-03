@@ -327,16 +327,31 @@ class ProjectsList(QAbstractListModel):
         """
         if index in range(len(self.projects)):
             self.beginRemoveRows(QModelIndex(), index, index)
+
             project = self.projects.pop(index)
             # TODO: destruct both Qt and Python objects (seems like now they are not destroyed till the program termination)
 
             settings.beginGroup('app')
-            settings.remove('projects')
-            settings.beginWriteArray('projects')
-            for idx in range(len(self.projects)):
+
+            # Get current settings ...
+            settings_projects_list = []
+            for idx in range(settings.beginReadArray('projects')):
                 settings.setArrayIndex(idx)
-                settings.setValue('path', str(self.projects[idx].project.path))
+                settings_projects_list.append(settings.value('path'))
             settings.endArray()
+
+            # ... drop the index ...
+            settings_projects_list.pop(index)
+            settings.remove('projects')
+
+            # ... and overwrite the list. We don't use self.projects[i].project.path as there is a chance that 'path'
+            # doesn't exist (e.g. not initialized for some reason project)
+            settings.beginWriteArray('projects')
+            for idx in range(len(settings_projects_list)):
+                settings.setArrayIndex(idx)
+                settings.setValue('path', settings_projects_list[idx])
+            settings.endArray()
+
             settings.endGroup()
 
             self.endRemoveRows()
@@ -402,7 +417,7 @@ if __name__ == '__main__':
     # Apparently Windows version of PySide2 doesn't have QML logging feature turn on so we fill this gap
     # TODO: set up for other platforms too (separate console.debug, console.warn, etc.)
     if stm32pio.settings.my_os == 'Windows':
-        qml_logger = logging.getLogger(f'{__name__}.qml')
+        qml_logger = logging.getLogger('qml')
         qml_log_handler = logging.StreamHandler()
         qml_log_handler.setFormatter(logging.Formatter("[QML] %(levelname)s %(message)s"))
         qml_logger.addHandler(qml_log_handler)
