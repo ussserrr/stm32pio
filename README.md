@@ -10,13 +10,16 @@ It uses STM32CubeMX to generate a HAL-framework based code and alongside creates
   - Start the new project in a single directory using only an `.ioc` file
   - Update existing project after changing hardware options from CubeMX
   - Clean-up the project (WARNING: it deletes ALL content of project path except the `.ioc` file!)
+  - Get the status information
   - *[optional]* Automatically run your favorite editor in the end
   - *[optional]* Automatically make an initial build of the project
+  - *[optional]* GUI version (beta) (see stm32pio-gui sub-folder for more information)
 
 
 ## Requirements:
   - For this app:
     - Python 3.6 and above
+    - platformio
   - For usage:
     - macOS, Linux, Windows
     - STM32CubeMX (all recent versions) with desired downloaded frameworks (F0, F1, etc.)
@@ -27,20 +30,29 @@ A general recommendation there would be to try to generate and build a code manu
 
 
 ## Installation
-Starting from v0.8 it is possible to install the utility to be able to run stm32pio from anywhere. Use
+You can run the app in a portable way by downloading or cloning the snapshot of the repository and invoking the main script or Python module:
+```shell script
+$ python3 stm32pio/app.py
+$ # or
+$ python3 -m stm32pio
+```
+
+(we assume python3 and pip3 hereinafter). It is possible to run the app like this from anywhere.
+
+It is also possible to install the utility to be able to run stm32pio from anywhere. Use
 ```shell script
 stm32pio-repo/ $   pip3 install .
 ```
 command to launch the setup process. Now you can simply type 'stm32pio' in the terminal to run the utility in any directory.
 
-PyPI distribution (starting from v0.95):
+Finally, the PyPI distribution (starting from v0.95) is available:
 ```shell script
 $ pip install stm32pio
 ```
 
 To uninstall run
 ```shell script
-$ pip3 uninstall stm32pio
+$ pip uninstall stm32pio
 ```
 
 
@@ -58,7 +70,7 @@ $ stm32pio -v [command] [options]
 
 Note, that the patch operation (which takes the CubeMX code and PlatformIO project to the compliance) erases all the comments (lines starting with `;`) inside the `platformio.ini` file. They are not required anyway, in general, but if you need them please consider to save the information somewhere else.
 
-Starting from v0.95, the patch can has a general-form .INI content so it is possible to modify several sections and apply composite patches. This works totally fine for almost every cases except some big complex patches involving the parameters interpolation feature. It is turned off for both `platformio.ini` and user's patch parsing by default. If there are some problems you've met due to a such behavior please modify the source code to match the parameters interpolation kind for the configs you need to. Seems like `platformio.ini` uses `ExtendedInterpolation` for its needs, by the way.
+The patch can has a general-form .INI content so it is possible to modify several sections and apply composite patches. This works totally fine for almost every cases except some big complex patches involving the parameters interpolation feature. It is turned off for both `platformio.ini` and user's patch parsing by default. If there are some problems you've met due to a such behavior please modify the source code to match the parameters interpolation kind for the configs you need to. Seems like `platformio.ini` uses `ExtendedInterpolation` for its needs, by the way.
 
 On the first run stm32pio will create a config file `stm32pio.ini`, syntax of which is similar to the `platformio.ini`. You can also create this config without any following operations by initializing the project:
 ```shell script
@@ -95,15 +107,16 @@ You can also use stm32pio as a package and embed it in your own application. See
    ```shell script
    path/to/cubemx/project/ $   stm32pio new -b nucleo_f031k6
    ```
-7. If you will be in need to update hardware configuration in the future, make all necessary stuff in CubeMX and run `generate` command in a similar way:
+7. To get the information about the current state of the project use `status` command.
+8. If you will be in need to update hardware configuration in the future, make all necessary stuff in CubeMX and run `generate` command in a similar way:
    ```shell script
    $ python3 app.py generate -d /path/to/cubemx/project
    ```
-8. To clean-up the folder and keep only the `.ioc` file run `clean` command
+9. To clean-up the folder and keep only the `.ioc` file run `clean` command
 
 
 ## Testing
-Since ver. 0.45 there are some tests in file [`test.py`](/stm32pio/tests/test.py) (based on the unittest module). Run
+There are some tests in file [`test.py`](/stm32pio/tests/test.py) (based on the unittest module). Run
 ```shell script
 stm32pio-repo/ $   python3 -m unittest -b -v
 ```

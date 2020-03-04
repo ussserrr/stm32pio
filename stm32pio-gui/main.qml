@@ -614,7 +614,9 @@ ApplicationWindow {
                                                 runOwnAction();
                                             }
                                             /*
-                                               Detect modifier keys. See status bar for information
+                                               Detect modifier keys:
+                                                - Ctrl: start the editor after an operation(s)
+                                                - Shift: continuous actions run
                                             */
                                             MouseArea {
                                                 anchors.fill: parent
@@ -647,20 +649,12 @@ ApplicationWindow {
                                                     parent.clicked();  // propagateComposedEvents doesn't work...
                                                 }
                                                 onPositionChanged: {
-                                                    if (mouse.modifiers & Qt.ControlModifier) {
-                                                        ctrlPressed = true;
-                                                    } else {
-                                                        ctrlPressed = false;
-                                                    }
+                                                    ctrlPressed = mouse.modifiers & Qt.ControlModifier;  // bitwise AND
                                                     if (ctrlPressedLastState !== ctrlPressed) {
                                                         ctrlPressedLastState = ctrlPressed;
                                                     }
 
-                                                    if (mouse.modifiers & Qt.ShiftModifier) {
-                                                        shiftPressed = true;
-                                                    } else {
-                                                        shiftPressed = false;
-                                                    }
+                                                    shiftPressed = mouse.modifiers & Qt.ShiftModifier;  // bitwise AND
                                                     if (shiftPressedLastState !== shiftPressed) {
                                                         shiftPressedLastState = shiftPressed;
                                                         shiftHandler();
@@ -706,7 +700,8 @@ ApplicationWindow {
                                                             model.shouldStartEditor = false;
                                                             for (let i = 0; i < buttonsModel.count; ++i) {
                                                                 if (buttonsModel.get(i).action === 'start_editor') {
-                                                                    projActionsRow.children[i].runOwnAction();  // no additional actions in outer handlers
+                                                                    // Use runOwnAction for no additional actions in parent handlers
+                                                                    projActionsRow.children[i].runOwnAction();
                                                                     break;
                                                                 }
                                                             }
@@ -714,6 +709,9 @@ ApplicationWindow {
                                                     }
                                                 }
                                             }
+                                            /*
+                                               Blinky glowing
+                                            */
                                             RectangularGlow {
                                                 id: glow
                                                 visible: false
@@ -757,7 +755,7 @@ ApplicationWindow {
                                             selectByMouse: true
                                             wrapMode: Text.WordWrap
                                             font.family: 'Courier'
-                                            font.pointSize: 12
+                                            font.pointSize: 10  // different on different platforms, Qt's bug
                                             textFormat: TextEdit.RichText
                                         }
                                     }
@@ -770,6 +768,10 @@ ApplicationWindow {
         }
     }
 
+    /*
+       Simple text line. Currently, doesn't support smart intrinsic properties as a fully-fledged status bar,
+       but is used only for a single feature so not a big deal
+    */
     footer: Text {
         id: statusBar
         padding: 10
