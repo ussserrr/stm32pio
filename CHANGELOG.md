@@ -159,7 +159,17 @@
  - New: introduce GUI version of the app (beta)
  - New: redesigned stage-state machinery - integrates seamlessly into both CLI and GUI worlds. Python `Enum` represents a single stage of the project (e.g. "code generated" or "project built") while the special dictionary unfolds the full information about the project i.e. combination of all stages (True/False). Implemented in 2 classes - `ProjectStage` and `ProjectState`, though the `Stm32pio.state` property is intended to be a user's getter. Both classes have human-readable string representations
  - New: related to previous - `status` CLI command
- - New: logging machinery - `LogPipe` context manager is used to redirect `subprocess` output to the `logging` module. `DispatchingFormatter` allows to specify different `logging`' formatters depending on the origin of the log record. Substituted `LogRecordFactory` handles custom flags to `.log()` functions family
+ - New: `util.py` module (yes, now the name matches the functionality it provides)
+ - New: logging machinery - adapting for more painless embedding the lib in another code. `logging.Logger` objects are now individual unique attributes of every `Stm32pio` instance so it is possible to distinguish which project is actually produced a message (not so useful for a current CLI version but for other applications, including GUI, is). `LogPipe` context manager is used to redirect `subprocess` output to the `logging` module. `DispatchingFormatter` allows to specify different `logging`' formatters depending on the origin of the log record. Substituted `LogRecordFactory` handles custom flags to `.log()` functions family
  - Changed: imporoved README
- - Changed: `platformio` package is added as a requirement and is used for retrieving the boards names. Expected to become the replacement for all PlatformIO CLI calls
+ - Changed: `platformio` package is added as a requirement and is used for retrieving the boards names (`util.py` -> `get_platformio_boards()`). Expected to become the replacement for all PlatformIO CLI calls
  - Changed: Markdown markup for this changelog
+ - Changed: bump up `.ioc` file version
+ - Changed: removed final "exit..." log message
+ - Changed: removed `Config` subclass and move its `save()` method back to the main `Stm32pio` class. This change serves 2 goals: ensures consistency in the possible operations list (i.e. `init`, `generate`, etc.) and makes possible to register the function at the object destruction stage via `weakref.finilize()`
+ - Changed: removed `_resolve_board()` method as it is not needed anymore
+ - Changed: renamed `_load_config_file()` -> `_load_config()` (hide implementation details)
+ - Changed: use `logger.isEnabledFor()` instead of manually comparing logging levels
+ - Changed: slightly tuned exceptions (more specific ones where it make sense)
+- Changed: rename `project_path` -> `path`
+- Changed: actualized tests, more broad usage of the `app.main()` function versus `subprocess.run()`

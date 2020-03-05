@@ -23,7 +23,8 @@ if stm32pio.settings.my_os == 'Linux':
     # Most UNIX systems does not provide QtDialogs implementation...
     from PySide2.QtWidgets import QApplication
 else:
-    from PySide2.QtGui import QGuiApplication, QIcon
+    from PySide2.QtGui import QGuiApplication
+from PySide2.QtGui import QIcon
 from PySide2.QtQml import qmlRegisterType, QQmlApplicationEngine
 
 

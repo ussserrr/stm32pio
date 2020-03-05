@@ -7,7 +7,7 @@ Currently, it is in a beta stage though all implemented features work, with more
 
 ## Installation
 
-The app requires PySide2 5.12+ package. It is available in all major package managers including pip, apt, brew and so on. More convenient installation process is coming in next releases.
+The app requires PySide2 5.12+ package (Qt 5.12 respectively). It is available in all major package managers including pip, apt, brew and so on. More convenient installation process is coming in next releases.
 
 
 ## Usage

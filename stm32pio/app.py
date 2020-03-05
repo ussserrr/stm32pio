@@ -41,7 +41,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
                                                        "'path' except the .ioc file)")
 
     # Common subparsers options
-    for p in [parser_init, parser_new, parser_generate, parser_clean, parser_status]:
+    for p in [parser_init, parser_new, parser_generate, parser_status, parser_clean]:
         p.add_argument('-d', '--directory', dest='project_path', default=pathlib.Path.cwd(), required=False,
                        help="path to the project (current directory, if not given)")
     for p in [parser_init, parser_new]:
