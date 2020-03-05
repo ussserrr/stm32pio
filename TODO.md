@@ -25,7 +25,7 @@
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature). Also, maybe move `save_on_desctruction` parameter there. Maybe separate on `project_params` and `instance_opts`
  - [ ] General algo of merging a given dict of parameters with the saved one on project initialization
  - [ ] parse `platformio.ini` to check its correctness in state getter
- - [ ] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen), probably should somehow analyze the output
+ - [ ] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), probably should somehow analyze the output (logs can be parsed. i.e. 2020-03-05 12:08:40,765 \[ERROR\] MainProjectManager:806 - Program Manager : The version of the current IOC is too high.)
  - [ ] Dispatch tests on several files (too many code actually)
  - [ ] Do not store absolute paths in config file and make a project portable (use configparser parameters interpolation). Handle renaming
  - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe replace current scheme
@@ -33,3 +33,4 @@
  - [ ] CI is possible
  - [ ] Test preserving user files and folders on regeneration and mb other operations
  - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
+ - [ ] Mb clean the test project tree before running the tests

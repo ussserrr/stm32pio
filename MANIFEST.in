@@ -6,3 +6,6 @@ include README.md
 include TODO.md
 recursive-include screenshots *
 recursive-include stm32pio-test-project *
+include stm32pio-gui/main.qml
+include stm32pio-gui/README.md
+recursive-include stm32pio-gui/icons *

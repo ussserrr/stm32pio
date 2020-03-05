@@ -36,9 +36,9 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
                                                      "proceeding")
     parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
+    parser_status = subparsers.add_parser('status', help="get the description of the current project state")
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (WARNING: it deletes ALL content of "
                                                        "'path' except the .ioc file)")
-    parser_status = subparsers.add_parser('status', help="get the description of the current project state")
 
     # Common subparsers options
     for p in [parser_init, parser_new, parser_generate, parser_clean, parser_status]:

@@ -1,5 +1,6 @@
 """
 To pack:
+  $ pip3 install wheel
   $ python3 setup.py sdist bdist_wheel
 
 To upload to PyPI:
@@ -10,7 +11,7 @@ import setuptools
 
 import stm32pio.app
 
-with open("README.md", 'r') as readme:
+with open('README.md', 'r') as readme:
     long_description = readme.read()
 
 setuptools.setup(
@@ -19,10 +20,10 @@ setuptools.setup(
     author='ussserrr',
     author_email='andrei4.2008@gmail.com',
     description="Small cross-platform Python app that can create and update PlatformIO projects from STM32CubeMX .ioc "
-                "files. It uses STM32CubeMX to generate a HAL-framework based code and alongside creates PlatformIO "
-                "project with the compatible framework specified",
+                "files. It uses STM32CubeMX to generate a HAL-framework-based code and alongside creates PlatformIO "
+                "project with compatible parameters to stick them both together",
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type='text/markdown',
     url="https://github.com/ussserrr/stm32pio",
     packages=setuptools.find_packages(),
     classifiers=[
@@ -33,7 +34,19 @@ setuptools.setup(
         "Environment :: Console",
         "Topic :: Software Development :: Embedded Systems"
     ],
+    keywords=[
+        'platformio',
+        'stm32',
+        'stm32cubemx',
+        'cubemx'
+    ],
     python_requires='>=3.6',
+    setup_requires=[
+        'wheel'
+    ],
+    install_requires=[
+        'platformio'
+    ],
     include_package_data=True,
     entry_points={
         'console_scripts': [

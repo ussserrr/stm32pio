@@ -520,7 +520,7 @@ class Stm32pio:
             except:
                 self.logger.info("cannot delete 'src' folder", exc_info=self.logger.isEnabledFor(logging.DEBUG))
 
-        self.logger.info("Project has been patched")
+        self.logger.info("project has been patched")
 
 
     def start_editor(self, editor_command: str) -> int:
@@ -584,7 +584,7 @@ class Stm32pio:
             if child.name != f"{self.path.name}.ioc":
                 if child.is_dir():
                     shutil.rmtree(child, ignore_errors=True)
-                    self.logger.debug(f"del {child}")
+                    self.logger.debug(f"del {child}/")
                 elif child.is_file():
                     child.unlink()
                     self.logger.debug(f"del {child}")
