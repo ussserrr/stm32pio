@@ -3,26 +3,22 @@
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
- - [ ] GUI. Indicate the progress as states goes forward during the run (see `scratch.py`)
- - [ ] GUI. Tests
+ - [ ] GUI. Tests (research approaches and patterns)
  - [ ] GUI. Reduce number of calls to 'state' (many IO operations)
  - [ ] GUI. Drag and drop the new folder into the app window
  - [ ] VSCode plugin
- - [x] Remove casts to string where we can use path-like objects (also related to Python version as new ones receive path-like objects arguments)
+ - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
  - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list. Ask the confirmation of a user by-defualt and add additional option for quiet performance
- - [ ] check for all tools to be present in the system (both CLI and GUI)
+ - [ ] check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI)
  - [ ] exclude tests from the bundle (see `setup.py` options)
- - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding)
- - [ ] handle the project folder renaming/movement to other location and/or describe in README
+ - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding). Can be uploaded to the GitHub Wiki
  - [ ] colored logs, maybe...
- - [ ] check logging work when embed stm32pio lib in third-party stuff
- - [ ] logging process coverage in README
+ - [ ] if we require `platformio` package as a dependency we probably can rely on its dependencies too
+ - [ ] check logging work when embed stm32pio lib in third-party stuff (no logging setup at all)
  - [ ] merge subprocess pipes to one where suitable (i.e. `stdout` and `stderr`)
  - [ ] redirect subprocess pipes to `DEVNULL` where suitable to suppress output
- - [ ] maybe move `_load_config_file()` to `Config` (i.e. `config.load()`)
- - [ ] handle the case when the `.ioc` file is set in `stm32pio.ini` but not present in the file system anymore
- - [ ] `stm32pio.ini` config file validation
+ - [ ] some `stm32pio.ini` config file validation
  - [ ] CHANGELOG markdown markup
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
  - [ ] `shlex` for `build` command option sanitizing
@@ -31,6 +27,9 @@
  - [ ] parse `platformio.ini` to check its correctness in state getter
  - [ ] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen), probably should somehow analyze the output
  - [ ] Dispatch tests on several files (too many code actually)
- - [ ] Note on README that projects are not portable (stores values in .ini file)
+ - [ ] Do not store absolute paths in config file and make a project portable (use configparser parameters interpolation). Handle renaming
  - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe replace current scheme
  - [ ] UML diagrams (core, GUI back- and front-ends)
+ - [ ] CI is possible
+ - [ ] Test preserving user files and folders on regeneration and mb other operations
+ - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on

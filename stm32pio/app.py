@@ -134,20 +134,19 @@ def main(sys_argv=None) -> int:
             if args.editor:
                 project.start_editor(args.editor)
 
-        elif args.subcommand == 'clean':
-            project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
-            project.clean()
-
         elif args.subcommand == 'status':
             project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
             print(project.state)
+
+        elif args.subcommand == 'clean':
+            project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
+            project.clean()
 
     # Library is designed to throw the exception in bad cases so we catch here globally
     except Exception as e:
         logger.exception(e, exc_info=logger.isEnabledFor(logging.DEBUG))
         return -1
 
-    logger.info("exiting...")
     return 0
 
 
