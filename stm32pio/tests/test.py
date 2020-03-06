@@ -563,7 +563,7 @@ class TestCLI(CustomTestCase):
         last_stage_pos = -1
         for stage in stm32pio.lib.ProjectStage:
             if stage != stm32pio.lib.ProjectStage.UNDEFINED:
-                match = re.search(r"^[✅❌] {2}" + str(stage) + '$', buffer_stdout.getvalue(), re.MULTILINE)
+                match = re.search(r"^((\[ \])|(\[\*\])) {2}" + str(stage) + '$', buffer_stdout.getvalue(), re.MULTILINE)
                 self.assertTrue(match, msg="Status information was not found on STDOUT")
                 if match:
                     matches_counter += 1

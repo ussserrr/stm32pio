@@ -84,7 +84,7 @@ class ProjectState(collections.OrderedDict):
         not confuse the end-user)
         """
         # Need 2 spaces between the icon and the text to look fine
-        return '\n'.join(f"{'✅' if stage_value else '❌'}  {str(stage_name)}"
+        return '\n'.join(f"{'[*]' if stage_value else '[ ]'}  {str(stage_name)}"
                          for stage_name, stage_value in self.items() if stage_name != ProjectStage.UNDEFINED)
 
     @property
