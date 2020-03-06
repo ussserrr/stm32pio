@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__version__ = '0.96'
+__version__ = '1.0'
 
 import argparse
 import logging
@@ -36,11 +36,12 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
                                                      "proceeding")
     parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
+    parser_status = subparsers.add_parser('status', help="get the description of the current project state")
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (WARNING: it deletes ALL content of "
                                                        "'path' except the .ioc file)")
 
     # Common subparsers options
-    for p in [parser_init, parser_new, parser_generate, parser_clean]:
+    for p in [parser_init, parser_new, parser_generate, parser_status, parser_clean]:
         p.add_argument('-d', '--directory', dest='project_path', default=pathlib.Path.cwd(), required=False,
                        help="path to the project (current directory, if not given)")
     for p in [parser_init, parser_new]:
@@ -75,7 +76,10 @@ def main(sys_argv=None) -> int:
     if sys_argv is None:
         sys_argv = sys.argv[1:]
 
+    # Import modules after sys.path modification
     import stm32pio.settings
+    import stm32pio.lib
+    import stm32pio.util
 
     args = parse_args(sys_argv)
 
@@ -85,20 +89,19 @@ def main(sys_argv=None) -> int:
     # Currently only 2 levels of verbosity through the '-v' option are counted (INFO (default) and DEBUG (-v))
     if args is not None and args.subcommand is not None and args.verbose:
         logger.setLevel(logging.DEBUG)
-        handler.setFormatter(logging.Formatter("%(levelname)-8s "
-                                               f"%(funcName)-{stm32pio.settings.log_function_fieldwidth}s "
-                                               "%(message)s"))
+        handler.setFormatter(stm32pio.util.DispatchingFormatter(
+            f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s",
+            special=stm32pio.util.special_formatters))
         logger.debug("debug logging enabled")
     elif args is not None and args.subcommand is not None:
         logger.setLevel(logging.INFO)
-        handler.setFormatter(logging.Formatter("%(levelname)-8s %(message)s"))
+        handler.setFormatter(stm32pio.util.DispatchingFormatter("%(levelname)-8s %(message)s",
+                                                                special=stm32pio.util.special_formatters))
     else:
         logger.setLevel(logging.INFO)
         handler.setFormatter(logging.Formatter("%(message)s"))
         logger.info("\nNo arguments were given, exiting...")
         return 0
-
-    import stm32pio.lib  # import the module after sys.path modification and logger configuration
 
     # Main routine
     try:
@@ -107,7 +110,7 @@ def main(sys_argv=None) -> int:
             if not args.board:
                 logger.warning("STM32 PlatformIO board is not specified, it will be needed on PlatformIO project "
                                "creation")
-            logger.info('project has been initialized. You can now edit stm32pio.ini config file')
+            logger.info("project has been initialized. You can now edit stm32pio.ini config file")
             if args.editor:
                 project.start_editor(args.editor)
 
@@ -131,16 +134,19 @@ def main(sys_argv=None) -> int:
             if args.editor:
                 project.start_editor(args.editor)
 
+        elif args.subcommand == 'status':
+            project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
+            print(project.state)
+
         elif args.subcommand == 'clean':
             project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
             project.clean()
 
-    # library is designed to throw the exception in bad cases so we catch here globally
+    # Library is designed to throw the exception in bad cases so we catch here globally
     except Exception as e:
-        logger.exception(e, exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
+        logger.exception(e, exc_info=logger.isEnabledFor(logging.DEBUG))
         return -1
 
-    logger.info("exiting...")
     return 0
 
 

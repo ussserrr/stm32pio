@@ -1,8 +1,11 @@
+include .gitignore
+include CHANGELOG
+include LICENSE
 include MANIFEST.in
 include README.md
-include LICENSE
-include CHANGELOG
 include TODO.md
-include .gitignore
+recursive-include screenshots *
 recursive-include stm32pio-test-project *
-include screenshots/*.png
+include stm32pio-gui/main.qml
+include stm32pio-gui/README.md
+recursive-include stm32pio-gui/icons *

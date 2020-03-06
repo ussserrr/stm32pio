@@ -1,14 +1,18 @@
 """
-'pyenv' was used to perform tests with different Python versions under Ubuntu:
+NOTE: make sure the test project tree is clean before running the tests!
+
+'pyenv' was used to perform tests with different Python versions (under Ubuntu):
 https://www.tecmint.com/pyenv-install-and-manage-multiple-python-versions-in-linux/
 
-To get the test coverage install and use 'coverage':
+To get the test coverage install and use 'coverage' package:
     $  coverage run -m stm32pio.tests.test -b
     $  coverage html
 """
 
 import configparser
+import contextlib
 import inspect
+import io
 import pathlib
 import platform
 import re
@@ -22,6 +26,7 @@ import unittest
 import stm32pio.app
 import stm32pio.lib
 import stm32pio.settings
+import stm32pio.util
 
 
 STM32PIO_MAIN_SCRIPT: str = inspect.getfile(stm32pio.app)  # absolute path to the main stm32pio script
@@ -36,12 +41,15 @@ if not TEST_PROJECT_PATH.is_dir() or not TEST_PROJECT_PATH.joinpath('stm32pio-te
 # proceeding)
 TEST_PROJECT_BOARD = 'nucleo_f031k6'
 
-# Instantiate a temporary folder on every fixture run. It is used across all tests and is deleted on shutdown
+# Instantiate a temporary folder on every test suite run. It is used across all the tests and is deleted on shutdown
+# automatically
 temp_dir = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(temp_dir.name).joinpath(TEST_PROJECT_PATH.name)
+
 print(f"The file of 'stm32pio.app' module: {STM32PIO_MAIN_SCRIPT}")
 print(f"Python executable: {PYTHON_EXEC} {sys.version}")
 print(f"Temp test fixture path: {FIXTURE_PATH}")
+print()
 
 
 class CustomTestCase(unittest.TestCase):
@@ -194,19 +202,19 @@ class TestUnit(CustomTestCase):
             }
         }
 
-        for command, name in editors.items():
+        for editor, editor_process_names in editors.items():
             # Look for the command presence in the system so we test only installed editors
             if platform.system() == 'Windows':
-                command_str = f"where {command} /q"
+                command_str = f"where {editor} /q"
             else:
-                command_str = f"command -v {command}"
+                command_str = f"command -v {editor}"
             editor_exists = False
             if subprocess.run(command_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode == 0:
                 editor_exists = True
 
             if editor_exists:
-                with self.subTest(command=command, name=name[platform.system()]):
-                    project.start_editor(command)
+                with self.subTest(command=editor, name=editor_process_names[platform.system()]):
+                    project.start_editor(editor)
 
                     time.sleep(1)  # wait a little bit for app to start
 
@@ -219,7 +227,7 @@ class TestUnit(CustomTestCase):
                                             encoding='utf-8')
                     # Or, for Python 3.7 and above:
                     # result = subprocess.run(command_arr, capture_output=True, encoding='utf-8')
-                    self.assertIn(name[platform.system()], result.stdout)
+                    self.assertIn(editor_process_names[platform.system()], result.stdout)
 
     def test_init_path_not_found_should_raise(self):
         """
@@ -240,7 +248,7 @@ class TestUnit(CustomTestCase):
         # 'board' is non-default, 'project'-section parameter
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
-        project.config.save()
+        project.save_config()
 
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
                         msg=f"{stm32pio.settings.config_file_name} file hasn't been created")
@@ -256,6 +264,13 @@ class TestUnit(CustomTestCase):
 
         self.assertEqual(config.get('project', 'board', fallback="Not found"), TEST_PROJECT_BOARD,
                          msg="'board' has not been set")
+
+    def test_get_platformio_boards(self):
+        """
+        PlatformIO identifiers of boards are requested using PlatformIO Python API (not sure it can be called public,
+        though...)
+        """
+        self.assertIsInstance(stm32pio.util.get_platformio_boards(), list)
 
 
 class TestIntegration(CustomTestCase):
@@ -344,44 +359,42 @@ class TestIntegration(CustomTestCase):
         # Re-generate CubeMX project
         project.generate_code()
 
-        # Check if added information is preserved
+        # Check if added information has been preserved
         for test_content, after_regenerate_content in [(test_content_1, test_file_1.read_text()),
                                                        (test_content_2, test_file_2.read_text())]:
             with self.subTest(msg=f"User content hasn't been preserved in {after_regenerate_content}"):
                 self.assertIn(test_content, after_regenerate_content)
 
-        # main_c_after_regenerate_content = test_file_1.read_text()
-        # my_header_h_after_regenerate_content = test_file_2.read_text()
-        # self.assertIn(test_content_1, main_c_after_regenerate_content,
-        #               msg=f"User content hasn't been preserved after regeneration in {test_file_1}")
-        # self.assertIn(test_content_2, my_header_h_after_regenerate_content,
-        #               msg=f"User content hasn't been preserved after regeneration in {test_file_2}")
-
-    def test_get_state(self):
+    def test_current_stage(self):
         """
         Go through the sequence of states emulating the real-life project lifecycle
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
                                         save_on_destruction=False)
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.UNDEFINED)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.EMPTY)
 
-        project.config.save()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.INITIALIZED)
+        project.save_config()
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.INITIALIZED)
 
         project.generate_code()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.GENERATED)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.GENERATED)
 
         project.pio_init()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.PIO_INITIALIZED)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.PIO_INITIALIZED)
 
         project.patch()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.PATCHED)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.PATCHED)
 
         project.build()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.BUILT)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.BUILT)
 
         project.clean()
-        self.assertEqual(project.state, stm32pio.lib.ProjectState.UNDEFINED)
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.EMPTY)
+
+        # Should be UNDEFINED when the project is messed up
+        project.pio_init()
+        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.UNDEFINED)
+        self.assertFalse(project.state.is_consistent)
 
 
 class TestCLI(CustomTestCase):
@@ -468,24 +481,26 @@ class TestCLI(CustomTestCase):
             ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} (?=(build|pio_init|...) {0,26})(?=.{26} [^ ]))
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
-        methods = [method[0] for method in inspect.getmembers(project, predicate=inspect.ismethod)]
-        methods.append('main')
+        methods = [member[0] for member in inspect.getmembers(project, predicate=inspect.ismethod)] + ['main']
 
-        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'generate', '-d', str(FIXTURE_PATH)],
-                                encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        buffer_stdout, buffer_stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(buffer_stderr):
+            return_code = stm32pio.app.main(sys_argv=['-v', 'generate', '-d', str(FIXTURE_PATH)])
 
-        self.assertEqual(result.returncode, 0, msg="Non-zero return code")
-        # Somehow stderr and not stdout contains the actual output but we check both
-        self.assertTrue('DEBUG' in result.stderr or 'DEBUG' in result.stdout,
-                        msg="Verbose logging output hasn't been enabled on stderr")
+        self.assertEqual(return_code, 0, msg="Non-zero return code")
+        # stderr and not stdout contains the actual output (by default for the logging module)
+        self.assertEqual(len(buffer_stdout.getvalue()), 0,
+                         msg="Process has printed something directly into STDOUT bypassing logging")
+        self.assertIn('DEBUG', buffer_stderr.getvalue(), msg="Verbose logging output hasn't been enabled on stderr")
+
         # Inject all methods' names in the regex. Inject the width of field in a log format string
         regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" + '|'.join(methods) + ") {0," +
-                           str(stm32pio.settings.log_function_fieldwidth) + "})(?=.{" +
-                           str(stm32pio.settings.log_function_fieldwidth) + "} [^ ]))",
-                           flags=re.MULTILINE)
-        self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1, msg="Logs messages doesn't match the format")
+                           str(stm32pio.settings.log_fieldwidth_function) + "})(?=.{" +
+                           str(stm32pio.settings.log_fieldwidth_function) + "} [^ ]))", flags=re.MULTILINE)
+        self.assertGreaterEqual(len(re.findall(regex, buffer_stderr.getvalue())), 1,
+                                msg="Logs messages doesn't match the format")
 
-        self.assertIn('Starting STM32CubeMX', result.stdout, msg="STM32CubeMX didn't print its logs")
+        self.assertIn('Starting STM32CubeMX', buffer_stderr.getvalue(), msg="STM32CubeMX has not printed its logs")
 
     def test_non_verbose(self):
         """
@@ -498,25 +513,27 @@ class TestCLI(CustomTestCase):
         methods = [method[0] for method in inspect.getmembers(project, predicate=inspect.ismethod)]
         methods.append('main')
 
-        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(FIXTURE_PATH)],
-                                encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        buffer_stdout, buffer_stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(buffer_stderr):
+            return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(FIXTURE_PATH)])
 
-        self.assertEqual(result.returncode, 0, msg="Non-zero return code")
-        self.assertNotIn('DEBUG', result.stderr, msg="Verbose logging output has been enabled on stderr")
-        self.assertNotIn('DEBUG', result.stdout, msg="Verbose logging output has been enabled on stdout")
+        self.assertEqual(return_code, 0, msg="Non-zero return code")
+        # stderr and not stdout contains the actual output (by default for the logging module)
+        self.assertNotIn('DEBUG', buffer_stderr.getvalue(), msg="Verbose logging output has been enabled on stderr")
+        self.assertEqual(len(buffer_stdout.getvalue()), 0, msg="All app output should flow through the logging module")
 
         regex = re.compile("^(?=(INFO) {0,4})(?=.{8} ((?!( |" + '|'.join(methods) + "))))", flags=re.MULTILINE)
-        self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1,
+        self.assertGreaterEqual(len(re.findall(regex, buffer_stderr.getvalue())), 1,
                                 msg="Logs messages doesn't match the format")
 
-        self.assertNotIn('Starting STM32CubeMX', result.stdout, msg="STM32CubeMX printed its logs")
+        self.assertNotIn('Starting STM32CubeMX', buffer_stderr.getvalue(), msg="STM32CubeMX has printed its logs")
 
     def test_init(self):
         """
         Check for config creation and parameters presence
         """
         result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(FIXTURE_PATH),
-                                 '-b', TEST_PROJECT_BOARD])
+                                 '-b', TEST_PROJECT_BOARD], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
 
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
@@ -530,6 +547,30 @@ class TestCLI(CustomTestCase):
                     self.assertIsNotNone(config.get(section, option, fallback=None))
         self.assertEqual(config.get('project', 'board', fallback="Not found"), TEST_PROJECT_BOARD,
                          msg="'board' has not been set")
+
+    def test_status(self):
+        """
+        Test the output returning by the app on a request to the 'status' command
+        """
+
+        buffer_stdout = io.StringIO()
+        with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(None):
+            return_code = stm32pio.app.main(sys_argv=['status', '-d', str(FIXTURE_PATH)])
+
+        self.assertEqual(return_code, 0, msg="Non-zero return code")
+
+        matches_counter = 0
+        last_stage_pos = -1
+        for stage in stm32pio.lib.ProjectStage:
+            if stage != stm32pio.lib.ProjectStage.UNDEFINED:
+                match = re.search(r"^((\[ \])|(\[\*\])) {2}" + str(stage) + '$', buffer_stdout.getvalue(), re.MULTILINE)
+                self.assertTrue(match, msg="Status information was not found on STDOUT")
+                if match:
+                    matches_counter += 1
+                    self.assertGreater(match.start(), last_stage_pos, msg="The order of stages is messed up")
+                    last_stage_pos = match.start()
+
+        self.assertEqual(matches_counter, len(stm32pio.lib.ProjectStage) - 1)
 
 
 if __name__ == '__main__':

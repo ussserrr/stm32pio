@@ -3,36 +3,34 @@
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
- - [x] Function annotations
- - [ ] GUI. For example, drop the folder into small window (with checkboxes corresponding with CLI options) and get the output. At left is a list of recent projects
- - [ ] GUI. Indicate the progress as states goes forward during the run (see `scratch.py`)
- - [x] Remade as Class (constructor `__init__(project_path)`)
- - [x] Config file for every project instead of the `settings.py` (but we still sill be storing the default parameters there)
- - [x] Test CLI (integration testing)
- - [x] Move test fixtures out of the 'tests' so we can use it for multiple projects (for example while testing CLI and GUI versions). Set up test folder for every single test so we make sure the .ioc file is always present and not deleted after failed test
- - [ ] Upload to PyPI
- - [x] `__main__`
- - [x] Abort `--with-build` if no platformio.ini file is present
- - [x] Rename `stm32pio.py` -> `app.py`
- - [x] Rename `util.py` -> `lib.py` (maybe)
- - [x] Do not require matching of the project folder and .ioc file names (use first .ioc file found)
- - [x] Remove casts to string where we can use path-like objects
- - [x] Settings string templates and multi line
- - [x] Smart `start_editor` test (detect editors in system, maybe use unittest `skipIf` decorator)
- - [x] `init` command
- - [x] New argparse algo cause now we have config file
- - [x] Update `.ioc` file
- - [x] `str(path)` -> `path` were possible
- - [x] Check `start_editor()` for different input
- - [x] Test on Python 3.6 (pyenv)
- - [x] Test for `get_state()` (as sequence of states (see scratch.py))
- - [x] Remake `get_state()` as property value (read-only getter with decorator)
- - [x] Try to invoke stm32pio as module (-m), from different paths...
- - [x] Logs format test (see prepared regular expressions)
+ - [ ] GUI. Tests (research approaches and patterns)
+ - [ ] GUI. Reduce number of calls to 'state' (many IO operations)
+ - [ ] GUI. Drag and drop the new folder into the app window
+ - [ ] VSCode plugin
+ - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
- - [x] Do we really need *sys.exc_info() ?
- - [x] See logging.exception and sys_exc argument for logging.debug
- - [x] Make `save_config()` a part of the `config` i.e. `project.config.save()` (subclass `ConfigParser`)
  - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list. Ask the confirmation of a user by-defualt and add additional option for quiet performance
- - [ ] 'status' CLI subcommand, why not?..
+ - [ ] check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI)
  - [ ] exclude tests from the bundle (see `setup.py` options)
+ - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding). Can be uploaded to the GitHub Wiki
+ - [ ] colored logs, maybe...
+ - [ ] if we require `platformio` package as a dependency we probably can rely on its dependencies too
+ - [ ] check logging work when embed stm32pio lib in third-party stuff (no logging setup at all)
+ - [ ] merge subprocess pipes to one where suitable (i.e. `stdout` and `stderr`)
+ - [ ] redirect subprocess pipes to `DEVNULL` where suitable to suppress output
+ - [ ] some `stm32pio.ini` config file validation
+ - [ ] CHANGELOG markdown markup
+ - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
+ - [ ] `shlex` for `build` command option sanitizing
+ - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature). Also, maybe move `save_on_desctruction` parameter there. Maybe separate on `project_params` and `instance_opts`
+ - [ ] General algo of merging a given dict of parameters with the saved one on project initialization
+ - [ ] parse `platformio.ini` to check its correctness in state getter
+ - [ ] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), probably should somehow analyze the output (logs can be parsed. i.e. 2020-03-05 12:08:40,765 \[ERROR\] MainProjectManager:806 - Program Manager : The version of the current IOC is too high.)
+ - [ ] Dispatch tests on several files (too many code actually)
+ - [ ] Do not store absolute paths in config file and make a project portable (use configparser parameters interpolation). Handle renaming
+ - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe replace current scheme
+ - [ ] UML diagrams (core, GUI back- and front-ends)
+ - [ ] CI is possible
+ - [ ] Test preserving user files and folders on regeneration and mb other operations
+ - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
+ - [ ] Mb clean the test project tree before running the tests
