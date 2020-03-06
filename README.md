@@ -22,9 +22,9 @@ It uses STM32CubeMX to generate a HAL-framework-based code and alongside creates
     - `platformio`
   - For usage:
     - macOS, Linux, Windows
-    - STM32CubeMX (all recent versions) with desired downloaded frameworks (F0, F1, etc.)
+    - STM32CubeMX with desired downloaded frameworks (F0, F1, etc.)
     - Java CLI (JRE) (likely is already installed if the STM32CubeMX is working)
-    - PlatformIO CLI (already presented if you have installed PlatformIO via some package manager or need to be installed as the command line extension from IDE)
+    - PlatformIO CLI (already presented if you have installed PlatformIO via some package manager or need to be installed as the "command line extension" from IDE)
 
 A general recommendation there would be to test both CubeMX (code generation) and PlatformIO (project creation, building) at least once before using stm32pio to make sure that all tools work properly even without any "glue".
 
@@ -61,7 +61,7 @@ Basically, you need to follow such a pattern:
   1. Create CubeMX project (.ioc file), set-up your hardware configuration, save
   2. Run the stm32pio that automatically invokes CubeMX to generate the code, creates PlatformIO project, patches a `platformio.ini` file and so on
   3. Work on the project in your editor as usual, compile/upload/debug etc.
-  4. Edit the configuration in CubeMX when necessary, then run stm32pio to regenerate the code.
+  4. Edit the configuration in CubeMX when necessary, then run stm32pio to re-generate the code.
 
 Refer to Example section on more detailed steps. If you face off with some error try to enable a verbose output to get more information about a problem:
 ```shell script
@@ -135,8 +135,6 @@ For the specific test suite or case you can use
 stm32pio-repo/ $   python3 -m unittest stm32pio.tests.test.TestIntegration -b -v
 stm32pio-repo/ $   python3 -m unittest stm32pio.tests.test.TestCLI.test_verbose -b -v
 ```
-
-While testing was performed on different Python and OS versions, some older Windows versions had shown some 'glitches' and instability. [WinError 5] and others had appeared on such tests like `test_run_edtor` and on `tempfile` clean-up processes. So be ready to face off with them.
 
 
 ## Restrictions
