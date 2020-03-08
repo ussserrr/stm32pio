@@ -110,7 +110,7 @@
  - New: STM32CubeMX is now started more silently (without a splash screen)
  - New: add integration and CLI tests (sort of)
  - New: testing with different Python versions using pyenv (3.6+ target)
- - New: `test_run_editor` is now preliminary automatically checks whether an editor is installed on the machine
+ - New: `test_start_editor` is now preliminary automatically checks whether an editor is installed on the machine
  - New: more typing annotations
  - Fixed: the app has been failed to start as `python app.py` (modify `sys.path` to fix)
  - Changed: `main()` function is now fully modular: can be run from anywhere with given CLI arguments (will be piped forward to be parsed via `argparse`)
@@ -155,7 +155,7 @@
  - Changed: more logging output
  - Changed: change some methods signatures to return result value
 
-## ver. 1.0 (XX.03.20)
+## ver. 1.0 (06.03.20)
  - New: introduce GUI version of the app (beta)
  - New: redesigned stage-state machinery - integrates seamlessly into both CLI and GUI worlds. Python `Enum` represents a single stage of the project (e.g. "code generated" or "project built") while the special dictionary unfolds the full information about the project i.e. combination of all stages (True/False). Implemented in 2 classes - `ProjectStage` and `ProjectState`, though the `Stm32pio.state` property is intended to be a user's getter. Both classes have human-readable string representations
  - New: related to previous - `status` CLI command
@@ -171,5 +171,5 @@
  - Changed: renamed `_load_config_file()` -> `_load_config()` (hide implementation details)
  - Changed: use `logger.isEnabledFor()` instead of manually comparing logging levels
  - Changed: slightly tuned exceptions (more specific ones where it make sense)
-- Changed: rename `project_path` -> `path`
-- Changed: actualized tests, more broad usage of the `app.main()` function versus `subprocess.run()`
+ - Changed: rename `project_path` -> `path`
+ - Changed: actualized tests, more broad usage of the `app.main()` function versus `subprocess.run()`

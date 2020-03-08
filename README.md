@@ -6,6 +6,18 @@ It uses STM32CubeMX to generate a HAL-framework-based code and alongside creates
 ![Logo](/screenshots/logo.png)
 
 
+## Table of contents
+> - [Features](#features)
+> - [Requirements](#requirements)
+> - [Installation](#installation)
+> - [Usage](#usage)
+>   - [Project patching](#project-patching)
+>   - [Embedding](#embedding)
+> - [Example](#example)
+> - [Testing](#testing)
+> - [Restrictions](#restrictions)
+
+
 ## Features
   - Start the new complete project in a single directory using only an `.ioc` file
   - Update an existing project after changing hardware options in CubeMX
@@ -32,16 +44,16 @@ A general recommendation there would be to test both CubeMX (code generation) an
 ## Installation
 You can run the app in a portable way by downloading or cloning the snapshot of the repository and invoking the main script or Python module:
 ```shell script
-$ python3 stm32pio/app.py
-$ # or
-$ python3 -m stm32pio
+stm32pio-repo/ $   python3 stm32pio/app.py  # or
+stm32pio-repo/ $   python3 -m stm32pio  # or
+any-path/ $   python3 path/to/stm32pio-repo/stm32pio/app.py
 ```
 
 (we assume python3 and pip3 hereinafter). It is possible to run the app like this from anywhere.
 
 However, it's handier to install the utility to be able to run stm32pio from anywhere. Use
 ```shell script
-stm32pio-repo/ $   pip3 install .
+stm32pio-repo/ $   pip install .
 ```
 command to launch the setup process. Now you can simply type 'stm32pio' in the terminal to run the utility in any directory.
 
@@ -128,7 +140,7 @@ or
 ```shell script
 stm32pio-repo/ $   python3 -m stm32pio.tests.test -b -v
 ```
-to test the app. It uses STM32F0 framework to generate and build a code from the test [`stm32pio-test-project.ioc`](/stm32pio-test-project/stm32pio-test-project.ioc) project file. Please make sure that the test project folder is clean (i.e. contains only an .ioc file) before running the test otherwise it can lead to some cases failing.
+to test the app. It uses STM32F0 framework to generate and build a code from the test [`stm32pio-test-project.ioc`](/stm32pio-test-project/stm32pio-test-project.ioc) project file. Please make sure that the test project folder is clean (i.e. contains only an .ioc file) before running the test otherwise it can lead to some cases failing. Tests automatically create temporary directory (using `tempfile` Python standard module) where all actions are performed.
 
 For the specific test suite or case you can use
 ```shell script

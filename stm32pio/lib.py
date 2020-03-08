@@ -9,6 +9,7 @@ import configparser
 import enum
 import logging
 import pathlib
+import shlex
 import shutil
 import string
 import subprocess
@@ -525,29 +526,30 @@ class Stm32pio:
 
     def start_editor(self, editor_command: str) -> int:
         """
-        Start the editor specified by 'editor_command' with the project opened (assume
+        Start the editor specified by 'editor_command' with the project opened (assuming that
             $ [editor] [folder]
-        form works)
+        format works)
 
         Args:
-            editor_command: editor command as we start it in the terminal
+            editor_command: editor command as you start it in the terminal
 
         Returns:
             passes a return code of the command
         """
 
-        self.logger.info(f"starting an editor '{editor_command}'...")
+        sanitized_input = shlex.quote(editor_command)
 
+        self.logger.info(f"starting an editor {sanitized_input}...")
         try:
-            # Works unstable on some Windows 7 systems, but correct on latest Win7 and Win10...
+            # Works unstable on some Windows 7 systems, but correct on Win10...
             # result = subprocess.run([editor_command, str(self.path)], check=True)
-            result = subprocess.run(f"{editor_command} {str(self.path)}", shell=True, check=True,
+            result = subprocess.run(f"{sanitized_input} {str(self.path)}", shell=True, check=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.logger.debug(result.stdout, 'from_subprocess')
 
             return result.returncode
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"failed to start the editor {editor_command}: {e.stdout}")
+            self.logger.error(f"failed to start the editor {sanitized_input}: {e.stdout}")
             return e.returncode
 
 

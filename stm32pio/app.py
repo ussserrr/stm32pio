@@ -48,9 +48,12 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
         p.add_argument('-b', '--board', dest='board', required=False, help="PlatformIO name of the board")
     for p in [parser_init, parser_new, parser_generate]:
         p.add_argument('--start-editor', dest='editor', required=False,
-                       help="use specified editor to open PlatformIO project (e.g. subl, code, atom, etc.)")
+                       help="use specified editor to open the PlatformIO project (e.g. subl, code, atom, etc.)")
     for p in [parser_new, parser_generate]:
-        p.add_argument('--with-build', action='store_true', required=False, help="build a project after generation")
+        p.add_argument('--with-build', action='store_true', required=False, help="build the project after generation")
+
+    parser_clean.add_argument('-q', '--quiet', action='store_true', required=False,
+                              help="suppress the caution about the content removal")
 
     if len(args) == 0:
         parser.print_help()
@@ -140,7 +143,18 @@ def main(sys_argv=None) -> int:
 
         elif args.subcommand == 'clean':
             project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
-            project.clean()
+            if args.quiet:
+                project.clean()
+            else:
+                while True:
+                    reply = input(f'WARNING: this operation will delete ALL content of the directory "{project.path}" '
+                                  f'except the "{pathlib.Path(project.config.get("project", "ioc_file")).name}" file. '
+                                  'Are you sure? (y/n) ')
+                    if reply.lower() in ['y', 'yes', 'true', '1']:
+                        project.clean()
+                        break
+                    elif reply.lower() in ['n', 'no', 'false', '0']:
+                        break
 
     # Library is designed to throw the exception in bad cases so we catch here globally
     except Exception as e:

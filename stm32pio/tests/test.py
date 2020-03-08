@@ -22,6 +22,7 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 
 import stm32pio.app
 import stm32pio.lib
@@ -67,7 +68,7 @@ class CustomTestCase(unittest.TestCase):
 
     def tearDown(self):
         """
-        Clean the temp directory
+        Clean up the temp directory
         """
         shutil.rmtree(FIXTURE_PATH, ignore_errors=True)
 
@@ -178,7 +179,7 @@ class TestUnit(CustomTestCase):
             self.assertTrue(next((True for item in logs.output if "PlatformIO build error" in item), False),
                             msg="Error message does not match")
 
-    def test_run_editor(self):
+    def test_start_editor(self):
         """
         Call the editors
         """
@@ -404,25 +405,39 @@ class TestCLI(CustomTestCase):
     """
 
     def test_clean(self):
-        # Create files and folders
-        file_should_be_deleted = FIXTURE_PATH.joinpath('file.should.be.deleted')
-        dir_should_be_deleted = FIXTURE_PATH.joinpath('dir.should.be.deleted')
-        file_should_be_deleted.touch(exist_ok=False)
-        dir_should_be_deleted.mkdir(exist_ok=False)
+        for case in ['--quiet', 'yes', 'no']:
+            with self.subTest(case=case):
+                # Create files and folders
+                test_file = FIXTURE_PATH.joinpath('test.file')
+                test_dir = FIXTURE_PATH.joinpath('test.dir')
+                test_file.touch(exist_ok=False)
+                test_dir.mkdir(exist_ok=False)
 
-        # Clean
-        return_code = stm32pio.app.main(sys_argv=['clean', '-d', str(FIXTURE_PATH)])
-        self.assertEqual(return_code, 0, msg="Non-zero return code")
+                # Clean ...
+                if case == '--quiet':
+                    return_code = stm32pio.app.main(sys_argv=['clean', case, '-d', str(FIXTURE_PATH)])
+                else:
+                    with unittest.mock.patch('builtins.input', return_value=case):
+                        return_code = stm32pio.app.main(sys_argv=['clean', '-d', str(FIXTURE_PATH)])
 
-        # Look for remaining items
-        with self.subTest():
-            self.assertFalse(file_should_be_deleted.is_file(), msg=f"{file_should_be_deleted} is still there")
-        with self.subTest():
-            self.assertFalse(dir_should_be_deleted.is_dir(), msg=f"{dir_should_be_deleted} is still there")
+                self.assertEqual(return_code, 0, msg="Non-zero return code")
 
-        # And .ioc file should be preserved
-        with self.subTest():
-            self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
+                # ... look for remaining items ...
+                if case == 'no':
+                    with self.subTest():
+                        self.assertTrue(test_file.is_file(), msg=f"{test_file} has been deleted")
+                    with self.subTest():
+                        self.assertTrue(test_dir.is_dir(), msg=f"{test_dir}/ has been deleted")
+                else:
+                    with self.subTest():
+                        self.assertFalse(test_file.is_file(), msg=f"{test_file} is still there")
+                    with self.subTest():
+                        self.assertFalse(test_dir.is_dir(), msg=f"{test_dir}/ is still there")
+
+                # ... and .ioc file should be preserved in any case
+                with self.subTest():
+                    self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(),
+                                    msg="Missing .ioc file")
 
     def test_new(self):
         """

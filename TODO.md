@@ -9,7 +9,8 @@
  - [ ] VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
- - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list. Ask the confirmation of a user by-defualt and add additional option for quiet performance
+ - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list
+ - [x] Ask the confirmation of a user by-defualt for `clean` and add additional option for quiet performance
  - [ ] check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI)
  - [ ] exclude tests from the bundle (see `setup.py` options)
  - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding). Can be uploaded to the GitHub Wiki
@@ -21,7 +22,7 @@
  - [ ] some `stm32pio.ini` config file validation
  - [ ] CHANGELOG markdown markup
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
- - [ ] `shlex` for `build` command option sanitizing
+ - [x] `shlex` for `start_editor` command option sanitizing
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature). Also, maybe move `save_on_desctruction` parameter there. Maybe separate on `project_params` and `instance_opts`
  - [ ] General algo of merging a given dict of parameters with the saved one on project initialization
  - [ ] parse `platformio.ini` to check its correctness in state getter
@@ -30,7 +31,8 @@
  - [ ] Do not store absolute paths in config file and make a project portable (use configparser parameters interpolation). Handle renaming
  - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe replace current scheme
  - [ ] UML diagrams (core, GUI back- and front-ends)
- - [ ] CI is possible
+ - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker in Azure Pipelines, basic at Travis CI
  - [ ] Test preserving user files and folders on regeneration and mb other operations
  - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
  - [ ] Mb clean the test project tree before running the tests
+ - [x] README table of contents
