@@ -50,4 +50,6 @@ config_default = collections.OrderedDict(
 
 config_file_name = 'stm32pio.ini'
 
-log_fieldwidth_function = 26  # TODO: can be calculated actually (longest name
+# Longest name (not necessarily method so a little bit tricky...)
+# log_fieldwidth_function = max([len(member) for member in dir(stm32pio.lib.Stm32pio)]) + 1
+log_fieldwidth_function = 25 + 1

@@ -22,15 +22,15 @@ import unittest
 import stm32pio.app
 
 
-# Absolute path to the main stm32pio script (make sure what repo we are testing
-STM32PIO_MAIN_SCRIPT: str = inspect.getfile(stm32pio.app)
-# Absolute path to the Python executable (no need to guess whether it's 'python' or 'python3' and so on)
-PYTHON_EXEC: str = sys.executable
-
-# Test data
 TEST_PROJECT_PATH = pathlib.Path('stm32pio-test-project').resolve(strict=True)
 if not TEST_PROJECT_PATH.joinpath('stm32pio-test-project.ioc').is_file():
     raise FileNotFoundError("No test project is present")
+
+# Gently ask a user running tests to remove all irrelevant files from the TEST_PROJECT_PATH
+if len(list(TEST_PROJECT_PATH.iterdir())) > 1:
+    raise Warning(f"There are extrinsic files in the test project directory '{TEST_PROJECT_PATH}'. Please persist only "
+                  "the .ioc file")
+
 # Make sure you have F0 framework installed (try to run code generation from STM32CubeMX manually at least once before
 # proceeding)
 TEST_PROJECT_BOARD = 'nucleo_f031k6'
@@ -39,6 +39,11 @@ TEST_PROJECT_BOARD = 'nucleo_f031k6'
 # automatically
 TEMP_DIR = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(TEMP_DIR.name).joinpath(TEST_PROJECT_PATH.name)
+
+# Absolute path to the main stm32pio script (make sure what repo we are testing)
+STM32PIO_MAIN_SCRIPT: str = inspect.getfile(stm32pio.app)
+# Absolute path to the Python executable (no need to guess whether it's 'python' or 'python3' and so on)
+PYTHON_EXEC: str = sys.executable
 
 print(f"The file of 'stm32pio.app' module: {STM32PIO_MAIN_SCRIPT}")
 print(f"Python executable: {PYTHON_EXEC} {sys.version}")

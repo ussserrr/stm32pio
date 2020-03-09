@@ -352,7 +352,7 @@ class Stm32pio:
         # more details)
         cubemx_script_file, cubemx_script_name = tempfile.mkstemp()
 
-        # We should necessarily remove the temp directory, so do not let any exception break our plans
+        # We must remove the temp directory, so do not let any exception break our plans
         try:
             # buffering=0 leads to the immediate flushing on writing
             with open(cubemx_script_file, mode='w+b', buffering=0) as cubemx_script:
@@ -367,20 +367,29 @@ class Stm32pio:
                 command_arr = [self.config.get('app', 'java_cmd'), '-jar', self.config.get('app', 'cubemx_cmd'), '-q',
                                cubemx_script_name, '-s']  # -q: read the commands from the file, -s: silent performance
                 # Redirect the output of the subprocess into the logging module (with DEBUG level)
-                with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log_pipe:
-                    result = subprocess.run(command_arr, stdout=log_pipe, stderr=log_pipe)
+                with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log:
+                    result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
+                    result_output = log.value
+
         except Exception as e:
             raise e  # re-raise an exception after the 'finally' block
         finally:
             pathlib.Path(cubemx_script_name).unlink()
 
+        error_msg = "code generation error"
         if result.returncode == 0:
+            # CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared
+            # and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), should analyze the output
+            error_lines = [line for line in result_output.splitlines() if '[ERROR]' in line]
+            if len(error_lines):
+                self.logger.error('\n'.join(error_lines))
+                raise Exception(error_msg)
             self.logger.info("successful code generation")
             return result.returncode
         else:
             self.logger.error(f"code generation error (CubeMX return code is {result.returncode}).\n"
                               "Enable a verbose output or try to generate a code from the CubeMX itself.")
-            raise Exception("code generation error")
+            raise Exception(error_msg)
 
 
     def pio_init(self) -> int:
@@ -411,7 +420,7 @@ class Stm32pio:
             # PlatformIO returns 0 even on some errors (e.g. no '--board' argument)
             if 'error' in result.stdout.lower():
                 self.logger.error(result.stdout)
-                raise Exception('\n' + error_msg)
+                raise Exception(error_msg)
             self.logger.debug(result.stdout, 'from_subprocess')
             self.logger.info("successful PlatformIO project initialization")
             return result.returncode
@@ -567,8 +576,8 @@ class Stm32pio:
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
-        with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log_pipe:
-            result = subprocess.run(command_arr, stdout=log_pipe, stderr=log_pipe)
+        with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log:
+            result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
         if result.returncode == 0:
             self.logger.info("successful PlatformIO build")
         else:

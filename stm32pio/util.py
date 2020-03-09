@@ -74,11 +74,20 @@ class DispatchingFormatter(logging.Formatter):
         return super().format(record)
 
 
+class LogPipeRC:
+    """
+    Small class suitable for passing to the caller when the LogPipe context manager is invoked
+    """
+    value = ''  # string accumulating all incoming messages
+    def __init__(self, fd: int):
+        self.pipe = fd  # writable half of os.pipe
+
 class LogPipe(threading.Thread):
     """
     The thread combined with a context manager to provide a nice way to temporarily redirect something's stream output
     into logging module. The most straightforward application is to suppress subprocess STDOUT and/or STDERR streams and
-    wrap them in the logging mechanism as it is for now for any other message in your app.
+    wrap them in the logging mechanism as it is now for any other message in your app. Also, store the incoming messages
+    in the string
     """
 
     def __init__(self, logger: logging.Logger, level: int, *args, **kwargs):
@@ -90,21 +99,23 @@ class LogPipe(threading.Thread):
         self.fd_read, self.fd_write = os.pipe()  # create 2 ends of the pipe and setup the reading one
         self.pipe_reader = os.fdopen(self.fd_read)
 
-    def __enter__(self) -> int:
+        self.rc = LogPipeRC(self.fd_write)  # "remote control"
+
+    def __enter__(self) -> LogPipeRC:
         """
         Activate the thread and return the consuming end of the pipe so the invoking code can use it to feed its
         messages from now on
         """
         self.start()
-        return self.fd_write
+        return self.rc
 
     def run(self):
         """
         Routine of the thread, logging everything
         """
-        for line in iter(self.pipe_reader.readline, ''):
+        for line in iter(self.pipe_reader.readline, ''):  # stops the iterator when empty string will occur
+            self.rc.value += line  # accumulate the string
             self.logger.log(self.level, line.strip('\n'), 'from_subprocess')  # mark the message origin
-
         self.pipe_reader.close()
 
     def __exit__(self, exc_type, exc_val, exc_tb):

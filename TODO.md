@@ -27,14 +27,17 @@
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature). Also, maybe move `save_on_desctruction` parameter there. Maybe separate on `project_params` and `instance_opts`
  - [ ] General algo of merging a given dict of parameters with the saved one on project initialization
  - [x] parse `platformio.ini` to check its correctness in state getter
- - [ ] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), probably should somehow analyze the output (logs can be parsed. i.e. 2020-03-05 12:08:40,765 \[ERROR\] MainProjectManager:806 - Program Manager : The version of the current IOC is too high.)
+ - [x] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), probably should somehow analyze the output (logs can be parsed. i.e. 2020-03-05 12:08:40,765 \[ERROR\] MainProjectManager:806 - Program Manager : The version of the current IOC is too high.)
  - [x] Dispatch tests on several files (too many code actually)
  - [x] Do not store absolute paths in config file and make a project portable (use configparser parameters interpolation). Handle renaming
- - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe replace current scheme
+ - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe remade current logging schema
  - [ ] UML diagrams (core, GUI back- and front-ends)
  - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker in Azure Pipelines, basic at Travis CI
  - [ ] Test preserving user files and folders on regeneration and mb other operations
  - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
- - [ ] Mb clean the test project tree before running the tests
+ - [x] Mb clean the test project tree before running the tests
  - [x] README table of contents
  - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't need to turn on verbose mode)
+ - [ ] 'verbose' and 'non-verbose' tests as `subTest` (also 'should_log_error_...')
+ - [ ] turn off all possible dialogs in STM32CubeMX
+ - [ ] invoke PlatformIO as a library (get rid of subprocess for pio entirely)

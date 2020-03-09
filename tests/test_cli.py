@@ -87,11 +87,8 @@ class TestCLI(CustomTestCase):
         with self.assertLogs(level='ERROR') as logs:
             return_code = stm32pio.app.main(sys_argv=['init', '-d', str(path_not_exist)])
             self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
-            # TODO: for macOS:
-            #  ERROR    [Errno 2] No such file or directory: '/Users/chufyrev/Documents/GitHub/stm32pio/path'
-            #  probably another on different systems
-            # self.assertTrue(next((True for item in logs.output if str(path_not_exist) in item), False),
-            #                 msg="'ERROR' logging message hasn't been printed")
+            self.assertTrue(next((True for message in logs.output if "No such file or directory" in message), False),
+                            msg="'ERROR' logging message hasn't been printed")
 
     def test_no_ioc_file_should_log_error(self):
         """
@@ -103,7 +100,7 @@ class TestCLI(CustomTestCase):
         with self.assertLogs(level='ERROR') as logs:
             return_code = stm32pio.app.main(sys_argv=['init', '-d', str(dir_with_no_ioc_file)])
             self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
-            self.assertTrue(next((True for item in logs.output if "CubeMX project .ioc file" in item), False),
+            self.assertTrue(next((True for message in logs.output if "CubeMX project .ioc file" in message), False),
                             msg="'ERROR' logging message hasn't been printed")
 
     def test_verbose(self):
