@@ -28,8 +28,8 @@ config_default = collections.OrderedDict(
     project={
         # (default is OK) See CubeMX user manual PDF (UM1718) to get other useful options
         'cubemx_script_content': inspect.cleandoc('''
-            config load $cubemx_ioc_full_filename
-            generate code $project_path
+            config load ${ioc_file_absolute_path}
+            generate code ${project_dir_absolute_path}
             exit
         ''') + '\n',
 

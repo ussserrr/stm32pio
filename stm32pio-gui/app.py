@@ -375,6 +375,7 @@ def qt_message_handler(mode, context, message):
 
 
 
+# TODO: there is a bug - checkbox in the window doesn't correctly represent the current settings
 class Settings(QSettings):
     """
     Extend the class by useful get/set methods allowing to avoid redundant code lines and also are callable from the

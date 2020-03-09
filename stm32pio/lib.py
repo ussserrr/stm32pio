@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import collections
 import configparser
+import contextlib
+import copy
 import enum
 import logging
 import pathlib
@@ -158,22 +160,14 @@ class Stm32pio:
         else:
             self.logger = logging.getLogger(f"{__name__}.{id(self)}")  # use id() as uniqueness guarantee
 
-        # The path is a unique identifier of the project so it would be great to remake Stm32pio class as a subclass of
-        # pathlib.Path and then reference it like self and not self.path. It is more consistent also, as now path is
-        # perceived like any other config parameter that somehow is appeared to exist outside of a config instance but
-        # then it will be a core identifier, a truly 'self' value. But currently pathlib.Path is not intended to be
-        # subclassable by-design, unfortunately. See https://bugs.python.org/issue24132
-        self.path = self._resolve_project_path(dirty_path)
+        # The path is a unique identifier of the project. Handle 'path/to/proj', 'path/to/proj/', '.', '../proj', etc.,
+        # make the path absolute and check for existence
+        self.path = pathlib.Path(dirty_path).expanduser().resolve(strict=True)
 
         self.config = self._load_config()
 
         self.ioc_file = self._find_ioc_file()
-        self.config.set('project', 'ioc_file', str(self.ioc_file))
-
-        cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
-        cubemx_script_content = cubemx_script_template.substitute(project_path=self.path,
-                                                                  cubemx_ioc_full_filename=self.ioc_file)
-        self.config.set('project', 'cubemx_script_content', cubemx_script_content)
+        self.config.set('project', 'ioc_file', self.ioc_file.name)
 
         # General rule: given parameter takes precedence over the saved one
         board = ''
@@ -202,12 +196,17 @@ class Stm32pio:
         Constructing and returning the current state of the project (tweaked dict, see ProjectState docs)
         """
 
-        # self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
+        self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
 
-        try:
-            platformio_ini_is_patched = self.platformio_ini_is_patched()
-        except (FileNotFoundError, ValueError):
-            platformio_ini_is_patched = False
+        pio_is_initialized = False
+        with contextlib.suppress(Exception):  # we just want to know the information and don't care about details
+            # Is present, is correct and is not empty
+            pio_is_initialized = len(self.platformio_ini_config.sections()) != 0
+
+        platformio_ini_is_patched = False
+        if pio_is_initialized:  # make no sense to proceed if there is something happened in the first place
+            with contextlib.suppress(Exception):  # we just want to know the information and don't care about details
+                platformio_ini_is_patched = self.platformio_ini_is_patched()
 
         # Create the temporary ordered dictionary and fill it with the conditions results arrays
         stages_conditions = collections.OrderedDict()
@@ -218,11 +217,9 @@ class Stm32pio:
                                                      len(list(self.path.joinpath('Inc').iterdir())) > 0,
                                                      self.path.joinpath('Src').is_dir() and
                                                      len(list(self.path.joinpath('Src').iterdir())) > 0]
-        stages_conditions[ProjectStage.PIO_INITIALIZED] = [
-            self.path.joinpath('platformio.ini').is_file() and
-            self.path.joinpath('platformio.ini').stat().st_size > 0]
-        stages_conditions[ProjectStage.PATCHED] = [
-            platformio_ini_is_patched, not self.path.joinpath('include').is_dir()]
+        stages_conditions[ProjectStage.PIO_INITIALIZED] = [pio_is_initialized]
+        stages_conditions[ProjectStage.PATCHED] = [platformio_ini_is_patched,
+                                                   not self.path.joinpath('include').is_dir()]
         # Hidden folder! Can be not visible in your familiar file manager and cause a confusion
         stages_conditions[ProjectStage.BUILT] = [
             self.path.joinpath('.pio').is_dir() and
@@ -249,15 +246,15 @@ class Stm32pio:
 
         ioc_file = self.config.get('project', 'ioc_file', fallback=None)
         if ioc_file:
-            ioc_file = pathlib.Path(ioc_file).expanduser().resolve()
-            self.logger.debug(f"use {ioc_file.name} file from the INI config")
+            ioc_file = self.path.joinpath(ioc_file)
+            self.logger.debug(f"using '{ioc_file.name}' file from the INI config")
             if not ioc_file.is_file():
                 raise FileNotFoundError(error_message)
             return ioc_file
         else:
             self.logger.debug("searching for any .ioc file...")
             candidates = list(self.path.glob('*.ioc'))
-            if len(candidates) == 0:  # good candidate for the new Python 3.8 assignment expression feature :)
+            if len(candidates) == 0:  # TODO: good candidate for the new Python 3.8 assignment expression feature :)
                 raise FileNotFoundError(error_message)
             elif len(candidates) == 1:
                 self.logger.debug(f"{candidates[0].name} is selected")
@@ -281,14 +278,15 @@ class Stm32pio:
         config = configparser.ConfigParser(interpolation=None)
 
         # Fill with default values
-        config.read_dict(stm32pio.settings.config_default)
+        config.read_dict(copy.deepcopy(stm32pio.settings.config_default))
         # Then override by user values (if exist)
-        config.read(str(self.path.joinpath(stm32pio.settings.config_file_name)))
+        if len(config.read(str(self.path.joinpath(stm32pio.settings.config_file_name)))) == 0:
+            self.logger.debug(f"no or empty {stm32pio.settings.config_file_name} config file, will use the default one")
 
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
         if self.logger.isEnabledFor(logging.DEBUG):
-            debug_str = 'resolved config:'
+            debug_str = 'resolved config (merged):'
             for section in config.sections():
                 debug_str += f"\n========== {section} ==========\n"
                 for value in config.items(section):
@@ -341,24 +339,6 @@ class Stm32pio:
         return self._save_config(self.config, self.path, self.logger)
 
 
-    @staticmethod
-    def _resolve_project_path(dirty_path: str) -> pathlib.Path:
-        """
-        Handle 'path/to/proj', 'path/to/proj/', '.', '../proj' and other cases
-
-        Args:
-            dirty_path (str): some directory in the filesystem
-
-        Returns:
-            expanded absolute pathlib.Path instance
-        """
-        resolved_path = pathlib.Path(dirty_path).expanduser().resolve()
-        if not resolved_path.exists():
-            raise FileNotFoundError(f"not found: {resolved_path}")
-        else:
-            return resolved_path
-
-
     def generate_code(self) -> int:
         """
         Call STM32CubeMX app as 'java -jar' file to generate the code from the .ioc file. Pass commands to the
@@ -376,8 +356,12 @@ class Stm32pio:
         try:
             # buffering=0 leads to the immediate flushing on writing
             with open(cubemx_script_file, mode='w+b', buffering=0) as cubemx_script:
+                cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
+                cubemx_script_content = cubemx_script_template.substitute(ioc_file_absolute_path=self.ioc_file,
+                                                                          project_dir_absolute_path=self.path)
+
                 # should encode, since mode='w+b'
-                cubemx_script.write(self.config.get('project', 'cubemx_script_content').encode())
+                cubemx_script.write(cubemx_script_content.encode())
 
                 self.logger.info("starting to generate a code from the CubeMX .ioc file...")
                 command_arr = [self.config.get('app', 'java_cmd'), '-jar', self.config.get('app', 'cubemx_cmd'), '-q',
@@ -411,6 +395,7 @@ class Stm32pio:
         self.logger.info("starting PlatformIO project initialization...")
 
         platformio_ini_file = self.path.joinpath('platformio.ini')
+        # If size is 0, PlatformIO will overwrite it
         if platformio_ini_file.is_file() and platformio_ini_file.stat().st_size > 0:
             self.logger.warning("'platformio.ini' file is already exist")
 
@@ -435,6 +420,22 @@ class Stm32pio:
             raise Exception(error_msg)
 
 
+    @property
+    def platformio_ini_config(self) -> configparser.ConfigParser:
+        """
+        Reads and parses 'platformio.ini' PlatformIO config file into newly created configparser.ConfigParser instance.
+        Note, that the file may change over time and subsequent calls may produce different results because of this.
+
+        Raises FileNotFoundError if no 'platformio.ini' file is present. Passes out all other exceptions, most likely
+        caused by parsing errors (i.e. corrupted .INI format).
+        """
+
+        platformio_ini = configparser.ConfigParser(interpolation=None)
+        if len(platformio_ini.read(self.path.joinpath('platformio.ini'))) == 0:
+            raise FileNotFoundError('platformio.ini')
+        return platformio_ini
+
+
     def platformio_ini_is_patched(self) -> bool:
         """
         Check whether 'platformio.ini' config file is patched or not. It doesn't check for complete project patching
@@ -444,21 +445,19 @@ class Stm32pio:
             boolean indicating a result
         """
 
-        platformio_ini = configparser.ConfigParser(interpolation=None)
         try:
-            if len(platformio_ini.read(self.path.joinpath('platformio.ini'))) == 0:
-                raise FileNotFoundError("not found: 'platformio.ini' file")
+            platformio_ini = self.platformio_ini_config
         except FileNotFoundError as e:
-            raise e
+            raise Exception("Cannot determine is project patched: 'platformio.ini' file not found") from e
         except Exception as e:
-            # Re-raise parsing exceptions as ValueError
-            raise ValueError("'platformio.ini' file is incorrect") from e
+            raise Exception("Cannot determine is project patched: 'platformio.ini' file is incorrect") from e
 
         patch_config = configparser.ConfigParser(interpolation=None)
         try:
             patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
         except Exception as e:
-            raise ValueError("Desired patch content is invalid (should satisfy INI-format requirements)") from e
+            raise Exception("Cannot determine is project patched: desired patch content is invalid (should satisfy "
+                            "INI-format requirements)") from e
 
         for patch_section in patch_config.sections():
             if platformio_ini.has_section(patch_section):

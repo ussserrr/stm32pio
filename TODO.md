@@ -6,13 +6,14 @@
  - [ ] GUI. Tests (research approaches and patterns)
  - [ ] GUI. Reduce number of calls to 'state' (many IO operations)
  - [ ] GUI. Drag and drop the new folder into the app window
+ - [ ] GUI. Implement some other methods for Qt abstract models
  - [ ] VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
  - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list
  - [x] Ask the confirmation of a user by-defualt for `clean` and add additional option for quiet performance
  - [ ] check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI)
- - [ ] exclude tests from the bundle (see `setup.py` options)
+ - [x] exclude tests from the bundle (see `setup.py` options)
  - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding). Can be uploaded to the GitHub Wiki
  - [ ] colored logs, maybe...
  - [ ] if we require `platformio` package as a dependency we probably can rely on its dependencies too
@@ -20,15 +21,15 @@
  - [ ] merge subprocess pipes to one where suitable (i.e. `stdout` and `stderr`)
  - [ ] redirect subprocess pipes to `DEVNULL` where suitable to suppress output
  - [ ] some `stm32pio.ini` config file validation
- - [ ] CHANGELOG markdown markup
+ - [x] CHANGELOG markdown markup
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
  - [x] `shlex` for `start_editor` command option sanitizing
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature). Also, maybe move `save_on_desctruction` parameter there. Maybe separate on `project_params` and `instance_opts`
  - [ ] General algo of merging a given dict of parameters with the saved one on project initialization
- - [ ] parse `platformio.ini` to check its correctness in state getter
+ - [x] parse `platformio.ini` to check its correctness in state getter
  - [ ] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), probably should somehow analyze the output (logs can be parsed. i.e. 2020-03-05 12:08:40,765 \[ERROR\] MainProjectManager:806 - Program Manager : The version of the current IOC is too high.)
- - [ ] Dispatch tests on several files (too many code actually)
- - [ ] Do not store absolute paths in config file and make a project portable (use configparser parameters interpolation). Handle renaming
+ - [x] Dispatch tests on several files (too many code actually)
+ - [x] Do not store absolute paths in config file and make a project portable (use configparser parameters interpolation). Handle renaming
  - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe replace current scheme
  - [ ] UML diagrams (core, GUI back- and front-ends)
  - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker in Azure Pipelines, basic at Travis CI
@@ -36,3 +37,4 @@
  - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
  - [ ] Mb clean the test project tree before running the tests
  - [x] README table of contents
+ - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't need to turn on verbose mode)
