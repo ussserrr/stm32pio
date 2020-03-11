@@ -483,7 +483,7 @@ if __name__ == '__main__':
 
     def loading():
         global boards
-        boards = ['None'] + stm32pio.util.get_platformio_boards()
+        boards = ['None'] + stm32pio.util.get_platformio_boards('platformio')
 
     def on_loading(_, success):
         # TODO: somehow handle an initialization error

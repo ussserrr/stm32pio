@@ -48,9 +48,6 @@ setuptools.setup(
     setup_requires=[
         'wheel'
     ],
-    install_requires=[
-        'platformio'
-    ],
     include_package_data=True,
     entry_points={
         'console_scripts': [

@@ -82,12 +82,13 @@ class TestCLI(CustomTestCase):
         """
         We should see an error log message and non-zero return code
         """
-        path_not_exist = pathlib.Path('path/does/not/exist')
+        path_not_exist = pathlib.Path('path_some_uniq_name/does/not/exist')
 
         with self.assertLogs(level='ERROR') as logs:
             return_code = stm32pio.app.main(sys_argv=['init', '-d', str(path_not_exist)])
             self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
-            self.assertTrue(next((True for message in logs.output if "No such file or directory" in message), False),
+            # Actual text may vary and depends on OS and system language
+            self.assertTrue(next((True for message in logs.output if 'path_some_uniq_name' in message.lower()), False),
                             msg="'ERROR' logging message hasn't been printed")
 
     def test_no_ioc_file_should_log_error(self):

@@ -2,12 +2,12 @@
 Some auxiliary entities not falling into other categories
 """
 
+import json
 import logging
 import os
+import subprocess
 import threading
 from typing import List
-
-from platformio.managers.platform import PlatformManager
 
 
 module_logger = logging.getLogger(__name__)
@@ -127,14 +127,17 @@ class LogPipe(threading.Thread):
 
 
 
-def get_platformio_boards() -> List[str]:
+def get_platformio_boards(platformio_cmd) -> List[str]:
     """
-    Use PlatformIO Python sources to obtain the boards list. As we interested only in STM32 ones, cut off all the
-    others.
+    Obtain the PlatformIO boards list. As we interested only in STM32 ones, cut off all the others.
 
     IMPORTANT NOTE: The inner implementation can go to the Internet from time to time when it decides that its cache is
     out of date. So it can take a long time to execute.
     """
 
-    pm = PlatformManager()
-    return [board['id'] for board in pm.get_all_boards() if 'stm32cube' in board['frameworks']]
+    # Windows 7, as usual, correctly works only with shell=True...
+    result = subprocess.run(f"{platformio_cmd} boards --json-output stm32cube",
+                            encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
+
+    boards = json.loads(result.stdout)
+    return [board['id'] for board in boards]

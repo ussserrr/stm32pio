@@ -172,7 +172,13 @@ class Stm32pio:
         # General rule: given parameter takes precedence over the saved one
         board = ''
         if 'board' in parameters and parameters['board'] is not None:
-            if parameters['board'] in stm32pio.util.get_platformio_boards():
+            try:
+                boards = stm32pio.util.get_platformio_boards(self.config.get('app', 'platformio_cmd'))
+            except Exception as e:
+                self.logger.warning(f"There was an error while obtaining possible PlatformIO boards: {e}",
+                                    exc_info=self.logger.isEnabledFor(logging.DEBUG))
+                boards = []
+            if parameters['board'] in boards:
                 board = parameters['board']
             else:
                 self.logger.warning(f"'{parameters['board']}' was not found in PlatformIO. "
@@ -578,6 +584,7 @@ class Stm32pio:
 
         with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log:
             result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
+
         if result.returncode == 0:
             self.logger.info("successful PlatformIO build")
         else:

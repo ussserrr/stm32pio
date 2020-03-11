@@ -207,7 +207,6 @@ class TestUnit(CustomTestCase):
 
     def test_get_platformio_boards(self):
         """
-        PlatformIO identifiers of boards are requested using PlatformIO Python API (not sure it can be called public,
-        though...)
+        PlatformIO identifiers of boards are requested using PlatformIO CLI in JSON format
         """
-        self.assertIsInstance(stm32pio.util.get_platformio_boards(), list)
+        self.assertIsInstance(stm32pio.util.get_platformio_boards(platformio_cmd='platformio'), list)

@@ -31,7 +31,6 @@ It uses STM32CubeMX to generate a HAL-framework-based code and alongside creates
 ## Requirements:
   - For this app:
     - Python 3.6 and above
-    - `platformio`
   - For usage:
     - macOS, Linux, Windows
     - STM32CubeMX with desired downloaded frameworks (F0, F1, etc.)

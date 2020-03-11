@@ -165,5 +165,5 @@ def main(sys_argv=None) -> int:
 
 
 if __name__ == '__main__':
-    sys.path.insert(0, str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python3 app.py'
+    # sys.path.append(str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python3 app.py'
     sys.exit(main())

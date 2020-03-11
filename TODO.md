@@ -16,7 +16,6 @@
  - [x] exclude tests from the bundle (see `setup.py` options)
  - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding). Can be uploaded to the GitHub Wiki
  - [ ] colored logs, maybe...
- - [ ] if we require `platformio` package as a dependency we probably can rely on its dependencies too
  - [ ] check logging work when embed stm32pio lib in third-party stuff (no logging setup at all)
  - [ ] merge subprocess pipes to one where suitable (i.e. `stdout` and `stderr`)
  - [ ] redirect subprocess pipes to `DEVNULL` where suitable to suppress output
@@ -30,7 +29,7 @@
  - [x] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), probably should somehow analyze the output (logs can be parsed. i.e. 2020-03-05 12:08:40,765 \[ERROR\] MainProjectManager:806 - Program Manager : The version of the current IOC is too high.)
  - [x] Dispatch tests on several files (too many code actually)
  - [x] Do not store absolute paths in config file and make a project portable (use configparser parameters interpolation). Handle renaming
- - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe remade current logging schema
+ - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe remade current logging schema (current is, perhaps, a cause of the strange error while testing (in the logging thread))
  - [ ] UML diagrams (core, GUI back- and front-ends)
  - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker in Azure Pipelines, basic at Travis CI
  - [ ] Test preserving user files and folders on regeneration and mb other operations
@@ -40,4 +39,4 @@
  - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't need to turn on verbose mode)
  - [ ] 'verbose' and 'non-verbose' tests as `subTest` (also 'should_log_error_...')
  - [ ] turn off all possible dialogs in STM32CubeMX
- - [ ] invoke PlatformIO as a library (get rid of subprocess for pio entirely)
+ - [ ] test (at least manually) when the tools are not present
