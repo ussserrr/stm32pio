@@ -138,7 +138,7 @@ class ProjectListItem(QObject):
                     'logger': self.logger
                 }
             elif 'logger' not in project_kwargs['instance_options']:
-                    project_kwargs['instance_options']['logger'] = self.logger
+                project_kwargs['instance_options']['logger'] = self.logger
 
             # Start the Stm32pio part initialization right after. It can take some time so we schedule it in a dedicated
             # thread
@@ -155,7 +155,7 @@ class ProjectListItem(QObject):
             **kwargs: keyword arguments of the Stm32pio constructor
         """
         try:
-            self.project = stm32pio.lib.Stm32pio(*args, **kwargs)  # our slightly tweaked subclass
+            self.project = stm32pio.lib.Stm32pio(*args, **kwargs)
         except Exception as e:
             # Error during the initialization
             self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
@@ -318,7 +318,7 @@ class ProjectsList(QAbstractListModel):
             path: QUrl path to the project folder (absolute by default)
         """
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
-        project = ProjectListItem(project_args=[path.toLocalFile()], project_kwargs=dict(instance_options={'save_on_destruction': False}), parent=self)
+        project = ProjectListItem(project_args=[path.toLocalFile()], parent=self)
         self.projects.append(project)
 
         settings.beginGroup('app')

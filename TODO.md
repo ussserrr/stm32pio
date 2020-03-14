@@ -11,17 +11,16 @@
  - [ ] GUI. On 'Clean' clean the log too
  - [ ] Create VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
- - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
+ - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
  - [ ] Store a folder initial content in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion)
  - [x] Ask the confirmation of a user by-defualt for `clean` and add additional option for quiet performance
  - [ ] at some point check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI) (global `--check` command (as `--version`))
  - [x] exclude tests from the bundle (see `setup.py` options)
  - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding). Can be uploaded to the GitHub Wiki
  - [ ] colored logs, maybe...
- - [ ] check logging work when embed stm32pio lib in third-party stuff (no logging setup at all)
+ - [ ] check logging work when embed stm32pio lib in a third-party stuff (no logging setup at all)
  - [ ] merge subprocess pipes to one where suitable (i.e. `stdout` and `stderr`)
  - [ ] redirect subprocess pipes to `DEVNULL` where suitable to suppress output
- - [ ] some `stm32pio.ini` config file validation
  - [x] CHANGELOG markdown markup
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
  - [x] `shlex` for `start_editor` command option sanitizing
@@ -43,4 +42,4 @@
  - [ ] 'verbose' and 'non-verbose' tests as `subTest` (also 'should_log_error_...')
  - [ ] turn off all possible dialogs in STM32CubeMX
  - [ ] test (at least manually) when the tools are not present
- - [ ] minimal example of the lib usage for the README
+ - [x] minimal example of the lib usage for the README

@@ -154,9 +154,9 @@ class Stm32pio:
         if parameters is None:
             parameters = {}
 
-        if instance_options is None:  # TODO: use Python 3.8 feature - dict schemas
+        if instance_options is None:  # TODO: use Python 3.8 TypedDict
             instance_options = {
-                'save_on_destruction': True,
+                'save_on_destruction': False,
                 'logger': None
             }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__version__ = '1.0'
+__version__ = '1.10'
 
 import argparse
 import logging
@@ -108,7 +108,8 @@ def main(sys_argv=None) -> int:
     # Main routine
     try:
         if args.subcommand == 'init':
-            project = stm32pio.lib.Stm32pio(args.project_path, parameters={'project': {'board': args.board}})
+            project = stm32pio.lib.Stm32pio(args.project_path, parameters={'project': {'board': args.board}},
+                                            instance_options={'save_on_destruction': True})
             if not args.board:
                 logger.warning("STM32 PlatformIO board is not specified, it will be needed on PlatformIO project "
                                "creation")
@@ -117,7 +118,8 @@ def main(sys_argv=None) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'new':
-            project = stm32pio.lib.Stm32pio(args.project_path, parameters={'project': {'board': args.board}})
+            project = stm32pio.lib.Stm32pio(args.project_path, parameters={'project': {'board': args.board}},
+                                            instance_options={'save_on_destruction': True})
             if project.config.get('project', 'board') == '':
                 raise Exception("STM32 PlatformIO board is not specified, it is needed for PlatformIO project creation")
             project.generate_code()
@@ -129,7 +131,7 @@ def main(sys_argv=None) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'generate':
-            project = stm32pio.lib.Stm32pio(args.project_path, instance_options={'save_on_destruction': False})
+            project = stm32pio.lib.Stm32pio(args.project_path)
             project.generate_code()
             if args.with_build:
                 project.build()
@@ -137,11 +139,11 @@ def main(sys_argv=None) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'status':
-            project = stm32pio.lib.Stm32pio(args.project_path, instance_options={'save_on_destruction': False})
+            project = stm32pio.lib.Stm32pio(args.project_path)
             print(project.state)
 
         elif args.subcommand == 'clean':
-            project = stm32pio.lib.Stm32pio(args.project_path, instance_options={'save_on_destruction': False})
+            project = stm32pio.lib.Stm32pio(args.project_path)
             if args.quiet:
                 project.clean()
             else:
