@@ -10,6 +10,7 @@ import stm32pio.app
 import stm32pio.lib
 import stm32pio.settings
 
+# Provides test constants
 from tests.test import *
 
 
@@ -86,8 +87,8 @@ class TestCLI(CustomTestCase):
 
         with self.assertLogs(level='ERROR') as logs:
             return_code = stm32pio.app.main(sys_argv=['init', '-d', str(path_not_exist)])
-            self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
-            # Actual text may vary and depends on OS and system language
+            self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
+            # Actual text may vary and depends on OS and system language so we check only for a part of path string
             self.assertTrue(next((True for message in logs.output if 'path_some_uniq_name' in message.lower()), False),
                             msg="'ERROR' logging message hasn't been printed")
 
@@ -100,19 +101,20 @@ class TestCLI(CustomTestCase):
 
         with self.assertLogs(level='ERROR') as logs:
             return_code = stm32pio.app.main(sys_argv=['init', '-d', str(dir_with_no_ioc_file)])
-            self.assertNotEqual(return_code, 0, msg='Return code should be non-zero')
-            self.assertTrue(next((True for message in logs.output if "CubeMX project .ioc file" in message), False),
+            self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
+            self.assertTrue(next((True for message in logs.output if FileNotFoundError.__name__ in message), False),
                             msg="'ERROR' logging message hasn't been printed")
 
     def test_verbose(self):
         """
-        Run as subprocess to capture the full output. Check for both 'DEBUG' logging messages and STM32CubeMX CLI
-        output. Verbose logs format should match such a regex:
+        Capture the full output. Check for both 'DEBUG' logging messages and STM32CubeMX CLI output. Verbose logs format
+        should match such a regex:
 
             ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} (?=(build|pio_init|...) {0,26})(?=.{26} [^ ]))
         """
 
-        # inspect.getmembers is great but it triggers class properties leading to the unacceptable code execution
+        # inspect.getmembers() is great but it triggers class properties to execute leading to the unwanted code
+        # execution
         methods = dir(stm32pio.lib.Stm32pio) + ['main']
 
         buffer_stdout, buffer_stderr = io.StringIO(), io.StringIO()
@@ -123,7 +125,7 @@ class TestCLI(CustomTestCase):
         # stderr and not stdout contains the actual output (by default for the logging module)
         self.assertEqual(len(buffer_stdout.getvalue()), 0,
                          msg="Process has printed something directly into STDOUT bypassing logging")
-        self.assertIn('DEBUG', buffer_stderr.getvalue(), msg="Verbose logging output hasn't been enabled on stderr")
+        self.assertIn('DEBUG', buffer_stderr.getvalue(), msg="Verbose logging output hasn't been enabled on STDERR")
 
         # Inject all methods' names in the regex. Inject the width of field in a log format string
         regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" + '|'.join(methods) + ") {0," +
@@ -132,12 +134,13 @@ class TestCLI(CustomTestCase):
         self.assertGreaterEqual(len(re.findall(regex, buffer_stderr.getvalue())), 1,
                                 msg="Logs messages doesn't match the format")
 
-        self.assertIn('Starting STM32CubeMX', buffer_stderr.getvalue(), msg="STM32CubeMX has not printed its logs")
+        # The snippet of the actual STM32CubeMX output
+        self.assertIn("Starting STM32CubeMX", buffer_stderr.getvalue(), msg="STM32CubeMX has not printed its logs")
 
     def test_non_verbose(self):
         """
-        Run as subprocess to capture the full output. We should not see any 'DEBUG' logging messages or STM32CubeMX CLI
-        output. Logs format should match such a regex:
+        Capture the full output. We should not see any 'DEBUG' logging messages or STM32CubeMX CLI output. Logs format
+        should match such a regex:
 
             ^(?=(INFO) {0,4})(?=.{8} ((?!( |build|pio_init|...))))
         """
@@ -158,6 +161,7 @@ class TestCLI(CustomTestCase):
         self.assertGreaterEqual(len(re.findall(regex, buffer_stderr.getvalue())), 1,
                                 msg="Logs messages doesn't match the format")
 
+        # The snippet of the actual STM32CubeMX output
         self.assertNotIn('Starting STM32CubeMX', buffer_stderr.getvalue(), msg="STM32CubeMX has printed its logs")
 
     def test_init(self):

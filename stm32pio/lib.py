@@ -140,23 +140,30 @@ class Stm32pio:
     of the project directory except the main .ioc file.
 
     Args:
-        dirty_path (str): path to the project
-        parameters (dict): additional parameters to set on initialization stage
-        save_on_destruction (bool): register or not the finalizer that saves the config to file
-        logger (logging.Logger): if an external logger is given, it will be used, otherwise the new one will be created
-                                 (unique for every instance)
+        dirty_path (str): path to the project (required)
+        parameters (dict): additional parameters to set on initialization stage (format is same as for project' config
+                           configparser.ConfigParser (see settings.py), values are merging)
+        instance_options (dict): some parameters, related more to the instance itself than to the project:
+            save_on_destruction (bool=True): register or not the finalizer that saves the config to file
+            logger (logging.Logger=None): if an external logger is given, it will be used, otherwise the new one will be created
+                                          (unique for every instance)
     """
 
-    def __init__(self, dirty_path: str, parameters: dict = None, save_on_destruction: bool = True,
-                 logger: logging.Logger = None):
+    def __init__(self, dirty_path: str, parameters: dict = None, instance_options: dict = None):
 
         if parameters is None:
             parameters = {}
 
+        if instance_options is None:  # TODO: use Python 3.8 feature - dict schemas
+            instance_options = {
+                'save_on_destruction': True,
+                'logger': None
+            }
+
         # The individual loggers for every single project allow to fine-tune the output when multiple projects are
         # created by the third-party code.
-        if logger is not None:
-            self.logger = logger
+        if 'logger' in instance_options and instance_options['logger'] is not None:
+            self.logger = instance_options['logger']
         else:
             self.logger = logging.getLogger(f"{__name__}.{id(self)}")  # use id() as uniqueness guarantee
 
@@ -164,13 +171,11 @@ class Stm32pio:
         # make the path absolute and check for existence
         self.path = pathlib.Path(dirty_path).expanduser().resolve(strict=True)
 
-        self.config = self._load_config()
+        self.config = self._load_config(parameters)
 
         self.ioc_file = self._find_ioc_file()
         self.config.set('project', 'ioc_file', self.ioc_file.name)
 
-        # General rule: given parameter takes precedence over the saved one
-        board = ''
         if 'board' in parameters and parameters['board'] is not None:
             try:
                 boards = stm32pio.util.get_platformio_boards(self.config.get('app', 'platformio_cmd'))
@@ -178,16 +183,11 @@ class Stm32pio:
                 self.logger.warning(f"There was an error while obtaining possible PlatformIO boards: {e}",
                                     exc_info=self.logger.isEnabledFor(logging.DEBUG))
                 boards = []
-            if parameters['board'] in boards:
-                board = parameters['board']
-            else:
+            if parameters['board'] not in boards:
                 self.logger.warning(f"'{parameters['board']}' was not found in PlatformIO. "
                                     "Run 'platformio boards' for possible names")
-            self.config.set('project', 'board', board)
-        elif self.config.get('project', 'board', fallback=None) is None:
-            self.config.set('project', 'board', board)
 
-        if save_on_destruction:
+        if 'save_on_destruction' in instance_options and instance_options['save_on_destruction']:
             # Save the config on an instance destruction
             self._finalizer = weakref.finalize(self, self._save_config, self.config, self.path, self.logger)
 
@@ -202,7 +202,7 @@ class Stm32pio:
         Constructing and returning the current state of the project (tweaked dict, see ProjectState docs)
         """
 
-        self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
+        # self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
 
         pio_is_initialized = False
         with contextlib.suppress(Exception):  # we just want to know the information and don't care about details
@@ -248,20 +248,16 @@ class Stm32pio:
             absolute path to the .ioc file
         """
 
-        error_message = "not found: CubeMX project .ioc file"
-
         ioc_file = self.config.get('project', 'ioc_file', fallback=None)
         if ioc_file:
-            ioc_file = self.path.joinpath(ioc_file)
+            ioc_file = self.path.joinpath(ioc_file).resolve(strict=True)
             self.logger.debug(f"using '{ioc_file.name}' file from the INI config")
-            if not ioc_file.is_file():
-                raise FileNotFoundError(error_message)
             return ioc_file
         else:
             self.logger.debug("searching for any .ioc file...")
             candidates = list(self.path.glob('*.ioc'))
             if len(candidates) == 0:  # TODO: good candidate for the new Python 3.8 assignment expression feature :)
-                raise FileNotFoundError(error_message)
+                raise FileNotFoundError("CubeMX project .ioc file")
             elif len(candidates) == 1:
                 self.logger.debug(f"{candidates[0].name} is selected")
                 return candidates[0]
@@ -270,24 +266,32 @@ class Stm32pio:
                 return candidates[0]
 
 
-    def _load_config(self) -> configparser.ConfigParser:
+    def _load_config(self, runtime_parameters: dict = None) -> configparser.ConfigParser:
         """
-        Prepare ConfigParser config for the project. First, read the default config and then mask these values with user
-        ones.
+        Prepare ConfigParser config for the project. Order of getting values (masking) (higher levels overwrites lower):
+
+            default dict (settings module)  =>  config file stm32pio.ini  =>  user-given (runtime) values
+                                                                              (via CLI or another way)
 
         Returns:
             new configparser.ConfigParser instance
         """
 
-        self.logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
+        if runtime_parameters is None:
+            runtime_parameters = {}
 
         config = configparser.ConfigParser(interpolation=None)
 
-        # Fill with default values
+        # Fill with default values ...
         config.read_dict(copy.deepcopy(stm32pio.settings.config_default))
-        # Then override by user values (if exist)
+
+        # ... then merge with user's config file values (if exist) ...
+        self.logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
         if len(config.read(str(self.path.joinpath(stm32pio.settings.config_file_name)))) == 0:
             self.logger.debug(f"no or empty {stm32pio.settings.config_file_name} config file, will use the default one")
+
+        # ... finally merge with the given in this session CLI parameters
+        config.read_dict(runtime_parameters)
 
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
         # propagation of this message
@@ -317,7 +321,7 @@ class Stm32pio:
         try:
             with path.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
                 config.write(config_file)
-            logger.debug("stm32pio.ini config file has been saved")
+            logger.debug(f"{stm32pio.settings.config_file_name} config file has been saved")
             return 0
         except Exception as e:
             logger.warning(f"cannot save the config: {e}", exc_info=logger.isEnabledFor(logging.DEBUG))
@@ -336,12 +340,13 @@ class Stm32pio:
             }
 
         Returns:
-            passes forward _save_config result
+            passes forward the _save_config() result
         """
-        if parameters is not None:
-            for section_name, section_value in parameters.items():
-                for key, value in section_value.items():
-                    self.config.set(section_name, key, value)
+
+        if parameters is None:
+            parameters = {}
+
+        self.config.read_dict(parameters)
         return self._save_config(self.config, self.path, self.logger)
 
 
@@ -525,14 +530,14 @@ class Stm32pio:
         try:
             shutil.rmtree(self.path.joinpath('include'))
             self.logger.debug("'include' folder has been removed")
-        except:
+        except Exception:
             self.logger.info("cannot delete 'include' folder", exc_info=self.logger.isEnabledFor(logging.DEBUG))
         # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
         if not self.path.joinpath('SRC').is_dir():
             try:
                 shutil.rmtree(self.path.joinpath('src'))
                 self.logger.debug("'src' folder has been removed")
-            except:
+            except Exception:
                 self.logger.info("cannot delete 'src' folder", exc_info=self.logger.isEnabledFor(logging.DEBUG))
 
         self.logger.info("project has been patched")
@@ -582,8 +587,8 @@ class Stm32pio:
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
-        with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log:
-            result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
+        with stm32pio.util.LogPipe(self.logger, logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING) as log:
+            result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)  # TODO: stderr is hidden
 
         if result.returncode == 0:
             self.logger.info("successful PlatformIO build")

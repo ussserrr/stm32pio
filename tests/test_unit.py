@@ -1,6 +1,5 @@
 import configparser
 import inspect
-import pathlib
 import platform
 import subprocess
 import time
@@ -9,6 +8,7 @@ import stm32pio.lib
 import stm32pio.settings
 import stm32pio.util
 
+# Provides test constants
 from tests.test import *
 
 
@@ -23,8 +23,8 @@ class TestUnit(CustomTestCase):
         """
         Check whether files and folders have been created (by STM32CubeMX)
         """
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
-                                        save_on_destruction=False)
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}},
+                                        instance_options={'save_on_destruction': False})
         project.generate_code()
 
         # Assuming that the presence of these files indicating a success
@@ -39,8 +39,8 @@ class TestUnit(CustomTestCase):
         last one has another traces that can be checked too but we are interested only in a 'platformio.ini' anyway.
         Also, check that it is a correct configparser file and is not empty
         """
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
-                                        save_on_destruction=False)
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}},
+                                        instance_options={'save_on_destruction': False})
         result = project.pio_init()
 
         self.assertEqual(result, 0, msg="Non-zero return code")
@@ -55,7 +55,7 @@ class TestUnit(CustomTestCase):
         Check that new parameters were added, modified were updated and existing parameters didn't gone. Also, check for
         unnecessary folders deletion
         """
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, instance_options={'save_on_destruction': False})
 
         test_content = inspect.cleandoc('''
             ; This is a test config .ini file
@@ -108,8 +108,8 @@ class TestUnit(CustomTestCase):
         """
         Build an empty project so PlatformIO should return an error
         """
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
-                                        save_on_destruction=False)
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}},
+                                        instance_options={'save_on_destruction': False})
         project.pio_init()
 
         with self.assertLogs(level='ERROR') as logs:
@@ -120,9 +120,9 @@ class TestUnit(CustomTestCase):
 
     def test_start_editor(self):
         """
-        Call the editors
+        Call the editors. Use subprocess shell=True as it works on all OSes
         """
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, save_on_destruction=False)
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, instance_options={'save_on_destruction': False})
 
         editors = {
             'atom': {
@@ -178,7 +178,7 @@ class TestUnit(CustomTestCase):
         path_does_not_exist = FIXTURE_PATH.joinpath(path_does_not_exist_name)
         with self.assertRaisesRegex(FileNotFoundError, path_does_not_exist_name,
                                     msg="FileNotFoundError was not raised or doesn't contain a description"):
-            stm32pio.lib.Stm32pio(path_does_not_exist, save_on_destruction=False)
+            stm32pio.lib.Stm32pio(path_does_not_exist, instance_options={'save_on_destruction': False})
 
     def test_save_config(self):
         """
@@ -186,8 +186,8 @@ class TestUnit(CustomTestCase):
         preserved
         """
         # 'board' is non-default, 'project'-section parameter
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'board': TEST_PROJECT_BOARD},
-                                        save_on_destruction=False)
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}},
+                                        instance_options={'save_on_destruction': False})
         project.save_config()
 
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),

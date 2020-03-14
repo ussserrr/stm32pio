@@ -107,6 +107,11 @@ class ProjectListItem(QObject):
     def __init__(self, project_args: list = None, project_kwargs: dict = None, parent: QObject = None):
         super().__init__(parent=parent)
 
+        if project_args is None:
+            project_args = []
+        if project_kwargs is None:
+            project_kwargs = {}
+
         self.logger = logging.getLogger(f"{stm32pio.lib.__name__}.{id(self)}")
         self.logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
         self.logging_worker = LoggingWorker(self.logger)
@@ -128,8 +133,12 @@ class ProjectListItem(QObject):
         self._finalizer = weakref.finalize(self, self.at_exit)  # register some kind of deconstruction handler
 
         if project_args is not None:
-            if 'logger' not in project_kwargs:
-                project_kwargs['logger'] = self.logger
+            if 'instance_options' not in project_kwargs:
+                project_kwargs['instance_options'] = {
+                    'logger': self.logger
+                }
+            elif 'logger' not in project_kwargs['instance_options']:
+                    project_kwargs['instance_options']['logger'] = self.logger
 
             # Start the Stm32pio part initialization right after. It can take some time so we schedule it in a dedicated
             # thread
@@ -309,7 +318,7 @@ class ProjectsList(QAbstractListModel):
             path: QUrl path to the project folder (absolute by default)
         """
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
-        project = ProjectListItem(project_args=[path.toLocalFile()], project_kwargs=dict(save_on_destruction=False), parent=self)
+        project = ProjectListItem(project_args=[path.toLocalFile()], project_kwargs=dict(instance_options={'save_on_destruction': False}), parent=self)
         self.projects.append(project)
 
         settings.beginGroup('app')
@@ -488,8 +497,13 @@ if __name__ == '__main__':
     def on_loading(_, success):
         # TODO: somehow handle an initialization error
         boards_model.setStringList(boards)
-        projects = [ProjectListItem(project_args=[path], project_kwargs=dict(save_on_destruction=False), parent=projects_model)
-                    for path in projects_paths]
+        projects = [ProjectListItem(
+            project_args=[path],
+            project_kwargs=dict(
+                instance_options={'save_on_destruction': False}
+            ),
+            parent=projects_model
+        ) for path in projects_paths]
         for p in projects:
             projects_model.addProject(p)
         main_window.backendLoaded.emit()  # inform the GUI

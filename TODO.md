@@ -7,12 +7,14 @@
  - [ ] GUI. Reduce number of calls to 'state' (many IO operations)
  - [ ] GUI. Drag and drop the new folder into the app window
  - [ ] GUI. Implement some other methods for Qt abstract models
- - [ ] VSCode plugin
+ - [ ] GUI. Warning on 'Clean' action
+ - [ ] GUI. On 'Clean' clean the log too
+ - [ ] Create VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably
- - [ ] Store an initial folder content in .ini config and ignore it on clean-up process. Allow the user to modify such list
+ - [ ] Store a folder initial content in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion)
  - [x] Ask the confirmation of a user by-defualt for `clean` and add additional option for quiet performance
- - [ ] check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI)
+ - [ ] at some point check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI) (global `--check` command (as `--version`))
  - [x] exclude tests from the bundle (see `setup.py` options)
  - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding). Can be uploaded to the GitHub Wiki
  - [ ] colored logs, maybe...
@@ -23,8 +25,9 @@
  - [x] CHANGELOG markdown markup
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
  - [x] `shlex` for `start_editor` command option sanitizing
- - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature). Also, maybe move `save_on_desctruction` parameter there. Maybe separate on `project_params` and `instance_opts`
- - [ ] General algo of merging a given dict of parameters with the saved one on project initialization
+ - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
+ - [x] Maybe separate on `project_params` and `instance_opts`
+ - [x] General algo of merging a given dict of parameters with the saved one on project initialization
  - [x] parse `platformio.ini` to check its correctness in state getter
  - [x] CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), probably should somehow analyze the output (logs can be parsed. i.e. 2020-03-05 12:08:40,765 \[ERROR\] MainProjectManager:806 - Program Manager : The version of the current IOC is too high.)
  - [x] Dispatch tests on several files (too many code actually)
@@ -36,7 +39,8 @@
  - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
  - [x] Mb clean the test project tree before running the tests
  - [x] README table of contents
- - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't need to turn on verbose mode)
+ - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode). And, in general, we should show the error reason right off
  - [ ] 'verbose' and 'non-verbose' tests as `subTest` (also 'should_log_error_...')
  - [ ] turn off all possible dialogs in STM32CubeMX
  - [ ] test (at least manually) when the tools are not present
+ - [ ] minimal example of the lib usage for the README

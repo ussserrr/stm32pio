@@ -7,6 +7,7 @@ import argparse
 import logging
 import pathlib
 import sys
+import traceback
 from typing import Optional
 
 
@@ -27,7 +28,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
                                                  "and other tools (if defaults doesn't work for you)")
     # Global arguments (there is also an automatically added '-h, --help' option)
     parser.add_argument('--version', action='version', version=f"stm32pio v{__version__}")
-    parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', required=False)
+    parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count')
 
     subparsers = parser.add_subparsers(dest='subcommand', title='subcommands', description="valid subcommands",
                                        help="modes of operation")
@@ -42,17 +43,17 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
 
     # Common subparsers options
     for p in [parser_init, parser_new, parser_generate, parser_status, parser_clean]:
-        p.add_argument('-d', '--directory', dest='project_path', default=pathlib.Path.cwd(), required=False,
+        p.add_argument('-d', '--directory', dest='project_path', default=pathlib.Path.cwd(),
                        help="path to the project (current directory, if not given)")
     for p in [parser_init, parser_new]:
-        p.add_argument('-b', '--board', dest='board', required=False, help="PlatformIO name of the board")
+        p.add_argument('-b', '--board', dest='board', default='', help="PlatformIO name of the board")
     for p in [parser_init, parser_new, parser_generate]:
-        p.add_argument('--start-editor', dest='editor', required=False,
+        p.add_argument('--start-editor', dest='editor',
                        help="use specified editor to open the PlatformIO project (e.g. subl, code, atom, etc.)")
     for p in [parser_new, parser_generate]:
-        p.add_argument('--with-build', action='store_true', required=False, help="build the project after generation")
+        p.add_argument('--with-build', action='store_true', help="build the project after generation")
 
-    parser_clean.add_argument('-q', '--quiet', action='store_true', required=False,
+    parser_clean.add_argument('-q', '--quiet', action='store_true',
                               help="suppress the caution about the content removal")
 
     if len(args) == 0:
@@ -101,15 +102,13 @@ def main(sys_argv=None) -> int:
         handler.setFormatter(stm32pio.util.DispatchingFormatter("%(levelname)-8s %(message)s",
                                                                 special=stm32pio.util.special_formatters))
     else:
-        logger.setLevel(logging.INFO)
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        logger.info("\nNo arguments were given, exiting...")
+        print("\nNo arguments were given, exiting...")
         return 0
 
     # Main routine
     try:
         if args.subcommand == 'init':
-            project = stm32pio.lib.Stm32pio(args.project_path, parameters={'board': args.board})
+            project = stm32pio.lib.Stm32pio(args.project_path, parameters={'project': {'board': args.board}})
             if not args.board:
                 logger.warning("STM32 PlatformIO board is not specified, it will be needed on PlatformIO project "
                                "creation")
@@ -118,7 +117,7 @@ def main(sys_argv=None) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'new':
-            project = stm32pio.lib.Stm32pio(args.project_path, parameters={'board': args.board})
+            project = stm32pio.lib.Stm32pio(args.project_path, parameters={'project': {'board': args.board}})
             if project.config.get('project', 'board') == '':
                 raise Exception("STM32 PlatformIO board is not specified, it is needed for PlatformIO project creation")
             project.generate_code()
@@ -130,7 +129,7 @@ def main(sys_argv=None) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'generate':
-            project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
+            project = stm32pio.lib.Stm32pio(args.project_path, instance_options={'save_on_destruction': False})
             project.generate_code()
             if args.with_build:
                 project.build()
@@ -138,11 +137,11 @@ def main(sys_argv=None) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'status':
-            project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
+            project = stm32pio.lib.Stm32pio(args.project_path, instance_options={'save_on_destruction': False})
             print(project.state)
 
         elif args.subcommand == 'clean':
-            project = stm32pio.lib.Stm32pio(args.project_path, save_on_destruction=False)
+            project = stm32pio.lib.Stm32pio(args.project_path, instance_options={'save_on_destruction': False})
             if args.quiet:
                 project.clean()
             else:
@@ -157,13 +156,15 @@ def main(sys_argv=None) -> int:
                         break
 
     # Library is designed to throw the exception in bad cases so we catch here globally
-    except Exception as e:
-        logger.exception(e, exc_info=logger.isEnabledFor(logging.DEBUG))
+    except Exception:
+        # ExceptionName: message
+        logger.exception(traceback.format_exception_only(*(sys.exc_info()[:2]))[-1],
+                         exc_info=logger.isEnabledFor(logging.DEBUG))
         return -1
 
     return 0
 
 
 if __name__ == '__main__':
-    # sys.path.append(str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python3 app.py'
+    sys.path.append(str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python3 app.py'
     sys.exit(main())

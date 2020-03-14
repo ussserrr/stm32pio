@@ -44,7 +44,11 @@ config_default = collections.OrderedDict(
             [platformio]
             include_dir = Inc
             src_dir = Src
-        ''') + '\n'
+        ''') + '\n',
+
+        # Runtime-determined values
+        'board': '',
+        'ioc_file': ''  # required
     }
 )
 
