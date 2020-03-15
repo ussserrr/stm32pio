@@ -38,8 +38,8 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
     parser_status = subparsers.add_parser('status', help="get the description of the current project state")
-    parser_clean = subparsers.add_parser('clean', help="clean-up the project (WARNING: it deletes ALL content of "
-                                                       "'path' except the .ioc file)")
+    parser_clean = subparsers.add_parser('clean', help="clean-up the project (delete ALL content of 'path' "
+                                                       "except the .ioc file)")
 
     # Common subparsers options
     for p in [parser_init, parser_new, parser_generate, parser_status, parser_clean]:
@@ -54,7 +54,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
         p.add_argument('--with-build', action='store_true', help="build the project after generation")
 
     parser_clean.add_argument('-q', '--quiet', action='store_true',
-                              help="suppress the caution about the content removal")
+                              help="suppress the caution about the content removal (be sure of what you are doing!)")
 
     if len(args) == 0:
         parser.print_help()

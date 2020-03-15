@@ -78,9 +78,12 @@ class LogPipeRC:
     """
     Small class suitable for passing to the caller when the LogPipe context manager is invoked
     """
+
     value = ''  # string accumulating all incoming messages
+
     def __init__(self, fd: int):
         self.pipe = fd  # writable half of os.pipe
+
 
 class LogPipe(threading.Thread):
     """

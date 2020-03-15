@@ -11,8 +11,10 @@ import setuptools
 
 import stm32pio.app
 
+
 with open('README.md', 'r') as readme:
     long_description = readme.read()
+
 
 setuptools.setup(
     name='stm32pio',

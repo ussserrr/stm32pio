@@ -21,7 +21,7 @@ It uses STM32CubeMX to generate a HAL-framework-based code and alongside creates
 ## Features
   - Start the new complete project in a single directory using only an `.ioc` file
   - Update an existing project after changing hardware options in CubeMX
-  - Clean-up the project (WARNING: it deletes ALL content of project path except the `.ioc` file!)
+  - Clean-up the project
   - Get the status information
   - *[optional]* Automatically run your favorite editor in the end
   - *[optional]* Automatically make an initial build of the project
@@ -47,14 +47,13 @@ stm32pio-repo/ $   python3 stm32pio/app.py  # or
 stm32pio-repo/ $   python3 -m stm32pio  # or
 any-path/ $   python3 path/to/stm32pio-repo/stm32pio/app.py
 ```
-
 (we assume python3 and pip3 hereinafter). It is possible to run the app like this from anywhere.
 
 However, it's handier to install the utility to be able to run stm32pio from anywhere. Use
 ```shell script
 stm32pio-repo/ $   pip install .
 ```
-command to launch the setup process. Now you can simply type 'stm32pio' in the terminal to run the utility in any directory.
+command to launch the setup process. Now you can simply type `stm32pio` in the terminal to run the utility in any directory.
 
 Finally, the PyPI distribution (starting from v0.95) is available:
 ```shell script
@@ -87,9 +86,9 @@ It may be useful to tweak some parameters before proceeding. The structure of th
 
 You can always run
 ```shell script
-$ python3 app.py --help
+$ python app.py --help
 ```
-to see help on available commands.
+to see help on available commands. Find the copy of its output on the [project wiki](https://github.com/ussserrr/stm32pio/wiki/stm32pio-help) page, also.
 
 ### Project patching
 
@@ -99,7 +98,7 @@ For those who want to modify the patch (default one is at [`settings.py`](/stm32
 
 ### Embedding
 
-You can also use stm32pio as an ordinary Python package and embed it in your own application. Take a look at the CLI ([`app.py`](/stm32pio/app.py)) or GUI versions to see some possible ways of implementing this. Basically, you need to import `stm32pio.lib` module (where the main `Stm32pio` class resides), (optionally) set up a logger and you are good to go. If you prefer higher-level API similar to the CLI version, use `main()` function in `app.py` passing the same CLI arguments to it (except the actual script name).
+You can also use stm32pio as an ordinary Python package and embed it in your own application. Find the minimal example at the [project wiki](https://github.com/ussserrr/stm32pio/wiki/Embedding-example) page to see some possible ways of implementing this. Basically, you need to import `stm32pio.lib` module (where the main `Stm32pio` class resides), (optionally) set up a logger and you are good to go. If you prefer higher-level API similar to the CLI version, use `main()` function in `app.py` passing the same CLI arguments to it (except the actual script name). Also, take a look at the CLI ([`app.py`](/stm32pio/app.py)) or GUI versions.
 
 
 ## Example
@@ -133,18 +132,18 @@ You can also use stm32pio as an ordinary Python package and embed it in your own
 ## Testing
 There are some tests in file [`test.py`](/stm32pio/tests/test.py) (based on the unittest module). Run
 ```shell script
-stm32pio-repo/ $   python3 -m unittest -b -v
+stm32pio-repo/ $   python -m unittest -b -v
 ```
 or
 ```shell script
-stm32pio-repo/ $   python3 -m stm32pio.tests.test -b -v
+stm32pio-repo/ $   python -m stm32pio.tests.test -b -v
 ```
 to test the app. It uses STM32F0 framework to generate and build a code from the test [`stm32pio-test-project.ioc`](/stm32pio-test-project/stm32pio-test-project.ioc) project file. Please make sure that the test project folder is clean (i.e. contains only an .ioc file) before running the test otherwise it can lead to some cases failing. Tests automatically create temporary directory (using `tempfile` Python standard module) where all actions are performed.
 
 For the specific test suite or case you can use
 ```shell script
-stm32pio-repo/ $   python3 -m unittest stm32pio.tests.test.TestIntegration -b -v
-stm32pio-repo/ $   python3 -m unittest stm32pio.tests.test.TestCLI.test_verbose -b -v
+stm32pio-repo/ $   python -m unittest stm32pio.tests.test.TestIntegration -b -v
+stm32pio-repo/ $   python -m unittest stm32pio.tests.test.TestCLI.test_verbose -b -v
 ```
 
 
@@ -155,4 +154,3 @@ stm32pio-repo/ $   python3 -m unittest stm32pio.tests.test.TestCLI.test_verbose 
     lib_extra_dirs = Middlewares/Third_Party/FreeRTOS
     ```
     You also need to move all `.c`/`.h` files to the appropriate folders respectively. See PlatformIO documentation for more information.
-  - The project folder, once instantiated, is not portable i.e. if you move it at some other place and invoke stm32pio it will report you an error. This because `stm32pio.ini` config is currently stores absolute paths instead of relative.

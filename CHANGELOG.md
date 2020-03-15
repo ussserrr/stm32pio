@@ -173,3 +173,25 @@
  - Changed: slightly tuned exceptions (more specific ones where it make sense)
  - Changed: rename `project_path` -> `path`
  - Changed: actualized tests, more broad usage of the `app.main()` function versus `subprocess.run()`
+
+## ver. 1.10 (15.03.20)
+ - New: table of contents for the README
+ - New: GitHub project wiki
+ - New: `-q/--quiet` option for the `clean` CLI command. The command now by default warns the user about the content deletion
+ - New: embedding example (minimal reproducible code snippet, easier than the full CLI or GUI versions)
+ - New: show the exception name too when the global error has been caught (`stm32pio/app.py`)
+ - New: sanitize `--start-editor` option value using `shlex.quote()`
+ - New: parse `platformio.ini` to establish its correctness when checking for project states (`ProjectStage.PIO_INITIALIZED`, `ProjectStage.PATCHED`)
+ - New: projects are now portable. The user specifying paths relatively to the project folder and using variables (we still don't use `configparser` interpolation but there is no need in it). The backwards compatibility with the old-style config format has been preserved though those projects still will be non-portable unless you manually edit a config
+ - New: analyze STM32CubeMX output to detect errors on execution. This utility does not necessarily returns non-zero code when some error was happened (e.g. `.ioc` and app versions mismatch and so on), and just shows a dialog
+ - New: `platformio_ini_config` `Stm32pio` instance property returning current `platformio.ini` parsed `ConfigParser` value. Used in some internal routines such as correctness determination and doesn't have to be used by the library user
+ - New: `LogPipe` now returns "remote control" `LogPipeRC` - small utility class holding the writable stream and the reference to the string accumulating all incoming messages. It can be accessed later, in the end of the context manager, to store and analyze all the output
+ - New: some new tests, I think, but I do not remember as all the tests are now moved to the new files :)
+ - Fixed: warnings appearing during the `pio_build()` execution were suppressed
+ - Changed: tests are moved out to the root of the repo and excluded from the distribution bundle
+ - Changed: went back to the PlatformIO CLI as a single point to interact with PlatformIO (remove `platformio` package imports and dependencies) (the reason is crushes when the pio is not isolated in a separated subprocess). Use PlatformIO JSON format output to get and filter boards
+ - Changed: remove `required=False` from `argparse` commands as it is a default (and even recommended) value anyway
+ - Changed: remove the unnecessary logging setup when no arguments were given to the program (CLI version)
+ - Changed: separate `Stm32pio` arguments onto 2 categories: project parameters and instance options and use dictionaries for them. First one has now the same form as the project config `configparser.ConfigParser` and merging into the default and file settings on the project creation. Instance options are more related to the programmatic instance itself and contains currently 2 options - `logger` and `save_on_destruction`
+ - Changed: use `append()` instead of `insert()` to modify `sys.path`
+ - Changed: when raising the exceptions use more elegant expressions (e.g. `raise FileNotFoundError(file)` instead of `raise FileNotFoundError("file FILE was not found")`). Use `pathlib.Path().resolve(strict=True)` where appropriate to shorten the code

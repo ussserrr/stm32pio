@@ -398,15 +398,15 @@ class Stm32pio:
             self.logger.info("successful code generation")
             return result.returncode
         else:
-            self.logger.error(f"code generation error (CubeMX return code is {result.returncode}).\n"
-                              "Enable a verbose output or try to generate a code from the CubeMX itself.")
+            # Probably 'java' error (e.g. no CubeMX is present)
+            self.logger.error(f"return code is {result.returncode}\n\n{result_output}")
             raise Exception(error_msg)
 
 
     def pio_init(self) -> int:
         """
         Call PlatformIO CLI to initialize a new project. It uses parameters (path, board) collected before so the
-        confirmation of the data presence is lying on the invoking code
+        confirmation about the data presence is lying on the invoking code
 
         Returns:
             return code of the PlatformIO on success, raises an exception otherwise
@@ -587,8 +587,9 @@ class Stm32pio:
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
-        with stm32pio.util.LogPipe(self.logger, logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING) as log:
-            result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)  # TODO: stderr is hidden
+        log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
+        with stm32pio.util.LogPipe(self.logger, log_level) as log:
+            result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
 
         if result.returncode == 0:
             self.logger.info("successful PlatformIO build")

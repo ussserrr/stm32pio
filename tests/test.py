@@ -4,7 +4,8 @@ concrete files
 
 NOTE: make sure the test project tree is clean before running the tests!
 
-'pyenv' was used to execute tests with different Python versions (under Ubuntu):
+'pyenv' was used to execute tests with different Python versions (under Linux):
+https://github.com/pyenv/pyenv
 https://www.tecmint.com/pyenv-install-and-manage-multiple-python-versions-in-linux/
 
 To get the test coverage install and use 'coverage' package:
