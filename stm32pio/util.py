@@ -2,12 +2,12 @@
 Some auxiliary entities not falling into other categories
 """
 
+import json
 import logging
 import os
+import subprocess
 import threading
 from typing import List
-
-from platformio.managers.platform import PlatformManager
 
 
 module_logger = logging.getLogger(__name__)
@@ -74,11 +74,23 @@ class DispatchingFormatter(logging.Formatter):
         return super().format(record)
 
 
+class LogPipeRC:
+    """
+    Small class suitable for passing to the caller when the LogPipe context manager is invoked
+    """
+
+    value = ''  # string accumulating all incoming messages
+
+    def __init__(self, fd: int):
+        self.pipe = fd  # writable half of os.pipe
+
+
 class LogPipe(threading.Thread):
     """
     The thread combined with a context manager to provide a nice way to temporarily redirect something's stream output
     into logging module. The most straightforward application is to suppress subprocess STDOUT and/or STDERR streams and
-    wrap them in the logging mechanism as it is for now for any other message in your app.
+    wrap them in the logging mechanism as it is now for any other message in your app. Also, store the incoming messages
+    in the string
     """
 
     def __init__(self, logger: logging.Logger, level: int, *args, **kwargs):
@@ -90,21 +102,23 @@ class LogPipe(threading.Thread):
         self.fd_read, self.fd_write = os.pipe()  # create 2 ends of the pipe and setup the reading one
         self.pipe_reader = os.fdopen(self.fd_read)
 
-    def __enter__(self) -> int:
+        self.rc = LogPipeRC(self.fd_write)  # "remote control"
+
+    def __enter__(self) -> LogPipeRC:
         """
         Activate the thread and return the consuming end of the pipe so the invoking code can use it to feed its
         messages from now on
         """
         self.start()
-        return self.fd_write
+        return self.rc
 
     def run(self):
         """
         Routine of the thread, logging everything
         """
-        for line in iter(self.pipe_reader.readline, ''):
+        for line in iter(self.pipe_reader.readline, ''):  # stops the iterator when empty string will occur
+            self.rc.value += line  # accumulate the string
             self.logger.log(self.level, line.strip('\n'), 'from_subprocess')  # mark the message origin
-
         self.pipe_reader.close()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -116,14 +130,17 @@ class LogPipe(threading.Thread):
 
 
 
-def get_platformio_boards() -> List[str]:
+def get_platformio_boards(platformio_cmd) -> List[str]:
     """
-    Use PlatformIO Python sources to obtain the boards list. As we interested only in STM32 ones, cut off all the
-    others.
+    Obtain the PlatformIO boards list. As we interested only in STM32 ones, cut off all the others.
 
     IMPORTANT NOTE: The inner implementation can go to the Internet from time to time when it decides that its cache is
     out of date. So it can take a long time to execute.
     """
 
-    pm = PlatformManager()
-    return [board['id'] for board in pm.get_all_boards() if 'stm32cube' in board['frameworks']]
+    # Windows 7, as usual, correctly works only with shell=True...
+    result = subprocess.run(f"{platformio_cmd} boards --json-output stm32cube",
+                            encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
+
+    boards = json.loads(result.stdout)
+    return [board['id'] for board in boards]

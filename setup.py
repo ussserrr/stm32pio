@@ -11,8 +11,10 @@ import setuptools
 
 import stm32pio.app
 
+
 with open('README.md', 'r') as readme:
     long_description = readme.read()
+
 
 setuptools.setup(
     name='stm32pio',
@@ -25,7 +27,11 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url="https://github.com/ussserrr/stm32pio",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(
+        exclude=[
+            'tests'
+        ]
+    ),
     classifiers=[
         "Programming Language :: Python :: 3 :: Only",
         "License :: OSI Approved :: MIT License",
@@ -43,9 +49,6 @@ setuptools.setup(
     python_requires='>=3.6',
     setup_requires=[
         'wheel'
-    ],
-    install_requires=[
-        'platformio'
     ],
     include_package_data=True,
     entry_points={

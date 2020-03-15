@@ -28,8 +28,8 @@ config_default = collections.OrderedDict(
     project={
         # (default is OK) See CubeMX user manual PDF (UM1718) to get other useful options
         'cubemx_script_content': inspect.cleandoc('''
-            config load $cubemx_ioc_full_filename
-            generate code $project_path
+            config load ${ioc_file_absolute_path}
+            generate code ${project_dir_absolute_path}
             exit
         ''') + '\n',
 
@@ -44,10 +44,16 @@ config_default = collections.OrderedDict(
             [platformio]
             include_dir = Inc
             src_dir = Src
-        ''') + '\n'
+        ''') + '\n',
+
+        # Runtime-determined values
+        'board': '',
+        'ioc_file': ''  # required
     }
 )
 
 config_file_name = 'stm32pio.ini'
 
-log_fieldwidth_function = 26  # TODO: can be calculated actually (longest name
+# Longest name (not necessarily method so a little bit tricky...)
+# log_fieldwidth_function = max([len(member) for member in dir(stm32pio.lib.Stm32pio)]) + 1
+log_fieldwidth_function = 25 + 1
