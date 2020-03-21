@@ -7,9 +7,12 @@
  - [ ] GUI. Reduce number of calls to 'state' (many IO operations)
  - [ ] GUI. Drag and drop the new folder into the app window
  - [ ] GUI. Implement some other methods for Qt abstract models
- - [ ] GUI. Warning on 'Clean' action
- - [ ] GUI. On 'Clean' clean the log too
- - [ ] GUI. Stop the chain of commands if someone drops -1 or an exception
+ - [x] GUI. Warning on 'Clean' action (maybe the window with a checkbox "Do not ask in the future" (QSettings parameter))
+ - [x] GUI. On 'Clean' clean the log too
+ - [x] GUI. Stop the chain of commands if someone drops -1 or an exception
+ - [ ] GUI. 2 types of logging formatters for 2 verbosity levels
+ - [ ] GUI. Check for projects duplication
+ - [ ] GUI. Projects are not destructed until quit (something preserving the link probably...)
  - [ ] Create VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
@@ -30,3 +33,4 @@
  - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode). And, in general, we should show the error reason right off
  - [ ] 'verbose' and 'non-verbose' tests as `subTest` (also `should_log_error_...`)
  - [ ] the lib sometimes raising, sometimes returning the code and it is not consistent. While the reasons behind such behaviour are clear, would be great to always return a result code and raise the exceptions in the outer scope, if there is need to
+ - [ ] check board (no sense to go further on 'new' if the board in config.ini is not correct)

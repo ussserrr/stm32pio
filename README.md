@@ -68,10 +68,10 @@ $ pip uninstall stm32pio
 
 ## Usage
 Basically, you need to follow such a pattern:
-  1. Create CubeMX project (.ioc file), set-up your hardware configuration, save
+  1. Create CubeMX project (.ioc file), set-up your hardware configuration, save with the compatible parameters
   2. Run the stm32pio that automatically invokes CubeMX to generate the code, creates PlatformIO project, patches a `platformio.ini` file and so on
   3. Work on the project in your editor as usual, compile/upload/debug etc.
-  4. Edit the configuration in CubeMX when necessary, then run stm32pio to re-generate the code.
+  4. Edit the configuration in CubeMX when necessary, then run stm32pio to re-generate the code
 
 Refer to Example section on more detailed steps. If you face off with some error try to enable a verbose output to get more information about a problem:
 ```shell script
@@ -111,7 +111,7 @@ You can also use stm32pio as an ordinary Python package and embed it in your own
 
 ![Project tab](/screenshots/tab_Project.png)
 
-4. Use a copied string as a `-d` argument for stm32pio. So it is assumed that the name of the project folder matches the name of `.ioc` file. (`-d` argument can be omitted if your current working directory is already a project directory)
+4. Use a copied string (project folder) as a `-d` argument for stm32pio (can be omitted if your current working directory is already a project directory).
 5. Run `platformio boards` (`pio boards`) or go to [boards](https://docs.platformio.org/en/latest/boards) to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
 6. All done! You can now run
    ```shell script

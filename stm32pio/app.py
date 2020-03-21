@@ -23,9 +23,9 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     """
 
     parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
-                                                 "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Run "
-                                                 "'init' command to create config file and set the path to STM32CubeMX "
-                                                 "and other tools (if defaults doesn't work for you)")
+                                                 "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Visit "
+                                                 "https://github.com/ussserrr/stm32pio for more information. Use "
+                                                 "'help' command to take a glimpse on the available functionality")
     # Global arguments (there is also an automatically added '-h, --help' option)
     parser.add_argument('--version', action='version', version=f"stm32pio v{__version__}")
     parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count')
@@ -35,7 +35,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
 
     parser_init = subparsers.add_parser('init', help="create config .ini file so you can tweak parameters before "
                                                      "proceeding")
-    parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project")
+    parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project, glue them")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
     parser_status = subparsers.add_parser('status', help="get the description of the current project state")
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (delete ALL content of 'path' "

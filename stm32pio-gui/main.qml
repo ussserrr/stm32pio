@@ -190,18 +190,13 @@ ApplicationWindow {
                     Loader {
                         onLoaded: setInitInfo(index)
                         sourceComponent: RowLayout {
-                            id: projectsListItem
-                            property bool initloading: true  // initial waiting for the backend-side
-                            property bool actionRunning: false
+                            property bool initLoading: true  // initial waiting for the backend-side
                             property ProjectListItem project: projectsModel.getProject(index)
                             Connections {
                                 target: project  // (newbie hint) sender
                                 // Currently, this event is equivalent to the complete initialization of the backend side of the project
                                 onNameChanged: {
-                                    initloading = false;
-                                }
-                                onActionDone: {
-                                    actionRunning = false;
+                                    initLoading = false;
                                 }
                             }
                             ColumnLayout {
@@ -236,7 +231,7 @@ ApplicationWindow {
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredWidth: parent.height
                                 Layout.preferredHeight: parent.height
-                                running: projectsListItem.initloading || projectsListItem.actionRunning
+                                running: parent.initLoading || project.actionRunning
                             }
 
                             MouseArea {
@@ -244,7 +239,7 @@ ApplicationWindow {
                                 y: parent.y
                                 width: parent.width
                                 height: parent.height
-                                enabled: !parent.initloading
+                                enabled: !parent.initLoading
                                 onClicked: {
                                     projectsListView.currentIndex = index;
                                     projectsWorkspaceView.currentIndex = index;
@@ -325,10 +320,6 @@ ApplicationWindow {
                                 }
                                 // Currently, this event is equivalent to the complete initialization of the backend side of the project
                                 onNameChanged: {
-                                    for (let i = 0; i < buttonsModel.count; ++i) {
-                                        projActionsRow.children[i].enabled = true;
-                                    }
-
                                     const state = project.state;
                                     const completedStages = Object.keys(state).filter(stateName => state[stateName]);
                                     if (completedStages.length === 1 && completedStages[0] === 'EMPTY') {
@@ -341,12 +332,46 @@ ApplicationWindow {
                             }
 
                             /*
+                                Detect and reflect changes of a project outside of the app
+                            */
+                            QtDialogs.MessageDialog {
+                                id: projectIncorrectDialog
+                                text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
+                                        The project will be removed from the app. It will not affect any real content`
+                                icon: QtDialogs.StandardIcon.Critical
+                                onAccepted: {
+                                    moveToNextAndRemove();
+                                    projActionsButtonGroup.lock = false;
+                                }
+                            }
+
+                            /*
+                               Index: 0. Project initialization "screen"
+
                                Prompt a user to perform initial setup
                             */
                             Loader {
                                 id: initScreenLoader
                                 active: false
                                 sourceComponent: Column {
+                                    signal stateReceived()
+                                    property bool lock: false  // TODO: is it necessary? mb make a dialog modal or smth.
+                                    onStateReceived: {  // TODO: cache state!
+                                        if (mainWindow.active && (index === projectsWorkspaceView.currentIndex) && !lock) {
+                                            const state = project.state;
+                                            if (!state['EMPTY']) {
+                                                lock = true;  // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
+                                                projectIncorrectDialog.open();
+                                            }
+                                        }
+                                    }
+                                    Component.onCompleted: {
+                                        // Several events lead to a single handler:
+                                        //  - the project was selected in the list
+                                        //  - the app window has got the focus
+                                        projectsWorkspaceView.currentIndexChanged.connect(stateReceived);
+                                        mainWindow.activeChanged.connect(stateReceived);
+                                    }
                                     Text {
                                         text: "To complete initialization you can provide PlatformIO name of the board"
                                         padding: 10
@@ -356,6 +381,7 @@ ApplicationWindow {
                                         spacing: 10
                                         ComboBox {
                                             id: board
+                                            width: 200
                                             editable: true
                                             model: boardsModel  // backend-side (simple string model)
                                             textRole: 'display'
@@ -410,7 +436,7 @@ ApplicationWindow {
                                             id: openEditor
                                             text: 'Open editor'
                                             ToolTip {
-                                                text: 'Start the editor specified in the <b>Settings</b> after the completion'
+                                                text: "Start the editor specified in the <b>Settings</b> after the completion"
                                                 visible: openEditor.hovered
                                             }
                                         }
@@ -422,28 +448,26 @@ ApplicationWindow {
                                         topPadding: 20
                                         leftPadding: 18
                                         onClicked: {
-                                            // All operations will be queued
-                                            projectsListView.currentItem.item.actionRunning = true;
-
+                                            // All 'run' operations will be queued
                                             project.run('save_config', [{
                                                 'project': {
                                                     'board': board.editText === board.textAt(0) ? '' : board.editText
                                                 }
                                             }]);
+                                            if (board.editText === board.textAt(0)) {
+                                                project.logAdded("WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO \
+                                                                  project creation. You can set it in 'stm32pio.ini' file in the project directory",
+                                                                 Logging.WARNING);
+                                            }
 
                                             if (runCheckBox.checked) {
-                                                for (let i = 3; i < buttonsModel.count - 1; ++i) {
-                                                    buttonsModel.setProperty(i, 'shouldRunNext', true);
+                                                for (let i = 3; i < buttonsModel.count; ++i) {
+                                                    project.run(buttonsModel.get(i).action, []);
                                                 }
-                                                projActionsRow.children[3].clicked();
                                             }
 
                                             if (openEditor.checked) {
-                                                if (runCheckBox.checked) {
-                                                    buttonsModel.setProperty(buttonsModel.count - 1, 'shouldStartEditor', true);
-                                                } else {
-                                                    projActionsRow.children[1].clicked();
-                                                }
+                                                project.run('start_editor', [settings.get('editor')]);
                                             }
 
                                             mainOrInitScreen.currentIndex = 1;  // go to main screen
@@ -453,24 +477,12 @@ ApplicationWindow {
                                 }
                             }
 
+                            /*
+                               Index: 1. Main "screen"
+                            */
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-
-                                /*
-                                   Detect and reflect changes of a project outside of the app
-                                */
-                                QtDialogs.MessageDialog {
-                                    // TODO: case: .ioc file can be removed on init stage too (i.e. when initDialog is active)
-                                    id: projectIncorrectDialog
-                                    text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
-                                           The project will be removed from the app. It will not affect any real content`
-                                    icon: QtDialogs.StandardIcon.Critical
-                                    onAccepted: {
-                                        moveToNextAndRemove();
-                                        projActionsButtonGroup.lock = false;
-                                    }
-                                }
 
                                 /*
                                    Show this or action buttons
@@ -494,16 +506,16 @@ ApplicationWindow {
                                     id: projActionsButtonGroup
                                     buttons: projActionsRow.children
                                     signal stateReceived()
-                                    signal actionDone(string actionDone, bool success)
+                                    signal actionStarted(string actionName)
+                                    signal actionDone(string actionName, bool success)
+                                    signal nameChanged()
                                     property bool lock: false  // TODO: is it necessary? mb make a dialog modal or smth.
                                     onStateReceived: {  // TODO: cache state!
-                                        if (mainWindow.active && (index === projectsWorkspaceView.currentIndex) && !lock) {
+                                        if (mainWindow.active && (index === projectsWorkspaceView.currentIndex) && !lock && !project.actionRunning) {
                                             const state = project.state;
                                             project.stageChanged();
 
-                                            if (state['LOADING']) {
-                                                //
-                                            } else if (state['INIT_ERROR']) {
+                                            if (state['INIT_ERROR']) {
                                                 projActionsRow.visible = false;
                                                 initErrorMessage.visible = true;
                                             } else if (!state['EMPTY']) {
@@ -511,23 +523,31 @@ ApplicationWindow {
                                                 projectIncorrectDialog.open();
                                             } else if (state['EMPTY']) {
                                                 for (let i = 0; i < buttonsModel.count; ++i) {
-                                                    projActionsRow.children[i].palette.button = 'lightgray';
-                                                    if (state[buttonsModel.get(i).state]) {
+                                                    if (state[buttonsModel.get(i).stateRepresented]) {
                                                         projActionsRow.children[i].palette.button = 'lightgreen';
+                                                    } else {
+                                                        projActionsRow.children[i].palette.button = 'lightgray';
                                                     }
                                                 }
                                             }
                                         }
                                     }
-                                    onActionDone: {
+                                    onNameChanged: {
                                         for (let i = 0; i < buttonsModel.count; ++i) {
+                                            // Looks like 'enabled' property should be managed from the outside of the element
+                                            // (i.e there, not in the button itself)
                                             projActionsRow.children[i].enabled = true;
                                         }
                                     }
-                                    onClicked: {
+                                    onActionStarted: {
                                         for (let i = 0; i < buttonsModel.count; ++i) {
                                             projActionsRow.children[i].enabled = false;
                                             projActionsRow.children[i].glowVisible = false;
+                                        }
+                                    }
+                                    onActionDone: {
+                                        for (let i = 0; i < buttonsModel.count; ++i) {
+                                            projActionsRow.children[i].enabled = true;
                                         }
                                     }
                                     Component.onCompleted: {
@@ -539,7 +559,9 @@ ApplicationWindow {
                                         projectsWorkspaceView.currentIndexChanged.connect(stateReceived);
                                         mainWindow.activeChanged.connect(stateReceived);
 
+                                        project.actionStarted.connect(actionStarted);
                                         project.actionDone.connect(actionDone);
+                                        project.nameChanged.connect(nameChanged);
                                     }
                                 }
                                 RowLayout {
@@ -553,7 +575,7 @@ ApplicationWindow {
                                             ListElement {
                                                 name: 'Clean'
                                                 action: 'clean'
-                                                shouldStartEditor: false
+                                                tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder except the current .ioc file and clear all logs"
                                             }
                                             ListElement {
                                                 name: 'Open editor'
@@ -562,38 +584,28 @@ ApplicationWindow {
                                             }
                                             ListElement {
                                                 name: 'Initialize'
-                                                state: 'INITIALIZED'
+                                                stateRepresented: 'INITIALIZED'  // the project state that this button is representing
                                                 action: 'save_config'
-                                                shouldRunNext: false
-                                                shouldStartEditor: false
                                             }
                                             ListElement {
                                                 name: 'Generate'
-                                                state: 'GENERATED'
+                                                stateRepresented: 'GENERATED'
                                                 action: 'generate_code'
-                                                shouldRunNext: false
-                                                shouldStartEditor: false
                                             }
                                             ListElement {
                                                 name: 'Init PlatformIO'
-                                                state: 'PIO_INITIALIZED'
+                                                stateRepresented: 'PIO_INITIALIZED'
                                                 action: 'pio_init'
-                                                shouldRunNext: false
-                                                shouldStartEditor: false
                                             }
                                             ListElement {
                                                 name: 'Patch'
-                                                state: 'PATCHED'
+                                                stateRepresented: 'PATCHED'
                                                 action: 'patch'
-                                                shouldRunNext: false
-                                                shouldStartEditor: false
                                             }
                                             ListElement {
                                                 name: 'Build'
-                                                state: 'BUILT'
+                                                stateRepresented: 'BUILT'
                                                 action: 'build'
-                                                shouldRunNext: false
-                                                shouldStartEditor: false
                                             }
                                         }
                                         delegate: Button {
@@ -601,24 +613,36 @@ ApplicationWindow {
                                             Layout.rightMargin: model.margin
                                             enabled: false  // turn on after project initialization
                                             property alias glowVisible: glow.visible
-                                            function runOwnAction() {
-                                                projectsListView.currentItem.item.actionRunning = true;
-                                                palette.button = 'gold';
-                                                let args = [];  // JS array cannot be attached to a ListElement (at least in a non-hacky manner)
-                                                if (model.action === 'start_editor') {
-                                                    args.push(settings.get('editor'));
+                                            onClicked: {
+                                                const args = [];  // JS array cannot be attached to a ListElement (at least in a non-hacky manner)
+                                                switch (model.action) {
+                                                    case 'start_editor':
+                                                        args.push(settings.get('editor'));
+                                                        break;
+                                                    case 'clean':
+                                                        log.clear();
+                                                        break;
+                                                    default:
+                                                        break;
                                                 }
                                                 project.run(model.action, args);
                                             }
-                                            onClicked: {
-                                                runOwnAction();
+                                            ToolTip {
+                                                visible: parent.hovered
+                                                Component.onCompleted: {
+                                                    if (model.tooltip) {
+                                                        text = model.tooltip;
+                                                    } else {
+                                                        this.destroy();
+                                                    }
+                                                }
                                             }
                                             /*
                                                Detect modifier keys:
                                                 - Ctrl: start the editor after an operation(s)
                                                 - Shift: continuous actions run
                                             */
-                                            MouseArea {
+                                            MouseArea {  // TODO: overlays the button so the pressed state (darker color) is not shown
                                                 anchors.fill: parent
                                                 hoverEnabled: true
                                                 property bool ctrlPressed: false
@@ -635,18 +659,15 @@ ApplicationWindow {
                                                     }
                                                 }
                                                 onClicked: {
-                                                    if (ctrlPressed && model.action !== 'start_editor') {
-                                                        model.shouldStartEditor = true;
-                                                    }
                                                     if (shiftPressed && index >= 2) {
-                                                        // run all actions in series
                                                         for (let i = 2; i < index; ++i) {
-                                                            buttonsModel.setProperty(i, 'shouldRunNext', true);
+                                                            project.run(buttonsModel.get(i).action, []);
                                                         }
-                                                        projActionsRow.children[2].clicked();
-                                                        return;
                                                     }
                                                     parent.clicked();  // propagateComposedEvents doesn't work...
+                                                    if (ctrlPressed && model.action !== 'start_editor') {
+                                                        project.run('start_editor', [settings.get('editor')]);
+                                                    }
                                                 }
                                                 onPositionChanged: {
                                                     ctrlPressed = mouse.modifiers & Qt.ControlModifier;  // bitwise AND
@@ -661,10 +682,16 @@ ApplicationWindow {
                                                     }
                                                 }
                                                 onEntered: {
-                                                    statusBar.text =
-                                                        `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b> after the operation,
-                                                         <b>Shift</b>-click to perform all actions prior this one (including).
-                                                         <b>Ctrl</b>-<b>Shift</b>-click for both`;
+                                                    if (model.action !== 'start_editor') {
+                                                        let preparedText =
+                                                            `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b> after the operation`;
+                                                        if (index >= 2) {
+                                                            preparedText +=
+                                                                `, <b>Shift</b>-click to perform all actions prior this one (including).
+                                                                <b>Ctrl</b>-<b>Shift</b>-click for both`;
+                                                        }
+                                                        statusBar.text = preparedText;
+                                                    }
                                                 }
                                                 onExited: {
                                                     statusBar.text = '';
@@ -681,8 +708,13 @@ ApplicationWindow {
                                             }
                                             Connections {
                                                 target: projActionsButtonGroup
+                                                onActionStarted: {
+                                                    if (actionName === model.action) {
+                                                        palette.button = 'gold';
+                                                    }
+                                                }
                                                 onActionDone: {
-                                                    if (actionDone === model.action) {
+                                                    if (actionName === model.action) {
                                                         if (success) {
                                                             glow.color = 'lightgreen';
                                                         } else {
@@ -690,22 +722,6 @@ ApplicationWindow {
                                                             glow.color = 'lightcoral';
                                                         }
                                                         glow.visible = true;
-
-                                                        if (model.shouldRunNext) {
-                                                            model.shouldRunNext = false;
-                                                            projActionsRow.children[index + 1].clicked();
-                                                        }
-
-                                                        if (model.shouldStartEditor) {
-                                                            model.shouldStartEditor = false;
-                                                            for (let i = 0; i < buttonsModel.count; ++i) {
-                                                                if (buttonsModel.get(i).action === 'start_editor') {
-                                                                    // Use runOwnAction for no additional actions in parent handlers
-                                                                    projActionsRow.children[i].runOwnAction();
-                                                                    break;
-                                                                }
-                                                            }
-                                                        }
                                                     }
                                                 }
                                             }

@@ -4,6 +4,7 @@
 # from __future__ import annotations
 
 import collections
+import functools
 import logging
 import pathlib
 import sys
@@ -101,7 +102,10 @@ class ProjectListItem(QObject):
     stageChanged = Signal()
 
     logAdded = Signal(str, int, arguments=['message', 'level'])  # send the log message to the front-end
+
+    actionStarted = Signal(str, arguments=['action'])
     actionDone = Signal(str, bool, arguments=['action', 'success'])  # emit when the action has executed
+    actionRunningChanged = Signal()
 
 
     def __init__(self, project_args: list = None, project_kwargs: dict = None, parent: QObject = None):
@@ -121,6 +125,7 @@ class ProjectListItem(QObject):
         self.workers_pool = QThreadPool()
         self.workers_pool.setMaxThreadCount(1)
         self.workers_pool.setExpiryTimeout(-1)  # tasks forever wait for the available spot
+        self._is_action_running = False
 
         # These values are valid till the Stm32pio project does not initialize itself (or failed to)
         self.project = None
@@ -204,6 +209,23 @@ class ProjectListItem(QObject):
         else:
             return self._current_stage
 
+    @Property(bool, notify=actionRunningChanged)
+    def actionRunning(self):
+        return self._is_action_running
+
+    @Slot(str)
+    def actionStartedSlot(self, action: str):
+        self.actionStarted.emit(action)
+        self._is_action_running = True
+        self.actionRunningChanged.emit()
+
+    @Slot(str, bool)
+    def actionDoneSlot(self, action: str, success: bool):
+        if not success:
+            self.workers_pool.clear()  # clear the queue - prevent further execution
+        self._is_action_running = False
+        self.actionRunningChanged.emit()
+        self.actionDone.emit(action, success)
 
     @Slot()
     def qmlLoaded(self):
@@ -225,9 +247,10 @@ class ProjectListItem(QObject):
         """
 
         worker = ProjectActionWorker(getattr(self.project, action), args, self.logger)
+        worker.actionStarted.connect(self.actionStartedSlot)
+        worker.actionDone.connect(self.actionDoneSlot)
         worker.actionDone.connect(self.stateChanged)
         worker.actionDone.connect(self.stageChanged)
-        worker.actionDone.connect(self.actionDone)
 
         self.workers_pool.start(worker)  # will automatically place to the queue
 
@@ -239,6 +262,7 @@ class ProjectActionWorker(QObject, QRunnable):
     second is compatible with QThreadPool.
     """
 
+    actionStarted = Signal(str, arguments=['action'])
     actionDone = Signal(str, bool, arguments=['action', 'success'])
 
     def __init__(self, func, args: list = None, logger: logging.Logger = None, parent: QObject = None):
@@ -253,18 +277,29 @@ class ProjectActionWorker(QObject, QRunnable):
             self.args = args
         self.name = func.__name__
 
+
     def run(self):
+        self.actionStarted.emit(self.name)  # notify the caller
+
         try:
             result = self.func(*self.args)
         except Exception as e:
             if self.logger is not None:
                 self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
             result = -1
+
         if result is None or (type(result) == int and result == 0):
             success = True
         else:
             success = False
+
         self.actionDone.emit(self.name, success)  # notify the caller
+
+        if not success:
+            # Pause the thread and, therefore, the parent QThreadPool queue so the caller can decide whether we should
+            # proceed or stop. This should not cause any problems as we've already perform all necessary tasks and this
+            # just delaying the QRunnable removal
+            time.sleep(1.0)
 
 
 
