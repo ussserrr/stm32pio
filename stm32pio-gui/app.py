@@ -195,6 +195,7 @@ class ProjectListItem(QObject):
 
     @Property('QVariant', notify=stateChanged)
     def state(self):
+        # print(time.time(), self.project.path.name)
         if self.project is not None:
             # Convert to normal dict (JavaScript object) and exclude UNDEFINED key
             return { stage.name: value for stage, value in self.project.state.items()

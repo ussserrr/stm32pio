@@ -288,14 +288,17 @@ ApplicationWindow {
             Layout.leftMargin: 5
             Layout.rightMargin: 10
             Layout.topMargin: 10
-            // clip: true  // do not use as it'll clip glow animation
 
             Repeater {
                 // Use similar to ListView pattern (same projects model, Loader component)
                 model: projectsModel
                 delegate: Component {
                     Loader {
-                        onLoaded: setInitInfo(index)
+                        property int projectIndex: -1
+                        onLoaded: {
+                            projectIndex = index;
+                            setInitInfo(projectIndex)
+                        }
                         /*
                            Use another one StackLayout to separate Project initialization "screen" and Main one
                         */
@@ -307,6 +310,7 @@ ApplicationWindow {
                             Layout.fillHeight: true
 
                             property ProjectListItem project: projectsModel.getProject(index)
+
                             Connections {
                                 target: project  // sender
                                 onLogAdded: {
@@ -332,18 +336,41 @@ ApplicationWindow {
                             }
 
                             /*
-                                Detect and reflect changes of a project outside of the app
+                                Detect changes of a project outside of the app
                             */
                             QtDialogs.MessageDialog {
                                 id: projectIncorrectDialog
                                 text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
-                                        The project will be removed from the app. It will not affect any real content`
+                                       The project will be removed from the app. It will not affect any real content`
                                 icon: QtDialogs.StandardIcon.Critical
                                 onAccepted: {
                                     moveToNextAndRemove();
-                                    projActionsButtonGroup.lock = false;
+                                    mainOrInitScreen.projectIncorrectDialogIsOpen = false;
                                 }
                             }
+                            signal handleState()
+                            property bool projectIncorrectDialogIsOpen: false
+                            property var stateCached: ({})
+                            onHandleState: {
+                                if (mainWindow.active && (projectIndex === projectsWorkspaceView.currentIndex) && !projectIncorrectDialogIsOpen && !project.actionRunning) {
+                                    const state = project.state;
+                                    project.stageChanged();
+                                    stateCached = state;
+
+                                    if (!state['EMPTY']) {  // i.e. no .ioc file, see backend code
+                                        // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
+                                        projectIncorrectDialogIsOpen = true;
+                                        projectIncorrectDialog.open();
+                                    }
+                                }
+                            }
+                            Component.onCompleted: {
+                                // Several events lead to a single handler
+                                project.stateChanged.connect(handleState);
+                                projectsWorkspaceView.currentIndexChanged.connect(handleState);  // the project was selected in the list
+                                mainWindow.activeChanged.connect(handleState);  // the app window has got the focus
+                            }
+
 
                             /*
                                Index: 0. Project initialization "screen"
@@ -354,24 +381,6 @@ ApplicationWindow {
                                 id: initScreenLoader
                                 active: false
                                 sourceComponent: Column {
-                                    signal stateReceived()
-                                    property bool lock: false  // TODO: is it necessary? mb make a dialog modal or smth.
-                                    onStateReceived: {  // TODO: cache state!
-                                        if (mainWindow.active && (index === projectsWorkspaceView.currentIndex) && !lock) {
-                                            const state = project.state;
-                                            if (!state['EMPTY']) {
-                                                lock = true;  // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
-                                                projectIncorrectDialog.open();
-                                            }
-                                        }
-                                    }
-                                    Component.onCompleted: {
-                                        // Several events lead to a single handler:
-                                        //  - the project was selected in the list
-                                        //  - the app window has got the focus
-                                        projectsWorkspaceView.currentIndexChanged.connect(stateReceived);
-                                        mainWindow.activeChanged.connect(stateReceived);
-                                    }
                                     Text {
                                         text: "To complete initialization you can provide PlatformIO name of the board"
                                         padding: 10
@@ -412,7 +421,7 @@ ApplicationWindow {
                                                 visible: runCheckBox.hovered
                                                 Component.onCompleted: {
                                                     const actions = [];
-                                                    for (let i = 3; i < buttonsModel.count; ++i) {
+                                                    for (let i = buttonsModel.statefulActionsStartIndex; i < buttonsModel.count; ++i) {
                                                         actions.push(`<b>${buttonsModel.get(i).name}</b>`);
                                                     }
                                                     text = `Do: ${actions.join(' → ')}`;
@@ -461,7 +470,7 @@ ApplicationWindow {
                                             }
 
                                             if (runCheckBox.checked) {
-                                                for (let i = 3; i < buttonsModel.count; ++i) {
+                                                for (let i = buttonsModel.statefulActionsStartIndex + 1; i < buttonsModel.count; ++i) {
                                                     project.run(buttonsModel.get(i).action, []);
                                                 }
                                             }
@@ -484,6 +493,14 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
 
+                                property var stateCachedNotifier: stateCached
+                                onStateCachedNotifierChanged: {
+                                    if (stateCached['INIT_ERROR']) {
+                                        projActionsRow.visible = false;
+                                        initErrorMessage.visible = true;
+                                    }
+                                }
+
                                 /*
                                    Show this or action buttons
                                 */
@@ -502,76 +519,36 @@ ApplicationWindow {
                                     - yellow: in progress right now
                                     - red: an error has occured during the last execution
                                 */
-                                ButtonGroup {
-                                    id: projActionsButtonGroup
-                                    buttons: projActionsRow.children
-                                    signal stateReceived()
-                                    signal actionStarted(string actionName)
-                                    signal actionDone(string actionName, bool success)
-                                    signal nameChanged()
-                                    property bool lock: false  // TODO: is it necessary? mb make a dialog modal or smth.
-                                    onStateReceived: {  // TODO: cache state!
-                                        if (mainWindow.active && (index === projectsWorkspaceView.currentIndex) && !lock && !project.actionRunning) {
-                                            const state = project.state;
-                                            project.stageChanged();
-
-                                            if (state['INIT_ERROR']) {
-                                                projActionsRow.visible = false;
-                                                initErrorMessage.visible = true;
-                                            } else if (!state['EMPTY']) {
-                                                lock = true;  // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
-                                                projectIncorrectDialog.open();
-                                            } else if (state['EMPTY']) {
-                                                for (let i = 0; i < buttonsModel.count; ++i) {
-                                                    if (state[buttonsModel.get(i).stateRepresented]) {
-                                                        projActionsRow.children[i].palette.button = 'lightgreen';
-                                                    } else {
-                                                        projActionsRow.children[i].palette.button = 'lightgray';
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    onNameChanged: {
-                                        for (let i = 0; i < buttonsModel.count; ++i) {
-                                            // Looks like 'enabled' property should be managed from the outside of the element
-                                            // (i.e there, not in the button itself)
-                                            projActionsRow.children[i].enabled = true;
-                                        }
-                                    }
-                                    onActionStarted: {
-                                        for (let i = 0; i < buttonsModel.count; ++i) {
-                                            projActionsRow.children[i].enabled = false;
-                                            projActionsRow.children[i].glowVisible = false;
-                                        }
-                                    }
-                                    onActionDone: {
-                                        for (let i = 0; i < buttonsModel.count; ++i) {
-                                            projActionsRow.children[i].enabled = true;
-                                        }
-                                    }
-                                    Component.onCompleted: {
-                                        // Several events lead to a single handler:
-                                        //  - the state has changed and explicitly informs about it
-                                        //  - the project was selected in the list
-                                        //  - the app window has got the focus
-                                        project.stateChanged.connect(stateReceived);
-                                        projectsWorkspaceView.currentIndexChanged.connect(stateReceived);
-                                        mainWindow.activeChanged.connect(stateReceived);
-
-                                        project.actionStarted.connect(actionStarted);
-                                        project.actionDone.connect(actionDone);
-                                        project.nameChanged.connect(nameChanged);
-                                    }
-                                }
                                 RowLayout {
                                     id: projActionsRow
                                     Layout.fillWidth: true
                                     Layout.bottomMargin: 7
                                     z: 1  // for the glowing animation
+                                    Connections {
+                                        target: project
+                                        onNameChanged: {
+                                            for (let i = 0; i < buttonsModel.count; ++i) {
+                                                // Looks like 'enabled' property should be managed from outside of the element
+                                                // (i.e there, not in the button itself)
+                                                projActionsRow.children[i].enabled = true;
+                                            }
+                                        }
+                                        onActionStarted: {
+                                            for (let i = 0; i < buttonsModel.count; ++i) {
+                                                projActionsRow.children[i].enabled = false;
+                                                projActionsRow.children[i].glowVisible = false;
+                                            }
+                                        }
+                                        onActionDone: {
+                                            for (let i = 0; i < buttonsModel.count; ++i) {
+                                                projActionsRow.children[i].enabled = true;
+                                            }
+                                        }
+                                    }
                                     Repeater {
                                         model: ListModel {
                                             id: buttonsModel
+                                            readonly property int statefulActionsStartIndex: 2
                                             ListElement {
                                                 name: 'Clean'
                                                 action: 'clean'
@@ -609,10 +586,22 @@ ApplicationWindow {
                                             }
                                         }
                                         delegate: Button {
-                                            text: name
+                                            text: model.name
                                             Layout.rightMargin: model.margin
                                             enabled: false  // turn on after project initialization
                                             property alias glowVisible: glow.visible
+                                            property var stateCachedNotifier: stateCached
+                                            onStateCachedNotifierChanged: {
+                                                if (stateCached[model.stateRepresented]) {
+                                                    palette.button = 'lightgreen';
+                                                } else {
+                                                    palette.button = 'lightgray';
+                                                }
+                                            }
+                                            property int buttonIndex: -1
+                                            Component.onCompleted: {
+                                                buttonIndex = index;
+                                            }
                                             onClicked: {
                                                 const args = [];  // JS array cannot be attached to a ListElement (at least in a non-hacky manner)
                                                 switch (model.action) {
@@ -637,12 +626,24 @@ ApplicationWindow {
                                                     }
                                                 }
                                             }
+                                            property string currentColor: ''
+                                            function highlight(flag) {
+                                                if (flag) {
+                                                    if (!currentColor) {
+                                                        currentColor = palette.button;
+                                                    }
+                                                    palette.button = Qt.lighter('lightgreen', 1.2);
+                                                } else {
+                                                    palette.button = currentColor;
+                                                    currentColor = '';
+                                                }
+                                            }
                                             /*
                                                Detect modifier keys:
-                                                - Ctrl: start the editor after an operation(s)
+                                                - Ctrl (Cmd): start the editor after an operation(s)
                                                 - Shift: continuous actions run
                                             */
-                                            MouseArea {  // TODO: overlays the button so the pressed state (darker color) is not shown
+                                            MouseArea {
                                                 anchors.fill: parent
                                                 hoverEnabled: true
                                                 property bool ctrlPressed: false
@@ -650,21 +651,20 @@ ApplicationWindow {
                                                 property bool shiftPressed: false
                                                 property bool shiftPressedLastState: false
                                                 function shiftHandler() {
-                                                    for (let i = 2; i <= index; ++i) {  // TODO: magic number, actually...
-                                                        if (shiftPressed) {
-                                                            projActionsRow.children[i].palette.button = Qt.lighter('lightgreen', 1.2);
-                                                        } else {
-                                                            projActionsButtonGroup.stateReceived();
-                                                        }
+                                                    for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                        projActionsRow.children[i].highlight(shiftPressed);
                                                     }
                                                 }
                                                 onClicked: {
-                                                    if (shiftPressed && index >= 2) {
-                                                        for (let i = 2; i < index; ++i) {
+                                                    if (shiftPressed && buttonIndex >= buttonsModel.statefulActionsStartIndex) {
+                                                        for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                            projActionsRow.children[i].highlight(false);
+                                                        }
+                                                        for (let i = buttonsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
                                                             project.run(buttonsModel.get(i).action, []);
                                                         }
                                                     }
-                                                    parent.clicked();  // propagateComposedEvents doesn't work...
+                                                    parent.clicked();
                                                     if (ctrlPressed && model.action !== 'start_editor') {
                                                         project.run('start_editor', [settings.get('editor')]);
                                                     }
@@ -685,10 +685,10 @@ ApplicationWindow {
                                                     if (model.action !== 'start_editor') {
                                                         let preparedText =
                                                             `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b> after the operation`;
-                                                        if (index >= 2) {
+                                                        if (buttonIndex >= buttonsModel.statefulActionsStartIndex) {
                                                             preparedText +=
                                                                 `, <b>Shift</b>-click to perform all actions prior this one (including).
-                                                                <b>Ctrl</b>-<b>Shift</b>-click for both`;
+                                                                 <b>Ctrl</b>-<b>Shift</b>-click for both`;
                                                         }
                                                         statusBar.text = preparedText;
                                                     }
@@ -707,14 +707,14 @@ ApplicationWindow {
                                                 }
                                             }
                                             Connections {
-                                                target: projActionsButtonGroup
+                                                target: project
                                                 onActionStarted: {
-                                                    if (actionName === model.action) {
+                                                    if (action === model.action) {
                                                         palette.button = 'gold';
                                                     }
                                                 }
                                                 onActionDone: {
-                                                    if (actionName === model.action) {
+                                                    if (action === model.action) {
                                                         if (success) {
                                                             glow.color = 'lightgreen';
                                                         } else {
@@ -741,6 +741,9 @@ ApplicationWindow {
                                                 SequentialAnimation {
                                                     id: glowAnimation
                                                     loops: 3
+                                                    onStopped: {
+                                                        glow.visible = false;
+                                                    }
                                                     OpacityAnimator {
                                                         target: glow
                                                         from: 0
