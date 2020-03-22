@@ -354,10 +354,11 @@ ApplicationWindow {
                             onHandleState: {
                                 if (mainWindow.active && (projectIndex === projectsWorkspaceView.currentIndex) && !projectIncorrectDialogIsOpen && !project.actionRunning) {
                                     const state = project.state;
-                                    project.stageChanged();
                                     stateCached = state;
 
-                                    if (!state['EMPTY']) {  // i.e. no .ioc file, see backend code
+                                    project.stageChanged();  // side-effect: get the stage at the same time
+
+                                    if (!state['INIT_ERROR'] && !state['EMPTY']) {  // i.e. no .ioc file but the project was able to initialize itself
                                         // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
                                         projectIncorrectDialogIsOpen = true;
                                         projectIncorrectDialog.open();

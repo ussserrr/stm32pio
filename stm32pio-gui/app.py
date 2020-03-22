@@ -197,18 +197,23 @@ class ProjectListItem(QObject):
     def state(self):
         # print(time.time(), self.project.path.name)
         if self.project is not None:
+            state = self.project.state
+
+            # Side-effect: caching the current stage at the same time to avoid the flooding of calls to the 'state'
+            # getter (many IO operations). Requests to 'state' and 'stage' are usually goes together so there is no need
+            # to necessarily keeps them separated
+            self._current_stage = str(state.current_stage)
+
             # Convert to normal dict (JavaScript object) and exclude UNDEFINED key
-            return { stage.name: value for stage, value in self.project.state.items()
+            return { stage.name: value for stage, value in state.items()
                      if stage != stm32pio.lib.ProjectStage.UNDEFINED }
+
         else:
             return self._state
 
     @Property(str, notify=stageChanged)
     def current_stage(self):
-        if self.project is not None:
-            return str(self.project.state.current_stage)
-        else:
-            return self._current_stage
+        return self._current_stage
 
     @Property(bool, notify=actionRunningChanged)
     def actionRunning(self):
