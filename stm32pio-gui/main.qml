@@ -56,7 +56,6 @@ ApplicationWindow {
             }
             TextField {
                 id: editor
-                text: settings.get('editor')
             }
 
             Label {
@@ -66,7 +65,13 @@ ApplicationWindow {
             CheckBox {
                 id: verbose
                 leftPadding: -3
-                checked: settings.get('verbose')
+            }
+        }
+        // Set UI values there so they are always reflect actual parameters
+        onVisibleChanged: {
+            if (visible) {
+                editor.text = settings.get('editor');
+                verbose.checked = settings.get('verbose');
             }
         }
         onAccepted: {
@@ -537,12 +542,14 @@ ApplicationWindow {
                                         onActionStarted: {
                                             for (let i = 0; i < buttonsModel.count; ++i) {
                                                 projActionsRow.children[i].enabled = false;
+                                                projActionsRow.children[i].palette.buttonText = 'darkgray';
                                                 projActionsRow.children[i].glowVisible = false;
                                             }
                                         }
                                         onActionDone: {
                                             for (let i = 0; i < buttonsModel.count; ++i) {
                                                 projActionsRow.children[i].enabled = true;
+                                                projActionsRow.children[i].palette.buttonText = 'black';
                                             }
                                         }
                                     }
@@ -598,6 +605,7 @@ ApplicationWindow {
                                                 } else {
                                                     palette.button = 'lightgray';
                                                 }
+                                                palette.buttonText = 'black';
                                             }
                                             property int buttonIndex: -1
                                             Component.onCompleted: {
@@ -627,7 +635,7 @@ ApplicationWindow {
                                                     }
                                                 }
                                             }
-                                            property string currentColor: ''
+                                            property string currentColor: ''  // for highlighting only
                                             function highlight(flag) {
                                                 if (flag) {
                                                     if (!currentColor) {
@@ -705,6 +713,12 @@ ApplicationWindow {
                                                         shiftPressedLastState = false;
                                                         shiftHandler();
                                                     }
+                                                }
+                                                onPressed: {
+                                                    palette.button = Qt.darker(palette.button, 1.2);
+                                                }
+                                                onReleased: {
+                                                    palette.button = Qt.lighter(palette.button, 1.2);;
                                                 }
                                             }
                                             Connections {

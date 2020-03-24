@@ -12,8 +12,9 @@
  - [x] GUI. Stop the chain of commands if someone drops -1 or an exception
  - [ ] GUI. 2 types of logging formatters for 2 verbosity levels
  - [ ] GUI. Check for projects duplication
+ - [ ] GUI. Use QML State
  - [ ] GUI. Projects are not destructed until quit (something preserving the link probably...)
- - [ ] GUI. Fix settings (window doesn't match real)
+ - [x] GUI. Fix settings (window doesn't match real)
  - [ ] Create VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
