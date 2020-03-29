@@ -111,11 +111,12 @@ ApplicationWindow {
     }
 
     /*
-       Project representation is, in fact, split in two main parts: one in a list and one is an actual workspace.
-       To avoid some possible bloopers we should make sure that both of them are loaded before performing
-       any actions with the project. To not reveal QML-side implementation details to the backend we define
-       this helper function that counts number of widgets currently loaded for each project in model and informs
-       the Qt-side right after all necessary components went ready.
+       The project visual representation is, in fact, split in two main parts: one in a list and one is
+       an actual workspace. To avoid some possible bloopers we should make sure that both of them are loaded
+       (at least at the subsistence level) before performing any actions with the project. To not reveal these
+       QML-side implementation details to the backend we define this helper function that counts and stores
+       a number of widgets currently loaded for each project in model and informs the Qt-side right after all
+       necessary components become ready.
     */
     property var initInfo: ({})
     function setInitInfo(projectIndex) {
@@ -146,6 +147,9 @@ ApplicationWindow {
         projectsListView.currentIndex = indexToMoveTo;
         projectsWorkspaceView.currentIndex = indexToMoveTo;
 
+        // There is some strange bug when the workspace view (highest level StackLayout) disappears after
+        // the project deletion (even when the removal is performed in a separated Timer after some delay
+        // and the current index is definitely has already changed for both widgets)
         projectsModel.removeProject(indexToRemove);
     }
 
@@ -155,13 +159,14 @@ ApplicationWindow {
             Action { text: '&Settings'; onTriggered: settingsDialog.open() }
             Action { text: '&About'; onTriggered: aboutDialog.open() }
             MenuSeparator { }
-            Action { text: '&Quit'; onTriggered: Qt.quit() }
+            // Use this instead of Qt.qiut() to prevent segfaults (messed up shutdown order)
+            Action { text: '&Quit'; onTriggered: mainWindow.close() }
         }
     }
 
     /*
        All layouts and widgets try to be adaptive to variable parents, siblings, window and whatever else sizes
-       so we extensively using Grid, Column and Row layouts. The most high-level one is a composition of the list
+       so we extensively use Grid, Column and Row layouts. The most high-level one is a composition of the list
        and the workspace in two columns
     */
     GridLayout {
@@ -236,7 +241,7 @@ ApplicationWindow {
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredWidth: parent.height
                                 Layout.preferredHeight: parent.height
-                                running: parent.initLoading || project.actionRunning
+                                running: parent.initLoading || (project && project.actionRunning)
                             }
 
                             MouseArea {
@@ -284,7 +289,7 @@ ApplicationWindow {
 
         /*
            Main workspace. StackLayout's Repeater component seamlessly uses the same projects model (showing one -
-           current - project per screen) so all data is synchronized without any additional effort.
+           current - project per screen) as the list so all data is synchronized without any additional effort.
         */
         StackLayout {
             id: projectsWorkspaceView
@@ -642,8 +647,10 @@ ApplicationWindow {
                                                         currentColor = palette.button;
                                                     }
                                                     palette.button = Qt.lighter('lightgreen', 1.2);
+                                                    palette.buttonText = 'dimgray';
                                                 } else {
                                                     palette.button = currentColor;
+                                                    palette.buttonText = 'black';
                                                     currentColor = '';
                                                 }
                                             }

@@ -329,7 +329,7 @@ class Stm32pio:
 
     def save_config(self, parameters: dict = None) -> int:
         """
-        Invokes base _save_config function. Preliminarily, updates the config with given parameters dictionary. It
+        Invokes base _save_config function. Preliminarily, updates the config with the given 'parameters' dictionary. It
         should has the following format:
             {
                 'section1_name': {

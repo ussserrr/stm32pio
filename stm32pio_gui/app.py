@@ -4,31 +4,40 @@
 # from __future__ import annotations
 
 import collections
-import functools
+import gc
 import logging
 import pathlib
+import platform
 import sys
 import threading
 import time
 import weakref
 
-sys.path.insert(0, str(pathlib.Path(sys.path[0]).parent))
-import stm32pio.settings
-import stm32pio.lib
-import stm32pio.util
+try:
+    from PySide2.QtCore import QUrl, Property, QAbstractListModel, QModelIndex, QObject, Qt, Slot, Signal, QThread,\
+        qInstallMessageHandler, QtInfoMsg, QtWarningMsg, QtCriticalMsg, QtFatalMsg, QThreadPool, QRunnable,\
+        QStringListModel, QSettings
+    if platform.system() == 'Linux':
+        # Most UNIX systems does not provide QtDialogs implementation...
+        from PySide2.QtWidgets import QApplication
+    else:
+        from PySide2.QtGui import QGuiApplication
+    from PySide2.QtGui import QIcon
+    from PySide2.QtQml import qmlRegisterType, QQmlApplicationEngine
+except IndexError as e:
+    print(e)
+    print("\nGUI version requires PySide2 to be installed. You can re-install stm32pio as 'pip install stm32pio[GUI]' "
+          "or manually install its dependencies by yourself")
 
-from PySide2.QtCore import QUrl, Property, QAbstractListModel, QModelIndex, QObject, Qt, Slot, Signal, QThread,\
-    qInstallMessageHandler, QtInfoMsg, QtWarningMsg, QtCriticalMsg, QtFatalMsg, QThreadPool, QRunnable,\
-    QStringListModel, QSettings
-if stm32pio.settings.my_os == 'Linux':
-    # Most UNIX systems does not provide QtDialogs implementation...
-    from PySide2.QtWidgets import QApplication
-else:
-    from PySide2.QtGui import QGuiApplication
-from PySide2.QtGui import QIcon
-from PySide2.QtQml import qmlRegisterType, QQmlApplicationEngine
-
-
+try:
+    import stm32pio.settings
+    import stm32pio.lib
+    import stm32pio.util
+except ModuleNotFoundError:
+    sys.path.insert(0, str(pathlib.Path(sys.path[0]).parent))
+    import stm32pio.settings
+    import stm32pio.lib
+    import stm32pio.util
 
 
 
@@ -83,10 +92,9 @@ class LoggingWorker(QObject):
         The worker constantly querying the buffer on the new log messages availability.
         """
         while not self.stopped.wait(timeout=0.050):
-            if self.can_flush_log.is_set():
-                if len(self.buffer):
-                    record = self.buffer.popleft()
-                    self.sendLog.emit(self.logging_handler.format(record), record.levelno)
+            if self.can_flush_log.is_set() and len(self.buffer):
+                record = self.buffer.popleft()
+                self.sendLog.emit(self.logging_handler.format(record), record.levelno)
         module_logger.debug('exit logging worker')
         self.thread.quit()
 
@@ -122,7 +130,7 @@ class ProjectListItem(QObject):
         self.logging_worker.sendLog.connect(self.logAdded)
 
         # QThreadPool can automatically queue new incoming tasks if a number of them are larger than maxThreadCount
-        self.workers_pool = QThreadPool()
+        self.workers_pool = QThreadPool(parent=self)
         self.workers_pool.setMaxThreadCount(1)
         self.workers_pool.setExpiryTimeout(-1)  # tasks forever wait for the available spot
         self._is_action_running = False
@@ -135,20 +143,19 @@ class ProjectListItem(QObject):
 
         self.qml_ready = threading.Event()  # the front and the back both should know when each other is initialized
 
-        self._finalizer = weakref.finalize(self, self.at_exit)  # register some kind of deconstruction handler
+        self._finalizer = None  # register some kind of the deconstruction handler
 
-        if project_args is not None:
-            if 'instance_options' not in project_kwargs:
-                project_kwargs['instance_options'] = {
-                    'logger': self.logger
-                }
-            elif 'logger' not in project_kwargs['instance_options']:
-                project_kwargs['instance_options']['logger'] = self.logger
+        if 'instance_options' not in project_kwargs:
+            project_kwargs['instance_options'] = {
+                'logger': self.logger
+            }
+        elif 'logger' not in project_kwargs['instance_options']:
+            project_kwargs['instance_options']['logger'] = self.logger
 
-            # Start the Stm32pio part initialization right after. It can take some time so we schedule it in a dedicated
-            # thread
-            self.init_thread = threading.Thread(target=self.init_project, args=project_args, kwargs=project_kwargs)
-            self.init_thread.start()
+        # Start the Stm32pio part initialization right after. It can take some time so we schedule it in a dedicated
+        # thread
+        init_thread = threading.Thread(target=self.init_project, args=project_args, kwargs=project_kwargs)
+        init_thread.start()
 
 
     def init_project(self, *args, **kwargs) -> None:
@@ -165,26 +172,31 @@ class ProjectListItem(QObject):
             # Error during the initialization
             self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
             if len(args):
-                self._name = args[0]  # use project path string (probably) as a name
+                self._name = args[0]  # use a project path string (as it should be a first argument) as a name
             else:
-                self._name = 'No name'
+                self._name = 'Undefined'
             self._state = { 'INIT_ERROR': True }
             self._current_stage = 'Initializing error'
         else:
-            self._name = 'Project'  # successful initialization. These values should not be used anymore
+            # Successful initialization. These values should not be used anymore but we "reset" them anyway
+            self._name = 'Project'
             self._state = {}
             self._current_stage = 'Initialized'
         finally:
+            # Register some kind of the deconstruction handler
+            self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
+                                               self.name if self.project is None else str(self.project))
             self.qml_ready.wait()  # wait for the GUI to initialized
             self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
             self.stateChanged.emit()
 
-    def at_exit(self):
-        module_logger.info(f"destroy {self.project}")
-        self.workers_pool.waitForDone(msecs=-1)  # wait for all jobs to complete. Currently, we cannot abort them gracefully
-        self.logging_worker.stopped.set()  # post the event in the logging worker to inform it...
-        self.logging_worker.thread.wait()  # ...and wait for it to exit
+    @staticmethod
+    def at_exit(workers_pool: QThreadPool, logging_worker: LoggingWorker, name: str):
+        module_logger.info(f"destroy {name}")
+        workers_pool.waitForDone(msecs=-1)  # wait for all jobs to complete. Currently, we cannot abort them gracefully
+        logging_worker.stopped.set()  # post the event in the logging worker to inform it...
+        logging_worker.thread.wait()  # ...and wait for it to exit
 
     @Property(str, notify=nameChanged)
     def name(self):
@@ -228,7 +240,7 @@ class ProjectListItem(QObject):
     @Slot(str, bool)
     def actionDoneSlot(self, action: str, success: bool):
         if not success:
-            self.workers_pool.clear()  # clear the queue - prevent further execution
+            self.workers_pool.clear()  # clear the queue - stop further execution
         self._is_action_running = False
         self.actionRunningChanged.emit()
         self.actionDone.emit(action, success)
@@ -304,7 +316,7 @@ class ProjectActionWorker(QObject, QRunnable):
         if not success:
             # Pause the thread and, therefore, the parent QThreadPool queue so the caller can decide whether we should
             # proceed or stop. This should not cause any problems as we've already perform all necessary tasks and this
-            # just delaying the QRunnable removal
+            # just delaying the QRunnable removal from the pool
             time.sleep(1.0)
 
 
@@ -358,7 +370,12 @@ class ProjectsList(QAbstractListModel):
         Args:
             path: QUrl path to the project folder (absolute by default)
         """
+
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
+
+        if any([list_item.project.path.samefile(pathlib.Path(path.toLocalFile())) for list_item in self.projects]):
+            module_logger.warning("This project is already in the list")
+
         project = ProjectListItem(project_args=[path.toLocalFile()], parent=self)
         self.projects.append(project)
 
@@ -380,7 +397,7 @@ class ProjectsList(QAbstractListModel):
             self.beginRemoveRows(QModelIndex(), index, index)
 
             project = self.projects.pop(index)
-            # TODO: destruct both Qt and Python objects (seems like now they are not destroyed till the program termination)
+            project.deleteLater()
 
             settings.beginGroup('app')
 
@@ -393,14 +410,14 @@ class ProjectsList(QAbstractListModel):
 
             # ... drop the index ...
             settings_projects_list.pop(index)
-            settings.remove('projects')
 
             # ... and overwrite the list. We don't use self.projects[i].project.path as there is a chance that 'path'
             # doesn't exist (e.g. not initialized for some reason project)
+            settings.remove('projects')
             settings.beginWriteArray('projects')
-            for idx in range(len(settings_projects_list)):
+            for idx, path in enumerate(settings_projects_list):
                 settings.setArrayIndex(idx)
-                settings.setValue('path', settings_projects_list[idx])
+                settings.setValue('path', path)
             settings.endArray()
 
             settings.endGroup()
@@ -425,7 +442,6 @@ def qt_message_handler(mode, context, message):
 
 
 
-# TODO: there is a bug - checkbox in the window doesn't correctly represent the current settings
 class Settings(QSettings):
     """
     Extend the class by useful get/set methods allowing to avoid redundant code lines and also are callable from the
@@ -437,47 +453,57 @@ class Settings(QSettings):
         'verbose': False
     }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for key, value in self.DEFAULT_SETTINGS.items():
-            if not self.contains('app/settings/' + key):
-                self.setValue('app/settings/' + key, value)
+    def __init__(self, prefix: str, defaults: dict, qs_args: list = None, qs_kwargs: dict = None,
+                 external_triggers: dict = None):
+
+        qs_args = qs_args if qs_args is not None else []
+        qs_kwargs = qs_kwargs if qs_kwargs is not None else {}
+
+        super().__init__(*qs_args, **qs_kwargs)
+
+        self.prefix = prefix
+        self.external_triggers = external_triggers if external_triggers is not None else {}
+
+        for key, value in defaults.items():
+            if not self.contains(self.prefix + key):
+                self.setValue(self.prefix + key, value)
+
 
     @Slot(str, result='QVariant')
     def get(self, key):
-        return self.value('app/settings/' + key)
+        return self.value(self.prefix + key)
+
 
     @Slot(str, 'QVariant')
     def set(self, key, value):
-        self.setValue('app/settings/' + key, value)
+        self.setValue(self.prefix + key, value)
 
-        if key == 'verbose':
-            module_logger.setLevel(logging.DEBUG if value else logging.INFO)
-            for project in projects_model.projects:
-                project.logger.setLevel(logging.DEBUG if value else logging.INFO)
+        if key in self.external_triggers.keys():
+            self.external_triggers['key'](value)
 
 
-if __name__ == '__main__':
-    # Use it as a console logger for whatever you want to
-    module_logger = logging.getLogger(__name__)
+def main():
+    global module_logger
     module_log_handler = logging.StreamHandler()
     module_log_handler.setFormatter(logging.Formatter("%(levelname)s %(funcName)s %(message)s"))
     module_logger.addHandler(module_log_handler)
     module_logger.setLevel(logging.INFO)
-    module_logger.info('Starting stm32pio-gui...')
+    module_logger.info('Starting stm32pio_gui...')
 
     # Apparently Windows version of PySide2 doesn't have QML logging feature turn on so we fill this gap
     # TODO: set up for other platforms too (separate console.debug, console.warn, etc.)
-    if stm32pio.settings.my_os == 'Windows':
-        qml_logger = logging.getLogger('qml')
+    global qml_logger
+    if platform.system() == 'Windows':
         qml_log_handler = logging.StreamHandler()
         qml_log_handler.setFormatter(logging.Formatter("[QML] %(levelname)s %(message)s"))
         qml_logger.addHandler(qml_log_handler)
         qInstallMessageHandler(qt_message_handler)
 
+
     # Most Linux distros should be linked with the QWidgets' QApplication instead of the QGuiApplication to enable
     # QtDialogs
-    if stm32pio.settings.my_os == 'Linux':
+    global app
+    if platform.system() == 'Linux':
         app = QApplication(sys.argv)
     else:
         app = QGuiApplication(sys.argv)
@@ -485,9 +511,27 @@ if __name__ == '__main__':
     # Used as a settings identifier too
     app.setOrganizationName('ussserrr')
     app.setApplicationName('stm32pio')
-    app.setWindowIcon(QIcon('stm32pio-gui/icons/icon.svg'))
+    app.setWindowIcon(QIcon('stm32pio_gui/icons/icon.svg'))
 
-    settings = Settings(parent=app)
+
+    global settings
+
+    def verbose_setter(value):
+        module_logger.setLevel(logging.DEBUG if value else logging.INFO)
+        for project in projects_model.projects:
+            project.logger.setLevel(logging.DEBUG if value else logging.INFO)
+
+    settings = Settings(prefix='app/settings/',
+                        defaults={
+                            'editor': '',
+                            'verbose': False
+                        },
+                        qs_kwargs={
+                            'parent': app
+                        },
+                        external_triggers={
+                            'verbose': verbose_setter
+                        })
     # settings.remove('app/settings')
     # settings.remove('app/projects')
 
@@ -500,6 +544,7 @@ if __name__ == '__main__':
         projects_paths.append(settings.value('path'))
     settings.endArray()
     settings.endGroup()
+
 
     engine = QQmlApplicationEngine(parent=app)
 
@@ -522,7 +567,7 @@ if __name__ == '__main__':
     engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.rootContext().setContextProperty('appSettings', settings)
 
-    engine.load(QUrl.fromLocalFile('stm32pio-gui/main.qml'))
+    engine.load(QUrl.fromLocalFile('stm32pio_gui/main.qml'))
 
     main_window = engine.rootObjects()[0]
 
@@ -532,26 +577,35 @@ if __name__ == '__main__':
     # start-up operations here if there will be need to. Use the same ProjectActionWorker to spawn the thread at pool.
 
     def loading():
-        global boards
+        nonlocal boards
         boards = ['None'] + stm32pio.util.get_platformio_boards('platformio')
 
-    def on_loading(_, success):
+    def loaded(_, success):
         # TODO: somehow handle an initialization error
         boards_model.setStringList(boards)
-        projects = [ProjectListItem(
-            project_args=[path],
-            project_kwargs=dict(
-                instance_options={'save_on_destruction': False}
-            ),
-            parent=projects_model
-        ) for path in projects_paths]
+        projects = [ProjectListItem(project_args=[path], parent=projects_model) for path in projects_paths]
         for p in projects:
             projects_model.addProject(p)
         main_window.backendLoaded.emit()  # inform the GUI
 
     loader = ProjectActionWorker(loading, logger=module_logger)
-    loader.actionDone.connect(on_loading)
+    loader.actionDone.connect(loaded)
     QThreadPool.globalInstance().start(loader)
 
 
-    sys.exit(app.exec_())
+    return app.exec_()
+
+
+
+# Globals
+
+module_logger = logging.getLogger(__name__)  # use it as a console logger for whatever you want to
+qml_logger = logging.getLogger('qml')
+
+app = None
+settings = QSettings()
+
+
+
+if __name__ == '__main__':
+    sys.exit(main())

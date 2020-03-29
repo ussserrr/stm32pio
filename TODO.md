@@ -4,17 +4,19 @@
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
  - [ ] GUI. Tests (research approaches and patterns)
- - [ ] GUI. Reduce number of calls to 'state' (many IO operations)
+ - [x] GUI. Reduce number of calls to 'state' (many IO operations)
  - [ ] GUI. Drag and drop the new folder into the app window
- - [ ] GUI. Implement some other methods for Qt abstract models
+ - [ ] GUI. Implement other methods for Qt abstract models
  - [x] GUI. Warning on 'Clean' action (maybe the window with a checkbox "Do not ask in the future" (QSettings parameter))
  - [x] GUI. On 'Clean' clean the log too
  - [x] GUI. Stop the chain of commands if someone drops -1 or an exception
  - [ ] GUI. 2 types of logging formatters for 2 verbosity levels
  - [ ] GUI. Check for projects duplication
- - [ ] GUI. Use QML State
- - [ ] GUI. Projects are not destructed until quit (something preserving the link probably...)
+ - [ ] GUI. Maybe use QML State for action buttons appearance
+ - [x] GUI. Projects are not destructed until quit (something preserving the link probably...)
  - [x] GUI. Fix settings (window doesn't match real)
+ - [x] GUI. TypeError: Cannot read property 'actionRunning' of null
+ - [ ] GUI. QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
  - [ ] Create VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
@@ -29,7 +31,7 @@
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
  - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe remade current logging schema (current is, perhaps, a cause of the strange error while testing (in the logging thread))
  - [ ] UML diagrams (core, GUI back- and front-ends)
- - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker in Azure Pipelines, basic at Travis CI
+ - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker one in Azure Pipelines, basic at Travis CI
  - [ ] Test preserving user files and folders on regeneration and mb other operations
  - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
  - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode). And, in general, we should show the error reason right off
