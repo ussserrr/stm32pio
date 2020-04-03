@@ -11,12 +11,13 @@
  - [x] GUI. On 'Clean' clean the log too
  - [x] GUI. Stop the chain of commands if someone drops -1 or an exception
  - [ ] GUI. 2 types of logging formatters for 2 verbosity levels
- - [ ] GUI. Check for projects duplication
+ - [x] GUI. Check for projects duplication
  - [ ] GUI. Maybe use QML State for action buttons appearance
  - [x] GUI. Projects are not destructed until quit (something preserving the link probably...)
  - [x] GUI. Fix settings (window doesn't match real)
  - [x] GUI. TypeError: Cannot read property 'actionRunning' of null
  - [ ] GUI. QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
+ - [ ] GUI. Fix high CPU usage (probably some thread consuming)
  - [ ] Create VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
@@ -30,7 +31,7 @@
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
  - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe remade current logging schema (current is, perhaps, a cause of the strange error while testing (in the logging thread))
- - [ ] UML diagrams (core, GUI back- and front-ends)
+ - [ ] UML diagrams (core, GUI back- and front-ends, thread flows, events, etc.)
  - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker one in Azure Pipelines, basic at Travis CI
  - [ ] Test preserving user files and folders on regeneration and mb other operations
  - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
@@ -38,3 +39,4 @@
  - [ ] 'verbose' and 'non-verbose' tests as `subTest` (also `should_log_error_...`)
  - [ ] the lib sometimes raising, sometimes returning the code and it is not consistent. While the reasons behind such behaviour are clear, would be great to always return a result code and raise the exceptions in the outer scope, if there is need to
  - [ ] check board (no sense to go further on 'new' if the board in config.ini is not correct)
+ - [ ] check if `platformio.ini` config will be successfully parsed when there are interpolation and/or empty parameters

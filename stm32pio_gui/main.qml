@@ -164,6 +164,45 @@ ApplicationWindow {
         }
     }
 
+    DropArea {
+        id: dropArea
+        anchors.fill: parent
+        Popup {
+            visible: dropArea.containsDrag
+            parent: Overlay.overlay
+            anchors.centerIn: Overlay.overlay
+            modal: true
+            background: Rectangle { opacity: 0.0 }
+            // closePolicy: Popup.NoAutoClose
+
+            contentItem: Column {
+                spacing: 20
+                Image {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    source: 'icons/drop-here.svg'
+                    fillMode: Image.PreserveAspectFit
+                    sourceSize.width: 64
+                }
+                Text {
+                    // anchors.topMargin: 20
+                    text: "Drop project folder to add..."
+                }
+            }
+        }
+        // onEntered: console.log("entered", drag.urls, drag.text, drag.formats);
+        // onExited: console.log("exited")
+        onDropped: {
+            console.log(drop.urls, drop.text, drop.formats);
+            if (drop.urls.length) {
+                projectsModel.addProjectByPath(drop.urls[0], drop.formats);
+            } else if (drop.text) {
+                projectsModel.addProjectByPath(drop.text, drop.formats);  // TODO: check path!
+            } else {
+                console.log("Incorrect drag'n'drop event");
+            }
+        }
+    }
+
     /*
        All layouts and widgets try to be adaptive to variable parents, siblings, window and whatever else sizes
        so we extensively use Grid, Column and Row layouts. The most high-level one is a composition of the list
@@ -269,6 +308,13 @@ ApplicationWindow {
                 Layout.alignment: Qt.AlignBottom | Qt.AlignHCenter
                 Layout.fillWidth: true
 
+                Connections {
+                    target: projectsModel
+                    onDuplicateFound: {
+                        projectsListView.currentIndex = duplicateIndex;
+                        projectsWorkspaceView.currentIndex = duplicateIndex;
+                    }
+                }
                 Button {
                     text: 'Add'
                     Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter

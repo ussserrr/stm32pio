@@ -186,7 +186,7 @@ class ProjectListItem(QObject):
             # Register some kind of the deconstruction handler
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
                                                self.name if self.project is None else str(self.project))
-            self.qml_ready.wait()  # wait for the GUI to initialized
+            self.qml_ready.wait()  # wait for the GUI to initialize
             self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
             self.stateChanged.emit()
@@ -328,6 +328,8 @@ class ProjectsList(QAbstractListModel):
     ProjectListItem.
     """
 
+    duplicateFound = Signal(int, arguments=['duplicateIndex'])
+
     def __init__(self, projects: list = None, parent: QObject = None):
         """
         Args:
@@ -361,8 +363,8 @@ class ProjectsList(QAbstractListModel):
         self.projects.append(project)
         self.endInsertRows()
 
-    @Slot(QUrl)
-    def addProjectByPath(self, path: QUrl):
+    @Slot(str, str)
+    def addProjectByPath(self, path: str, arg_type: str):
         """
         Create, append and save in QSettings a new ProjectListItem instance with a given QUrl path (typically sent from
         the QML GUI).
@@ -371,10 +373,22 @@ class ProjectsList(QAbstractListModel):
             path: QUrl path to the project folder (absolute by default)
         """
 
-        self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
+        print(type(path), path, arg_type)
+        return
 
-        if any([list_item.project.path.samefile(pathlib.Path(path.toLocalFile())) for list_item in self.projects]):
-            module_logger.warning("This project is already in the list")
+        if arg_type == '[text/plain]':
+            path = str(pathlib.Path(path.replace('file://', '')).resolve())
+        elif arg_type == '[text/uri-list]':
+            path = QUrl(path).toLocalFile()
+
+        duplicate_index = next((idx for idx, list_item in enumerate(self.projects) if
+                                list_item.project.path.samefile(pathlib.Path(path.toLocalFile()))), -1)
+        if duplicate_index >= 0:
+            module_logger.warning(f"This project is already in the list: {path.toLocalFile()}")
+            self.duplicateFound.emit(duplicate_index)
+            return
+
+        self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
 
         project = ProjectListItem(project_args=[path.toLocalFile()], parent=self)
         self.projects.append(project)
