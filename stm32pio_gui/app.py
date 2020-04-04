@@ -23,7 +23,7 @@ try:
     else:
         from PySide2.QtGui import QGuiApplication
     from PySide2.QtGui import QIcon
-    from PySide2.QtQml import qmlRegisterType, QQmlApplicationEngine
+    from PySide2.QtQml import qmlRegisterType, QQmlApplicationEngine, QJSValue
 except IndexError as e:
     print(e)
     print("\nGUI version requires PySide2 to be installed. You can re-install stm32pio as 'pip install stm32pio[GUI]' "
@@ -363,8 +363,8 @@ class ProjectsList(QAbstractListModel):
         self.projects.append(project)
         self.endInsertRows()
 
-    @Slot(str, str)
-    def addProjectByPath(self, path: str, arg_type: str):
+    @Slot('QStringList')
+    def addProjectByPath(self, path):
         """
         Create, append and save in QSettings a new ProjectListItem instance with a given QUrl path (typically sent from
         the QML GUI).
@@ -373,13 +373,16 @@ class ProjectsList(QAbstractListModel):
             path: QUrl path to the project folder (absolute by default)
         """
 
-        print(type(path), path, arg_type)
+        print(type(path), path)
+        print(QUrl.fromStringList(path))
+        paths_list = []
+        for p in QUrl.fromStringList(path):
+            if p.isLocalFile():
+                paths_list.append(p.toLocalFile())
+            elif p.isRelative():
+                paths_list.append(p.toString(QUrl.FormattingOptions(QUrl.None_)))
+        print(paths_list)
         return
-
-        if arg_type == '[text/plain]':
-            path = str(pathlib.Path(path.replace('file://', '')).resolve())
-        elif arg_type == '[text/uri-list]':
-            path = QUrl(path).toLocalFile()
 
         duplicate_index = next((idx for idx, list_item in enumerate(self.projects) if
                                 list_item.project.path.samefile(pathlib.Path(path.toLocalFile()))), -1)

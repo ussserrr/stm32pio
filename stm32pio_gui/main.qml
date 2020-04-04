@@ -189,14 +189,14 @@ ApplicationWindow {
                 }
             }
         }
-        // onEntered: console.log("entered", drag.urls, drag.text, drag.formats);
-        // onExited: console.log("exited")
         onDropped: {
-            console.log(drop.urls, drop.text, drop.formats);
+            console.log(drop.urls, typeof(drop.urls), drop.text, drop.formats);
             if (drop.urls.length) {
-                projectsModel.addProjectByPath(drop.urls[0], drop.formats);
+                // typeof(drop.urls) === 'object' so we need to convert to the array of strings
+                projectsModel.addProjectByPath(Object.keys(drop.urls).map(u => drop.urls[u]));
             } else if (drop.text) {
-                projectsModel.addProjectByPath(drop.text, drop.formats);  // TODO: check path!
+                // wrap into the array for consistency
+                projectsModel.addProjectByPath([drop.text]);
             } else {
                 console.log("Incorrect drag'n'drop event");
             }
