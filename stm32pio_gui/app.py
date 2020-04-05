@@ -4,7 +4,6 @@
 # from __future__ import annotations
 
 import collections
-import gc
 import logging
 import pathlib
 import platform
@@ -215,7 +214,6 @@ class ProjectListItem(QObject):
 
     @Property('QVariant', notify=stateChanged)
     def state(self):
-        # print(time.time(), self.project.path.name)
         if self.project is not None:
             state = self.project.state
 
@@ -498,10 +496,19 @@ class Settings(QSettings):
             if not self.contains(self.prefix + key):
                 self.setValue(self.prefix + key, value)
 
+    @Slot()
+    def clear(self):
+        super().clear()
+
 
     @Slot(str, result='QVariant')
     def get(self, key):
-        return self.value(self.prefix + key)
+        value = self.value(self.prefix + key)
+        if value == 'false':
+            value = False
+        elif value == 'true':
+            value = True
+        return value
 
 
     @Slot(str, 'QVariant')
@@ -562,10 +569,16 @@ def main():
                         external_triggers={
                             'verbose': verbose_setter
                         })
+    # settings.clear()  # clear all
     # settings.remove('app/settings')
     # settings.remove('app/projects')
 
     module_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
+    qml_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
+    if module_logger.isEnabledFor(logging.DEBUG):
+        module_logger.debug("App QSettings:")
+        for key in settings.allKeys():
+            module_logger.debug(f"{key}: {settings.value(key)} (type: {type(settings.value(key))})")
 
     settings.beginGroup('app')
     projects_paths = []

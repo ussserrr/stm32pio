@@ -46,7 +46,7 @@ ApplicationWindow {
     QtDialogs.Dialog {
         id: settingsDialog
         title: 'Settings'
-        standardButtons: QtDialogs.StandardButton.Save | QtDialogs.StandardButton.Cancel
+        standardButtons: QtDialogs.StandardButton.Save | QtDialogs.StandardButton.Cancel | QtDialogs.StandardButton.Reset
         GridLayout {
             columns: 2
 
@@ -66,6 +66,15 @@ ApplicationWindow {
                 id: verbose
                 leftPadding: -3
             }
+
+            Text {
+                Layout.columnSpan: 2
+                Layout.maximumWidth: parent.width
+                topPadding: 30
+                bottomPadding: 30
+                wrapMode: Text.Wrap
+                text: "To clear ALL app settings including the list of added projects click \"Reset\" then restart the app"
+            }
         }
         // Set UI values there so they are always reflect actual parameters
         onVisibleChanged: {
@@ -77,6 +86,9 @@ ApplicationWindow {
         onAccepted: {
             settings.set('editor', editor.text);
             settings.set('verbose', verbose.checked);
+        }
+        onReset: {
+            settings.clear();
         }
     }
 
