@@ -11,6 +11,7 @@ import platform
 import sys
 import threading
 import time
+import traceback
 import weakref
 
 try:
@@ -116,13 +117,15 @@ class ProjectListItem(QObject):
     actionRunningChanged = Signal()
 
 
-    def __init__(self, project_args: list = None, project_kwargs: dict = None, parent: QObject = None):
+    def __init__(self, project_args: list = None, project_kwargs: dict = None, from_startup: bool = False, parent: QObject = None):
         super().__init__(parent=parent)
 
         if project_args is None:
             project_args = []
         if project_kwargs is None:
             project_kwargs = {}
+
+        self._from_startup = from_startup
 
         self.logger = logging.getLogger(f"{stm32pio.lib.__name__}.{id(self)}")
         self.logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
@@ -169,8 +172,9 @@ class ProjectListItem(QObject):
         try:
             self.project = stm32pio.lib.Stm32pio(*args, **kwargs)
         except Exception as e:
-            # Error during the initialization
-            self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
+            # Error during the initialization. Print format is: "ExceptionName: message"
+            self.logger.exception(traceback.format_exception_only(*(sys.exc_info()[:2]))[-1],
+                                  exc_info=self.logger.isEnabledFor(logging.DEBUG))
             if len(args):
                 self._name = args[0]  # use a project path string (as it should be a first argument) as a name
             else:
@@ -190,6 +194,10 @@ class ProjectListItem(QObject):
             self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
             self.stateChanged.emit()
+
+    @Property(bool)
+    def fromStartup(self):
+        return self._from_startup
 
     @staticmethod
     def at_exit(workers_pool: QThreadPool, logging_worker: LoggingWorker, name: str):
@@ -303,7 +311,9 @@ class ProjectActionWorker(QObject, QRunnable):
             result = self.func(*self.args)
         except Exception as e:
             if self.logger is not None:
-                self.logger.exception(e, exc_info=self.logger.isEnabledFor(logging.DEBUG))
+                # Print format is: "ExceptionName: message"
+                self.logger.exception(traceback.format_exception_only(*(sys.exc_info()[:2]))[-1],
+                                      exc_info=self.logger.isEnabledFor(logging.DEBUG))
             result = -1
 
         if result is None or (type(result) == int and result == 0):
@@ -364,42 +374,45 @@ class ProjectsList(QAbstractListModel):
         self.endInsertRows()
 
     @Slot('QStringList')
-    def addProjectByPath(self, path):
+    def addProjectByPath(self, str_list: list):
         """
         Create, append and save in QSettings a new ProjectListItem instance with a given QUrl path (typically sent from
         the QML GUI).
-
-        Args:
-            path: QUrl path to the project folder (absolute by default)
         """
 
-        print(type(path), path)
-        print(QUrl.fromStringList(path))
+        print(type(str_list), str_list)
+        print(QUrl.fromStringList(str_list))
         paths_list = []
-        for p in QUrl.fromStringList(path):
-            if p.isLocalFile():
-                paths_list.append(p.toLocalFile())
-            elif p.isRelative():
-                paths_list.append(p.toString(QUrl.FormattingOptions(QUrl.None_)))
+        for path_str in str_list:
+            path_qurl = QUrl(path_str)
+            if path_qurl.isLocalFile():
+                paths_list.append(path_qurl.toLocalFile())
+            elif path_qurl.isRelative():  # this means that the path string is not starting with 'file://' prefix
+                paths_list.append(path_str)  # just use source string
         print(paths_list)
-        return
+
+        if len(paths_list):
+            path = paths_list[0]  # for now just respond on one item even if a list was provided
+        else:
+            module_logger.warning("No path were given")
+            return
 
         duplicate_index = next((idx for idx, list_item in enumerate(self.projects) if
-                                list_item.project.path.samefile(pathlib.Path(path.toLocalFile()))), -1)
+                                list_item.project.path.samefile(pathlib.Path(path))), -1)
         if duplicate_index >= 0:
-            module_logger.warning(f"This project is already in the list: {path.toLocalFile()}")
+            module_logger.warning(f"This project is already in the list: {path}")
             self.duplicateFound.emit(duplicate_index)
             return
 
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
 
-        project = ProjectListItem(project_args=[path.toLocalFile()], parent=self)
+        project = ProjectListItem(project_args=[path], parent=self)
         self.projects.append(project)
 
         settings.beginGroup('app')
         settings.beginWriteArray('projects')
         settings.setArrayIndex(len(self.projects) - 1)
-        settings.setValue('path', path.toLocalFile())
+        settings.setValue('path', path)
         settings.endArray()
         settings.endGroup()
 
@@ -496,7 +509,7 @@ class Settings(QSettings):
         self.setValue(self.prefix + key, value)
 
         if key in self.external_triggers.keys():
-            self.external_triggers['key'](value)
+            self.external_triggers[key](value)
 
 
 def main():
@@ -600,7 +613,7 @@ def main():
     def loaded(_, success):
         # TODO: somehow handle an initialization error
         boards_model.setStringList(boards)
-        projects = [ProjectListItem(project_args=[path], parent=projects_model) for path in projects_paths]
+        projects = [ProjectListItem(project_args=[path], from_startup=True, parent=projects_model) for path in projects_paths]
         for p in projects:
             projects_model.addProject(p)
         main_window.backendLoaded.emit()  # inform the GUI
@@ -625,4 +638,7 @@ settings = QSettings()
 
 
 if __name__ == '__main__':
+    # import os
+    # os.chdir(str(pathlib.Path(sys.path[0])))
+    # print(pathlib.Path.cwd())
     sys.exit(main())

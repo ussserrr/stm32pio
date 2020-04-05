@@ -172,12 +172,16 @@ ApplicationWindow {
             parent: Overlay.overlay
             anchors.centerIn: Overlay.overlay
             modal: true
-            background: Rectangle { opacity: 0.0 }
-            // closePolicy: Popup.NoAutoClose
-
+            background: Rectangle {
+                opacity: 0.0
+            }
+            Overlay.modal: Rectangle {
+                color: "#aaffffff"
+            }
             contentItem: Column {
                 spacing: 20
                 Image {
+                    id: dropPopupContent
                     anchors.horizontalCenter: parent.horizontalCenter
                     source: 'icons/drop-here.svg'
                     fillMode: Image.PreserveAspectFit
@@ -186,6 +190,8 @@ ApplicationWindow {
                 Text {
                     // anchors.topMargin: 20
                     text: "Drop project folder to add..."
+                    font.pointSize: 24  // different on different platforms, Qt's bug
+                    font.weight: Font.Black  // heaviest
                 }
             }
         }
@@ -242,16 +248,38 @@ ApplicationWindow {
                             property bool initLoading: true  // initial waiting for the backend-side
                             property ProjectListItem project: projectsModel.getProject(index)
                             Connections {
-                                target: project  // (newbie hint) sender
+                                target: project  // (newbie hint) sender which signals we want to catch below
                                 // Currently, this event is equivalent to the complete initialization of the backend side of the project
                                 onNameChanged: {
                                     initLoading = false;
+
+                                    // Appropriately highlight an item depending on its initialization result
+                                    const state = project.state;
+                                    if (state['INIT_ERROR']) {
+                                        projectName.color = 'indianred';
+                                        projectCurrentStage.color = 'indianred';
+                                    } else if (!project.fromStartup) {
+                                        // Do not touch those projects that have been loaded on startup (from the QSettings),
+                                        // only new ones added during this session
+                                        projectName.color = 'seagreen';
+                                        projectCurrentStage.color = 'seagreen';
+                                    }
+                                }
+                            }
+                            Connections {
+                                target: projectsListView
+                                onCurrentIndexChanged: {
+                                    if (projectsListView.currentIndex === index && Qt.colorEqual(projectName.color, 'seagreen')) {
+                                        projectName.color = 'black';
+                                        projectCurrentStage.color = 'black';
+                                    }
                                 }
                             }
                             ColumnLayout {
                                 Layout.preferredHeight: 50
 
                                 Text {
+                                    id: projectName
                                     leftPadding: 5
                                     rightPadding: busy.running ? 0 : leftPadding
                                     Layout.alignment: Qt.AlignBottom
@@ -263,6 +291,7 @@ ApplicationWindow {
                                     text: `<b>${display.name}</b>`
                                 }
                                 Text {
+                                    id: projectCurrentStage
                                     leftPadding: 5
                                     rightPadding: busy.running ? 0 : leftPadding
                                     Layout.alignment: Qt.AlignTop
@@ -302,7 +331,7 @@ ApplicationWindow {
             QtLabs.FolderDialog {
                 id: addProjectFolderDialog
                 currentFolder: QtLabs.StandardPaths.standardLocations(QtLabs.StandardPaths.HomeLocation)[0]
-                onAccepted: projectsModel.addProjectByPath(folder)
+                onAccepted: projectsModel.addProjectByPath([folder])
             }
             RowLayout {
                 Layout.alignment: Qt.AlignBottom | Qt.AlignHCenter

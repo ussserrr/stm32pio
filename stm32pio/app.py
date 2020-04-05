@@ -159,7 +159,7 @@ def main(sys_argv=None) -> int:
 
     # Library is designed to throw the exception in bad cases so we catch here globally
     except Exception:
-        # ExceptionName: message
+        # Print format is: "ExceptionName: message"
         logger.exception(traceback.format_exception_only(*(sys.exc_info()[:2]))[-1],
                          exc_info=logger.isEnabledFor(logging.DEBUG))
         return -1

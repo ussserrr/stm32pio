@@ -5,7 +5,7 @@
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
  - [ ] GUI. Tests (research approaches and patterns)
  - [x] GUI. Reduce number of calls to 'state' (many IO operations)
- - [ ] GUI. Drag and drop the new folder into the app window
+ - [x] GUI. Drag and drop the new folder into the app window
  - [ ] GUI. Implement other methods for Qt abstract models
  - [x] GUI. Warning on 'Clean' action (maybe the window with a checkbox "Do not ask in the future" (QSettings parameter))
  - [x] GUI. On 'Clean' clean the log too
@@ -18,6 +18,22 @@
  - [x] GUI. TypeError: Cannot read property 'actionRunning' of null
  - [ ] GUI. QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
  - [ ] GUI. Fix high CPU usage (probably some thread consuming)
+ - [ ] GUI. Relative resource paths:
+ 
+        ```
+          ⌘  python3 Documents/GitHub/stm32pio/stm32pio_gui/app.py 
+        INFO main Starting stm32pio_gui...
+        qt.svg: Cannot open file '/Users/chufyrev/stm32pio_gui/icons/icon.svg', because: No such file or directory
+        qt.svg: Cannot open file '/Users/chufyrev/stm32pio_gui/icons/icon.svg', because: No such file or directory
+        QQmlApplicationEngine failed to load component
+        file:///Users/chufyrev/stm32pio_gui/main.qml: No such file or directory
+        Traceback (most recent call last):
+          File "Documents/GitHub/stm32pio/stm32pio_gui/app.py", line 629, in <module>
+            sys.exit(main())
+          File "Documents/GitHub/stm32pio/stm32pio_gui/app.py", line 590, in main
+            main_window = engine.rootObjects()[0]
+        IndexError: list index out of range
+        ```
  - [ ] Create VSCode plugin
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
@@ -40,3 +56,4 @@
  - [ ] the lib sometimes raising, sometimes returning the code and it is not consistent. While the reasons behind such behaviour are clear, would be great to always return a result code and raise the exceptions in the outer scope, if there is need to
  - [ ] check board (no sense to go further on 'new' if the board in config.ini is not correct)
  - [ ] check if `platformio.ini` config will be successfully parsed when there are interpolation and/or empty parameters
+ - [x] check if `.ioc` file is a text file on project initialization. Let `_find_ioc_file()` method to use explicitly provided file (useful for GUI). Maybe let user specify it via CLI

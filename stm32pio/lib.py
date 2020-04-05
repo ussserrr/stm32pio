@@ -78,7 +78,7 @@ class ProjectState(collections.OrderedDict):
 
     The class has no special constructor so its filling - both stages and their order - is a responsibility of the
     external code. It also has no protection nor checks for its internal correctness. Anyway, it is intended to be used
-    (i.e. creating) only by the internal code of this library so there should not be any worries.
+    (i.e. creating) only by the internal code of this library so there shouldn't be any worries.
     """
 
     def __str__(self):
@@ -167,13 +167,20 @@ class Stm32pio:
         else:
             self.logger = logging.getLogger(f"{__name__}.{id(self)}")  # use id() as uniqueness guarantee
 
-        # The path is a unique identifier of the project. Handle 'path/to/proj', 'path/to/proj/', '.', '../proj', etc.,
-        # make the path absolute and check for existence
-        self.path = pathlib.Path(dirty_path).expanduser().resolve(strict=True)
+        # The path is a primary identifier of the project so we process it first and foremost. Handle 'path/to/proj',
+        # 'path/to/proj/', '.', '../proj', etc., make the path absolute and check for existence. Also, the .ioc file can
+        # be specified instead of the directory. In this case it is assumed that the parent path is an actual project
+        # path and the provided .ioc file is used on a priority basis
+        path = pathlib.Path(dirty_path).expanduser().resolve(strict=True)
+        ioc_file = None
+        if path.is_file() and path.suffix == '.ioc':  # if .ioc file was supplied instead of the directory
+            ioc_file = path
+            path = path.parent
+        self.path = path
 
         self.config = self._load_config(parameters)
 
-        self.ioc_file = self._find_ioc_file()
+        self.ioc_file = self._find_ioc_file(explicit_file=ioc_file)
         self.config.set('project', 'ioc_file', self.ioc_file.name)
 
         if 'board' in parameters and parameters['board'] is not None:
@@ -239,7 +246,7 @@ class Stm32pio:
         return conditions_results
 
 
-    def _find_ioc_file(self) -> pathlib.Path:
+    def _find_ioc_file(self, explicit_file: pathlib.Path = None) -> pathlib.Path:
         """
         Find and return an .ioc file. If there are more than one return first. If no .ioc file is present raise
         FileNotFoundError exception
@@ -248,22 +255,41 @@ class Stm32pio:
             absolute path to the .ioc file
         """
 
-        ioc_file = self.config.get('project', 'ioc_file', fallback=None)
-        if ioc_file:
-            ioc_file = self.path.joinpath(ioc_file).resolve(strict=True)
-            self.logger.debug(f"using '{ioc_file.name}' file from the INI config")
-            return ioc_file
+        result_file = None
+
+        # 1. If explicit file was provided use it
+        if explicit_file is not None:
+            self.logger.debug(f"using explicitly provided '{explicit_file.name}' file")
+            result_file = explicit_file
+
         else:
-            self.logger.debug("searching for any .ioc file...")
-            candidates = list(self.path.glob('*.ioc'))
-            if len(candidates) == 0:  # TODO: good candidate for the new Python 3.8 assignment expression feature :)
-                raise FileNotFoundError("CubeMX project .ioc file")
-            elif len(candidates) == 1:
-                self.logger.debug(f"{candidates[0].name} is selected")
-                return candidates[0]
+            # 2. Check the value from the config file
+            ioc_file = self.config.get('project', 'ioc_file', fallback=None)  # TODO: Python 3.8 walrus operator (elif ...)
+            if ioc_file:
+                ioc_file = self.path.joinpath(ioc_file).resolve(strict=True)
+                self.logger.debug(f"using '{ioc_file.name}' file from the INI config")
+                result_file = ioc_file
+
+            # 3. Otherwise search for an appropriate file by yourself
             else:
-                self.logger.warning(f"there are multiple .ioc files, {candidates[0].name} is selected")
-                return candidates[0]
+                self.logger.debug("searching for any .ioc file...")
+                candidates = list(self.path.glob('*.ioc'))
+                if len(candidates) == 0:  # TODO: good candidate for the new Python 3.8 assignment expression feature :)
+                    raise FileNotFoundError("CubeMX project .ioc file")
+                elif len(candidates) == 1:
+                    self.logger.debug(f"{candidates[0].name} is selected")
+                    result_file = candidates[0]
+                else:
+                    self.logger.warning(f"there are multiple .ioc files, {candidates[0].name} is selected")
+                    result_file = candidates[0]
+
+        # Check file correctness
+        try:
+            content = result_file.read_text()
+            assert len(content) > 0
+            return result_file
+        except Exception as e:
+            raise Exception(f"{result_file.name} is incorrect") from e
 
 
     def _load_config(self, runtime_parameters: dict = None) -> configparser.ConfigParser:
