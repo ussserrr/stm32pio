@@ -240,6 +240,7 @@ class ProjectListItem(QObject):
     @Slot(str)
     def actionStartedSlot(self, action: str):
         self.actionStarted.emit(action)
+        # print('actionRunning TRUE')
         self._is_action_running = True
         self.actionRunningChanged.emit()
 
@@ -247,6 +248,7 @@ class ProjectListItem(QObject):
     def actionDoneSlot(self, action: str, success: bool):
         if not success:
             self.workers_pool.clear()  # clear the queue - stop further execution
+        # print('actionRunning FALSE')
         self._is_action_running = False
         self.actionRunningChanged.emit()
         self.actionDone.emit(action, success)
@@ -378,8 +380,6 @@ class ProjectsList(QAbstractListModel):
         the QML GUI).
         """
 
-        print(type(str_list), str_list)
-        print(QUrl.fromStringList(str_list))
         paths_list = []
         for path_str in str_list:
             path_qurl = QUrl(path_str)
@@ -387,7 +387,6 @@ class ProjectsList(QAbstractListModel):
                 paths_list.append(path_qurl.toLocalFile())
             elif path_qurl.isRelative():  # this means that the path string is not starting with 'file://' prefix
                 paths_list.append(path_str)  # just use source string
-        print(paths_list)
 
         if len(paths_list):
             path = paths_list[0]  # for now just respond on one item even if a list was provided
@@ -575,10 +574,10 @@ def main():
 
     module_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
     qml_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
-    if module_logger.isEnabledFor(logging.DEBUG):
-        module_logger.debug("App QSettings:")
-        for key in settings.allKeys():
-            module_logger.debug(f"{key}: {settings.value(key)} (type: {type(settings.value(key))})")
+    # if module_logger.isEnabledFor(logging.DEBUG):
+    #     module_logger.debug("App QSettings:")
+    #     for key in settings.allKeys():
+    #         module_logger.debug(f"{key}: {settings.value(key)} (type: {type(settings.value(key))})")
 
     settings.beginGroup('app')
     projects_paths = []

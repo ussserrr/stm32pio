@@ -3,6 +3,7 @@ import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 import QtGraphicalEffects 1.12
 import QtQuick.Dialogs 1.3 as QtDialogs
+import QtQml.StateMachine 1.12 as DSM
 
 import Qt.labs.platform 1.1 as QtLabs
 
@@ -89,6 +90,7 @@ ApplicationWindow {
         }
         onReset: {
             settings.clear();
+            this.close();
         }
     }
 
@@ -208,12 +210,11 @@ ApplicationWindow {
             }
         }
         onDropped: {
-            console.log(drop.urls, typeof(drop.urls), drop.text, drop.formats);
             if (drop.urls.length) {
-                // typeof(drop.urls) === 'object' so we need to convert to the array of strings
+                // We need to convert to the array of strings as typeof(drop.urls) === 'object'
                 projectsModel.addProjectByPath(Object.keys(drop.urls).map(u => drop.urls[u]));
             } else if (drop.text) {
-                // wrap into the array for consistency
+                // Wrap into the array for consistency
                 projectsModel.addProjectByPath([drop.text]);
             } else {
                 console.log("Incorrect drag'n'drop event");
@@ -453,7 +454,7 @@ ApplicationWindow {
                                     const state = project.state;
                                     stateCached = state;
 
-                                    project.stageChanged();  // side-effect: get the stage at the same time
+                                    project.stageChanged();  // side-effect: update the stage at the same time
 
                                     if (!state['INIT_ERROR'] && !state['EMPTY']) {  // i.e. no .ioc file but the project was able to initialize itself
                                         // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
@@ -622,29 +623,6 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     Layout.bottomMargin: 7
                                     z: 1  // for the glowing animation
-                                    Connections {
-                                        target: project
-                                        onNameChanged: {
-                                            for (let i = 0; i < buttonsModel.count; ++i) {
-                                                // Looks like 'enabled' property should be managed from outside of the element
-                                                // (i.e there, not in the button itself)
-                                                projActionsRow.children[i].enabled = true;
-                                            }
-                                        }
-                                        onActionStarted: {
-                                            for (let i = 0; i < buttonsModel.count; ++i) {
-                                                projActionsRow.children[i].enabled = false;
-                                                projActionsRow.children[i].palette.buttonText = 'darkgray';
-                                                projActionsRow.children[i].glowVisible = false;
-                                            }
-                                        }
-                                        onActionDone: {
-                                            for (let i = 0; i < buttonsModel.count; ++i) {
-                                                projActionsRow.children[i].enabled = true;
-                                                projActionsRow.children[i].palette.buttonText = 'black';
-                                            }
-                                        }
-                                    }
                                     Repeater {
                                         model: ListModel {
                                             id: buttonsModel
@@ -657,51 +635,52 @@ ApplicationWindow {
                                             ListElement {
                                                 name: 'Open editor'
                                                 action: 'start_editor'
-                                                margin: 15  // margin to visually separate first 2 actions as they doesn't represent any state
+                                                margin: 15  // margin to visually separate first 2 actions as they doesn't represent any stage
                                             }
                                             ListElement {
                                                 name: 'Initialize'
-                                                stateRepresented: 'INITIALIZED'  // the project state that this button is representing
+                                                stageRepresented: 'INITIALIZED'  // the project stage this button is representing
                                                 action: 'save_config'
                                             }
                                             ListElement {
                                                 name: 'Generate'
-                                                stateRepresented: 'GENERATED'
+                                                stageRepresented: 'GENERATED'
                                                 action: 'generate_code'
                                             }
                                             ListElement {
                                                 name: 'Init PlatformIO'
-                                                stateRepresented: 'PIO_INITIALIZED'
+                                                stageRepresented: 'PIO_INITIALIZED'
                                                 action: 'pio_init'
                                             }
                                             ListElement {
                                                 name: 'Patch'
-                                                stateRepresented: 'PATCHED'
+                                                stageRepresented: 'PATCHED'
                                                 action: 'patch'
                                             }
                                             ListElement {
                                                 name: 'Build'
-                                                stateRepresented: 'BUILT'
+                                                stageRepresented: 'BUILT'
                                                 action: 'build'
                                             }
                                         }
                                         delegate: Button {
+                                            id: actionButton
                                             text: model.name
                                             Layout.rightMargin: model.margin
-                                            enabled: false  // turn on after project initialization
-                                            property alias glowVisible: glow.visible
-                                            property var stateCachedNotifier: stateCached
-                                            onStateCachedNotifierChanged: {
-                                                if (stateCached[model.stateRepresented]) {
-                                                    palette.button = 'lightgreen';
-                                                } else {
-                                                    palette.button = 'lightgray';
-                                                }
-                                                palette.buttonText = 'black';
-                                            }
+                                            property bool highlight: false
                                             property int buttonIndex: -1
                                             Component.onCompleted: {
                                                 buttonIndex = index;
+                                            }
+                                            ToolTip {
+                                                visible: parent.hovered
+                                                Component.onCompleted: {
+                                                    if (model.tooltip) {
+                                                        text = model.tooltip;
+                                                    } else {
+                                                        this.destroy();
+                                                    }
+                                                }
                                             }
                                             onClicked: {
                                                 const args = [];  // JS array cannot be attached to a ListElement (at least in a non-hacky manner)
@@ -717,28 +696,74 @@ ApplicationWindow {
                                                 }
                                                 project.run(model.action, args);
                                             }
-                                            ToolTip {
-                                                visible: parent.hovered
-                                                Component.onCompleted: {
-                                                    if (model.tooltip) {
-                                                        text = model.tooltip;
-                                                    } else {
-                                                        this.destroy();
+                                            DSM.StateMachine {
+                                                initialState: main
+                                                running: true
+                                                DSM.State {
+                                                    id: main
+                                                    initialState: normal
+                                                    DSM.SignalTransition {
+                                                        targetState: disabled
+                                                        signal: project.actionStarted
+                                                    }
+                                                    DSM.SignalTransition {
+                                                        targetState: highlighted
+                                                        signal: actionButton.highlightChanged
+                                                        guard: actionButton.highlight
+                                                    }
+                                                    onEntered: {
+                                                        actionButton.enabled = true;
+                                                        actionButton.palette.buttonText = 'black';
+                                                    }
+                                                    DSM.State {
+                                                        id: normal
+                                                        DSM.SignalTransition {
+                                                            targetState: stageFulfilled
+                                                            signal: stateCachedChanged
+                                                            guard: stateCached[model.stageRepresented] ? true : false  // explicitly convert to boolean
+                                                        }
+                                                        onEntered: {
+                                                            actionButton.palette.button = 'lightgray';
+                                                        }
+                                                    }
+                                                    DSM.State {
+                                                        id: stageFulfilled
+                                                        DSM.SignalTransition {
+                                                            targetState: normal
+                                                            signal: stateCachedChanged
+                                                            guard: stateCached[model.stageRepresented] ? false : true  // explicitly convert to boolean
+                                                        }
+                                                        onEntered: {
+                                                            actionButton.palette.button = 'lightgreen';
+                                                        }
+                                                    }
+                                                    DSM.HistoryState {
+                                                        id: mainHistory
+                                                        defaultState: normal
                                                     }
                                                 }
-                                            }
-                                            property string currentColor: ''  // for highlighting only
-                                            function highlight(flag) {
-                                                if (flag) {
-                                                    if (!currentColor) {
-                                                        currentColor = palette.button;
+                                                DSM.State {
+                                                    id: disabled
+                                                    DSM.SignalTransition {
+                                                        targetState: mainHistory
+                                                        signal: project.actionDone
                                                     }
-                                                    palette.button = Qt.lighter('lightgreen', 1.2);
-                                                    palette.buttonText = 'dimgray';
-                                                } else {
-                                                    palette.button = currentColor;
-                                                    palette.buttonText = 'black';
-                                                    currentColor = '';
+                                                    onEntered: {
+                                                        actionButton.enabled = false;
+                                                        actionButton.palette.buttonText = 'darkgray';
+                                                    }
+                                                }
+                                                DSM.State {
+                                                    id: highlighted
+                                                    DSM.SignalTransition {
+                                                        targetState: mainHistory
+                                                        signal: actionButton.highlightChanged
+                                                        guard: !actionButton.highlight
+                                                    }
+                                                    onEntered: {
+                                                        actionButton.palette.button = Qt.lighter('lightgreen', 1.2);
+                                                        palette.buttonText = 'dimgray';
+                                                    }
                                                 }
                                             }
                                             /*
@@ -755,13 +780,13 @@ ApplicationWindow {
                                                 property bool shiftPressedLastState: false
                                                 function shiftHandler() {
                                                     for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                        projActionsRow.children[i].highlight(shiftPressed);
+                                                        projActionsRow.children[i].highlight = shiftPressed;
                                                     }
                                                 }
                                                 onClicked: {
                                                     if (shiftPressed && buttonIndex >= buttonsModel.statefulActionsStartIndex) {
                                                         for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                            projActionsRow.children[i].highlight(false);
+                                                            projActionsRow.children[i].highlight = false;
                                                         }
                                                         for (let i = buttonsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
                                                             project.run(buttonsModel.get(i).action, []);
@@ -808,12 +833,6 @@ ApplicationWindow {
                                                         shiftHandler();
                                                     }
                                                 }
-                                                onPressed: {
-                                                    palette.button = Qt.darker(palette.button, 1.2);
-                                                }
-                                                onReleased: {
-                                                    palette.button = Qt.lighter(palette.button, 1.2);;
-                                                }
                                             }
                                             Connections {
                                                 target: project
@@ -821,13 +840,13 @@ ApplicationWindow {
                                                     if (action === model.action) {
                                                         palette.button = 'gold';
                                                     }
+                                                    glow.visible = false;
                                                 }
                                                 onActionDone: {
                                                     if (action === model.action) {
                                                         if (success) {
                                                             glow.color = 'lightgreen';
                                                         } else {
-                                                            palette.button = 'lightcoral';
                                                             glow.color = 'lightcoral';
                                                         }
                                                         glow.visible = true;

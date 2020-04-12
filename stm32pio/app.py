@@ -63,7 +63,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     return parser.parse_args(args)
 
 
-def main(sys_argv=None) -> int:
+def main(sys_argv: Optional[list] = None) -> int:
     """
     Can be used as a high-level wrapper to do complete tasks
 
@@ -168,5 +168,5 @@ def main(sys_argv=None) -> int:
 
 
 if __name__ == '__main__':
-    sys.path.append(str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python3 app.py'
+    sys.path.append(str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python app.py'
     sys.exit(main())

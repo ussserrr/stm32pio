@@ -12,12 +12,13 @@
  - [x] GUI. Stop the chain of commands if someone drops -1 or an exception
  - [ ] GUI. 2 types of logging formatters for 2 verbosity levels
  - [x] GUI. Check for projects duplication
- - [ ] GUI. Maybe use QML State for action buttons appearance
+ - [x] GUI. Maybe use QML State for action buttons appearance
  - [x] GUI. Projects are not destructed until quit (something preserving the link probably...)
  - [x] GUI. Fix settings (window doesn't match real)
  - [x] GUI. TypeError: Cannot read property 'actionRunning' of null
  - [ ] GUI. QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
  - [ ] GUI. Fix high CPU usage (probably some thread consuming)
+ - [ ] GUI. Bug in log box scrolling behavior
  - [ ] GUI. Relative resource paths:
  
         ```
