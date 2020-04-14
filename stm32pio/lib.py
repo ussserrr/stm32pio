@@ -281,9 +281,9 @@ class Stm32pio:
                     self.logger.warning(f"there are multiple .ioc files, {candidates[0].name} is selected")
                     result_file = candidates[0]
 
-        # Check file correctness
+        # Check for the file correctness
         try:
-            content = result_file.read_text()
+            content = result_file.read_text()  # should be a text file
             assert len(content) > 0
             return result_file
         except Exception as e:

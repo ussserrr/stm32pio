@@ -6,6 +6,8 @@
  - [ ] GUI. Tests (research approaches and patterns)
  - [x] GUI. Reduce number of calls to 'state' (many IO operations)
  - [x] GUI. Drag and drop the new folder into the app window
+ - [ ] GUI. Multiple projects addition
+ - [ ] GUI. Divide on multiple modules (both Python and QML)
  - [ ] GUI. Implement other methods for Qt abstract models
  - [x] GUI. Warning on 'Clean' action (maybe the window with a checkbox "Do not ask in the future" (QSettings parameter))
  - [x] GUI. On 'Clean' clean the log too
@@ -15,10 +17,16 @@
  - [x] GUI. Maybe use QML State for action buttons appearance
  - [x] GUI. Projects are not destructed until quit (something preserving the link probably...)
  - [x] GUI. Fix settings (window doesn't match real)
- - [x] GUI. TypeError: Cannot read property 'actionRunning' of null
+ - [ ] GUI. TypeError: Cannot read property 'actionRunning' of null (deconstruction order)
  - [ ] GUI. QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
- - [ ] GUI. Fix high CPU usage (probably some thread consuming)
- - [ ] GUI. Bug in log box scrolling behavior
+ - [ ] GUI. Fix high CPU usage (most likely some thread consuming)
+ - [ ] GUI. Bug in log box scrolling behavior (autoscroll sometimes turns off, should re-enable when starting any action)
+ - [x] GUI. Fix loader when action running
+ - [ ] GUI. Mark list item when action is done and it is not a current item (i.e. notify a user)
+ - [ ] GUI. Highlight actions that were picked for continuous run (with some border, for example)
+ - [ ] GUI. Mark last error'ed action
+ - [x] GUI. Action buttons widget state machine diagram
+ - [x] GUI. Fix messed up performance when the list index changes!
  - [ ] GUI. Relative resource paths:
  
         ```

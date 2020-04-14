@@ -14,7 +14,7 @@ import Settings 1.0
 ApplicationWindow {
     id: mainWindow
     visible: true
-    minimumWidth: 980  // comfortable initial size
+    minimumWidth: 980  // comfortable initial size for all platforms (as the same style is used for any of them)
     minimumHeight: 300
     height: 530
     title: 'stm32pio'
@@ -113,7 +113,10 @@ ApplicationWindow {
                     verticalAlignment: TextEdit.AlignVCenter
                     text: `2018 - 2020 © ussserrr<br>
                            <a href='https://github.com/ussserrr/stm32pio'>GitHub</a>`
-                    onLinkActivated: Qt.openUrlExternally(link)
+                    onLinkActivated: {
+                        Qt.openUrlExternally(link);
+                        aboutDialog.close();
+                    }
                     MouseArea {
                         anchors.fill: parent
                         acceptedButtons: Qt.NoButton  // we don't want to eat clicks on the Text
@@ -146,24 +149,9 @@ ApplicationWindow {
         }
     }
 
-    // TODO: fix (jumps skipping next)
-    function moveToNextAndRemove() {
-        // Select and go to some adjacent index before deleting the current project. -1 is a correct
-        // QML index (note that for Python it can jump to the end of the list, ensure a consistency!)
+    function moveToPrevAndRemove() {
         const indexToRemove = projectsListView.currentIndex;
-        let indexToMoveTo;
-        if (indexToRemove === (projectsListView.count - 1)) {
-            indexToMoveTo = indexToRemove - 1;
-        } else {
-            indexToMoveTo = indexToRemove + 1;
-        }
-
-        projectsListView.currentIndex = indexToMoveTo;
-        projectsWorkspaceView.currentIndex = indexToMoveTo;
-
-        // There is some strange bug when the workspace view (highest level StackLayout) disappears after
-        // the project deletion (even when the removal is performed in a separated Timer after some delay
-        // and the current index is definitely has already changed for both widgets)
+        projectsListView.decrementCurrentIndex();
         projectsModel.removeProject(indexToRemove);
     }
 
@@ -173,7 +161,7 @@ ApplicationWindow {
             Action { text: '&Settings'; onTriggered: settingsDialog.open() }
             Action { text: '&About'; onTriggered: aboutDialog.open() }
             MenuSeparator { }
-            // Use this instead of Qt.qiut() to prevent segfaults (messed up shutdown order)
+            // Use mainWindow.close() instead of Qt.quit() to prevent segfaults (messed up shutdown order)
             Action { text: '&Quit'; onTriggered: mainWindow.close() }
         }
     }
@@ -244,6 +232,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true  // crawls under the Add/Remove buttons otherwise
+                keyNavigationWraps: true
 
                 highlight: Rectangle { color: 'darkseagreen' }
                 highlightMoveDuration: 0  // turn off animations
@@ -255,6 +244,7 @@ ApplicationWindow {
                        (See setInitInfo docs) One of the two main widgets representing the project. Use Loader component
                        as it can give us the relible time of all its children loading completion (unlike Component.onCompleted)
                     */
+                    id: listViewDelegate
                     Loader {
                         onLoaded: setInitInfo(index)
                         sourceComponent: RowLayout {
@@ -271,9 +261,9 @@ ApplicationWindow {
                                     if (state['INIT_ERROR']) {
                                         projectName.color = 'indianred';
                                         projectCurrentStage.color = 'indianred';
-                                    } else if (!project.fromStartup) {
-                                        // Do not touch those projects that have been loaded on startup (from the QSettings),
-                                        // only new ones added during this session
+                                    } else if (!project.fromStartup && projectsModel.rowCount() > 1) {
+                                        // Do not touch those projects that have been loaded on startup (from the QSettings), only the new ones
+                                        // added during this session. Also, do not highlight if there is only a single element in the list
                                         projectName.color = 'seagreen';
                                         projectCurrentStage.color = 'seagreen';
                                     }
@@ -294,9 +284,9 @@ ApplicationWindow {
                                 Text {
                                     id: projectName
                                     leftPadding: 5
-                                    rightPadding: busy.running ? 0 : leftPadding
+                                    rightPadding: busy.visible ? 0 : leftPadding
                                     Layout.alignment: Qt.AlignBottom
-                                    Layout.preferredWidth: busy.running ?
+                                    Layout.preferredWidth: busy.visible ?
                                                            (projectsListView.width - parent.height - leftPadding) :
                                                            projectsListView.width
                                     elide: Text.ElideMiddle
@@ -306,9 +296,9 @@ ApplicationWindow {
                                 Text {
                                     id: projectCurrentStage
                                     leftPadding: 5
-                                    rightPadding: busy.running ? 0 : leftPadding
+                                    rightPadding: busy.visible ? 0 : leftPadding
                                     Layout.alignment: Qt.AlignTop
-                                    Layout.preferredWidth: busy.running ?
+                                    Layout.preferredWidth: busy.visible ?
                                                            (projectsListView.width - parent.height - leftPadding) :
                                                            projectsListView.width
                                     elide: Text.ElideRight
@@ -322,7 +312,8 @@ ApplicationWindow {
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredWidth: parent.height
                                 Layout.preferredHeight: parent.height
-                                running: parent.initLoading || (project && project.actionRunning)
+                                // It is important to use 'visible' instead of 'running' for stable visual appearance
+                                visible: project.actionRunning || parent.initLoading  // TODO TypeError: Cannot read property 'actionRunning' of null
                             }
 
                             MouseArea {
@@ -331,10 +322,7 @@ ApplicationWindow {
                                 width: parent.width
                                 height: parent.height
                                 enabled: !parent.initLoading
-                                onClicked: {
-                                    projectsListView.currentIndex = index;
-                                    projectsWorkspaceView.currentIndex = index;
-                                }
+                                onClicked: projectsListView.currentIndex = index
                             }
                         }
                     }
@@ -346,16 +334,13 @@ ApplicationWindow {
                 currentFolder: QtLabs.StandardPaths.standardLocations(QtLabs.StandardPaths.HomeLocation)[0]
                 onAccepted: projectsModel.addProjectByPath([folder])
             }
-            RowLayout {
+            RowLayout {  // TODO: move to ListView's footer
                 Layout.alignment: Qt.AlignBottom | Qt.AlignHCenter
                 Layout.fillWidth: true
 
                 Connections {
                     target: projectsModel
-                    onDuplicateFound: {
-                        projectsListView.currentIndex = duplicateIndex;
-                        projectsWorkspaceView.currentIndex = duplicateIndex;
-                    }
+                    onDuplicateFound: projectsListView.currentIndex = duplicateIndex
                 }
                 Button {
                     text: 'Add'
@@ -363,13 +348,16 @@ ApplicationWindow {
                     display: AbstractButton.TextBesideIcon
                     icon.source: 'icons/add.svg'
                     onClicked: addProjectFolderDialog.open()
+                    ToolTip.visible: projectsListView.count === 0 && !loadingOverlay.visible  // show when there is no items in the list
+                    ToolTip.text: "<b>Hint:</b> add your project using this button or drag'n'drop it into the window"
                 }
                 Button {
                     text: 'Remove'
+                    visible: projectsListView.currentIndex !== -1  // show only if any item is selected
                     Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
                     display: AbstractButton.TextBesideIcon
                     icon.source: 'icons/remove.svg'
-                    onClicked: moveToNextAndRemove()
+                    onClicked: moveToPrevAndRemove()
                 }
             }
         }
@@ -387,6 +375,10 @@ ApplicationWindow {
             Layout.rightMargin: 10
             Layout.topMargin: 10
 
+            Connections {
+                target: projectsListView
+                onCurrentIndexChanged: projectsWorkspaceView.currentIndex = projectsListView.currentIndex
+            }
             Repeater {
                 // Use similar to ListView pattern (same projects model, Loader component)
                 model: projectsModel
@@ -436,18 +428,18 @@ ApplicationWindow {
                             /*
                                 Detect changes of a project outside of the app
                             */
+                            property bool projectIncorrectDialogIsOpen: false
                             QtDialogs.MessageDialog {
                                 id: projectIncorrectDialog
                                 text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
                                        The project will be removed from the app. It will not affect any real content`
                                 icon: QtDialogs.StandardIcon.Critical
                                 onAccepted: {
-                                    moveToNextAndRemove();
+                                    moveToPrevAndRemove();
                                     mainOrInitScreen.projectIncorrectDialogIsOpen = false;
                                 }
                             }
                             signal handleState()
-                            property bool projectIncorrectDialogIsOpen: false
                             property var stateCached: ({})
                             onHandleState: {
                                 if (mainWindow.active && (projectIndex === projectsWorkspaceView.currentIndex) && !projectIncorrectDialogIsOpen && !project.actionRunning) {
@@ -667,7 +659,7 @@ ApplicationWindow {
                                             id: actionButton
                                             text: model.name
                                             Layout.rightMargin: model.margin
-                                            property bool highlight: false
+                                            property bool shouldBeHighlighted: false
                                             property int buttonIndex: -1
                                             Component.onCompleted: {
                                                 buttonIndex = index;
@@ -708,8 +700,8 @@ ApplicationWindow {
                                                     }
                                                     DSM.SignalTransition {
                                                         targetState: highlighted
-                                                        signal: actionButton.highlightChanged
-                                                        guard: actionButton.highlight
+                                                        signal: actionButton.shouldBeHighlightedChanged
+                                                        guard: actionButton.shouldBeHighlighted
                                                     }
                                                     onEntered: {
                                                         actionButton.enabled = true;
@@ -757,8 +749,8 @@ ApplicationWindow {
                                                     id: highlighted
                                                     DSM.SignalTransition {
                                                         targetState: mainHistory
-                                                        signal: actionButton.highlightChanged
-                                                        guard: !actionButton.highlight
+                                                        signal: actionButton.shouldBeHighlightedChanged
+                                                        guard: !actionButton.shouldBeHighlighted
                                                     }
                                                     onEntered: {
                                                         actionButton.palette.button = Qt.lighter('lightgreen', 1.2);
@@ -780,13 +772,13 @@ ApplicationWindow {
                                                 property bool shiftPressedLastState: false
                                                 function shiftHandler() {
                                                     for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                        projActionsRow.children[i].highlight = shiftPressed;
+                                                        projActionsRow.children[i].shouldBeHighlighted = shiftPressed;
                                                     }
                                                 }
                                                 onClicked: {
                                                     if (shiftPressed && buttonIndex >= buttonsModel.statefulActionsStartIndex) {
                                                         for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                            projActionsRow.children[i].highlight = false;
+                                                            projActionsRow.children[i].shouldBeHighlighted = false;
                                                         }
                                                         for (let i = buttonsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
                                                             project.run(buttonsModel.get(i).action, []);
@@ -804,15 +796,15 @@ ApplicationWindow {
                                                     }
 
                                                     shiftPressed = mouse.modifiers & Qt.ShiftModifier;  // bitwise AND
-                                                    if (shiftPressedLastState !== shiftPressed) {
+                                                    if (shiftPressedLastState !== shiftPressed) {  // reduce number of unnecessary shiftHandler() calls
                                                         shiftPressedLastState = shiftPressed;
                                                         shiftHandler();
                                                     }
                                                 }
                                                 onEntered: {
                                                     if (model.action !== 'start_editor') {
-                                                        let preparedText =
-                                                            `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b> after the operation`;
+                                                        let preparedText = `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b>
+                                                                            after the operation`;
                                                         if (buttonIndex >= buttonsModel.statefulActionsStartIndex) {
                                                             preparedText +=
                                                                 `, <b>Shift</b>-click to perform all actions prior this one (including).
