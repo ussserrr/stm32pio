@@ -861,9 +861,7 @@ ApplicationWindow {
                                                 SequentialAnimation {
                                                     id: glowAnimation
                                                     loops: 3
-                                                    onStopped: {
-                                                        glow.visible = false;
-                                                    }
+                                                    onStopped: glow.visible = false
                                                     OpacityAnimator {
                                                         target: glow
                                                         from: 0
