@@ -6,6 +6,7 @@
  - [ ] Create VSCode plugin
 
 ## GUI version
+ - [x] When the list item is not active after the action the "current stage" line is not correct anymore. Consider updating or (better) gray out
  - [ ] Tests (research approaches and patterns)
  - [ ] Test performance with a large number of projects in the model
  - [x] Reduce number of calls to 'state' (many IO operations)
@@ -21,15 +22,15 @@
  - [x] Maybe use QML State for action buttons appearance
  - [x] Projects are not destructed until quit (something preserving the link probably...)
  - [x] Fix settings (window doesn't match real)
- - [ ] `TypeError: Cannot read property 'actionRunning' of null (deconstruction order)`
+ - [ ] `TypeError: Cannot read property 'actionRunning' of null (deconstruction order)` (on project deletion only)
  - [ ] QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
- - [ ] Fix high CPU usage (most likely some thread consuming)
+ - [x] Fix high CPU usage (most likely some thread consuming)
  - [ ] Bug in log box scrolling behavior (autoscroll sometimes turns off, should re-enable when starting any action)
  - [x] Fix loader when action running
- - [ ] Start with folder open in it was provided on CLI (for example, `stm32pio_gui .`)
- - [ ] Mark list item when action is done and it is not a current item (i.e. notify a user)
+ - [ ] Start with a folder opened if it was provided on CLI (for example, `stm32pio_gui .`)
+ - [x] Mark list item when action is done and it is not a current item (i.e. notify a user)
  - [ ] Highlight actions that were picked for continuous run (with some border, for example)
- - [ ] Mark last error'ed action
+ - [x] Mark last error'ed action
  - [x] Action buttons widget state machine diagram
  - [x] Fix messed up performance when the list index changes!
  - [ ] Relative resource paths:

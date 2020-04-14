@@ -268,13 +268,33 @@ ApplicationWindow {
                                         projectCurrentStage.color = 'seagreen';
                                     }
                                 }
+                                onActionStarted: {
+                                    runningOrDone.currentIndex = 0;
+                                    runningOrDone.visible = true;
+                                }
+                                onActionDone: {
+                                    if (index !== projectsListView.currentIndex) {
+                                        projectCurrentStage.color = 'darkgray';
+                                        runningOrDone.currentIndex = 1;
+                                        recentlyDoneIndicator.color = success ? 'lightgreen' : 'lightcoral';
+                                        runningOrDone.visible = true;
+                                    } else {
+                                        runningOrDone.visible = false;
+                                    }
+                                }
                             }
                             Connections {
                                 target: projectsListView
                                 onCurrentIndexChanged: {
-                                    if (projectsListView.currentIndex === index && Qt.colorEqual(projectName.color, 'seagreen')) {
-                                        projectName.color = 'black';
-                                        projectCurrentStage.color = 'black';
+                                    if (projectsListView.currentIndex === index) {
+                                        if (Qt.colorEqual(projectName.color, 'seagreen')) {
+                                            projectName.color = 'black';
+                                            projectCurrentStage.color = 'black';
+                                        }
+                                        if (Qt.colorEqual(projectCurrentStage.color, 'darkgray')) {
+                                            projectCurrentStage.color = 'black';
+                                            runningOrDone.visible = false;
+                                        }
                                     }
                                 }
                             }
@@ -284,9 +304,9 @@ ApplicationWindow {
                                 Text {
                                     id: projectName
                                     leftPadding: 5
-                                    rightPadding: busy.visible ? 0 : leftPadding
+                                    rightPadding: runningOrDone.visible ? 0 : leftPadding
                                     Layout.alignment: Qt.AlignBottom
-                                    Layout.preferredWidth: busy.visible ?
+                                    Layout.preferredWidth: runningOrDone.visible ?
                                                            (projectsListView.width - parent.height - leftPadding) :
                                                            projectsListView.width
                                     elide: Text.ElideMiddle
@@ -296,9 +316,9 @@ ApplicationWindow {
                                 Text {
                                     id: projectCurrentStage
                                     leftPadding: 5
-                                    rightPadding: busy.visible ? 0 : leftPadding
+                                    rightPadding: runningOrDone.visible ? 0 : leftPadding
                                     Layout.alignment: Qt.AlignTop
-                                    Layout.preferredWidth: busy.visible ?
+                                    Layout.preferredWidth: runningOrDone.visible ?
                                                            (projectsListView.width - parent.height - leftPadding) :
                                                            projectsListView.width
                                     elide: Text.ElideRight
@@ -307,13 +327,30 @@ ApplicationWindow {
                                 }
                             }
 
-                            BusyIndicator {
-                                id: busy
+                            StackLayout {
+                                // TODO: probably can use DSM.StateMachine (or maybe regular State) for it, too
+                                id: runningOrDone
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredWidth: parent.height
                                 Layout.preferredHeight: parent.height
-                                // It is important to use 'visible' instead of 'running' for stable visual appearance
-                                visible: project.actionRunning || parent.initLoading  // TODO TypeError: Cannot read property 'actionRunning' of null
+                                visible: parent.initLoading  // initial binding
+
+                                BusyIndicator {
+                                    // Important note: if you toggle visibility frequently better use 'visible' instead of 'running' for stable visual appearance
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                }
+                                Item {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    Rectangle {
+                                        id: recentlyDoneIndicator
+                                        anchors.centerIn: parent
+                                        width: 10
+                                        height: width
+                                        radius: width * 0.5
+                                    }
+                                }
                             }
 
                             MouseArea {
