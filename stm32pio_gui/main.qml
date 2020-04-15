@@ -2,10 +2,10 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 import QtGraphicalEffects 1.12
-import QtQuick.Dialogs 1.3 as QtDialogs
+import QtQuick.Dialogs 1.3 as Dialogs
 import QtQml.StateMachine 1.12 as DSM
 
-import Qt.labs.platform 1.1 as QtLabs
+import Qt.labs.platform 1.1 as Labs
 
 import ProjectListItem 1.0
 import Settings 1.0
@@ -44,10 +44,10 @@ ApplicationWindow {
        Slightly customized QSettings
     */
     property Settings settings: appSettings
-    QtDialogs.Dialog {
+    Dialogs.Dialog {
         id: settingsDialog
         title: 'Settings'
-        standardButtons: QtDialogs.StandardButton.Save | QtDialogs.StandardButton.Cancel | QtDialogs.StandardButton.Reset
+        standardButtons: Dialogs.StandardButton.Save | Dialogs.StandardButton.Cancel | Dialogs.StandardButton.Reset
         GridLayout {
             columns: 2
 
@@ -78,16 +78,17 @@ ApplicationWindow {
             }
             Item { Layout.preferredWidth: 140 }
             Text {
-                Layout.preferredWidth: 250
+                Layout.preferredWidth: 250  // Detected recursive rearrange. Aborting after two iterations (on Windows)
                 wrapMode: Text.Wrap
+                color: 'dimgray'
                 text: "Get messages about completed project actions when the app is in background"
             }
 
             Text {
                 Layout.columnSpan: 2
-                Layout.maximumWidth: parent.width
+                Layout.maximumWidth: 250
                 topPadding: 30
-                bottomPadding: 30
+                bottomPadding: 10
                 wrapMode: Text.Wrap
                 text: 'To clear ALL app settings including the list of added projects click "Reset" then restart the app'
             }
@@ -114,10 +115,10 @@ ApplicationWindow {
         }
     }
 
-    QtDialogs.Dialog {
+    Dialogs.Dialog {
         id: aboutDialog
         title: 'About'
-        standardButtons: QtDialogs.StandardButton.Close
+        standardButtons: Dialogs.StandardButton.Close
         ColumnLayout {
             Rectangle {
                 width: 250
@@ -132,8 +133,8 @@ ApplicationWindow {
                     horizontalAlignment: TextEdit.AlignHCenter
                     verticalAlignment: TextEdit.AlignVCenter
                     text: `2018 - 2020 © ussserrr<br>
-                           <a href='https://github.com/ussserrr/stm32pio'>GitHub</a><br>
-                           Powered by Python3, PlatformIO, Qt for Python`
+                           <a href='https://github.com/ussserrr/stm32pio'>GitHub</a><br><br>
+                           Powered by Python3, PlatformIO, Qt for Python, FlatIcons and other awesome technologies`
                     onLinkActivated: {
                         Qt.openUrlExternally(link);
                         aboutDialog.close();
@@ -170,9 +171,9 @@ ApplicationWindow {
         }
     }
 
-    function moveToPrevAndRemove() {
+    function removeCurrentProject() {
         const indexToRemove = projectsListView.currentIndex;
-        projectsListView.decrementCurrentIndex();
+        indexToRemove === 0 ? projectsListView.incrementCurrentIndex() : projectsListView.decrementCurrentIndex();
         projectsModel.removeProject(indexToRemove);
     }
 
@@ -187,10 +188,10 @@ ApplicationWindow {
         }
     }
 
-    QtLabs.SystemTrayIcon {
+    Labs.SystemTrayIcon {
         id: sysTrayIcon
         icon.source: 'icons/icon.svg'
-        visible: true
+        visible: settings.get('notifications')
     }
 
     DropArea {
@@ -288,9 +289,10 @@ ApplicationWindow {
                                     if (state['INIT_ERROR']) {
                                         projectName.color = 'indianred';
                                         projectCurrentStage.color = 'indianred';
-                                    } else if (!project.fromStartup && projectsModel.rowCount() > 1) {
+                                    } else if (!project.fromStartup && projectsModel.rowCount() > 1 && index !== projectsListView.currentIndex) {
                                         // Do not touch those projects that have been loaded on startup (from the QSettings), only the new ones
-                                        // added during this session. Also, do not highlight if there is only a single element in the list
+                                        // added during this session. Also, do not highlight if there is only a single element in the list or
+                                        // the list is already located to this item
                                         projectName.color = 'seagreen';
                                         projectCurrentStage.color = 'seagreen';
                                     }
@@ -363,7 +365,8 @@ ApplicationWindow {
                                 visible: parent.initLoading  // initial binding
 
                                 BusyIndicator {
-                                    // Important note: if you toggle visibility frequently better use 'visible' instead of 'running' for stable visual appearance
+                                    // Important note: if you toggle visibility frequently better use 'visible'
+                                    // instead of 'running' for stable visual appearance
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                 }
@@ -391,37 +394,43 @@ ApplicationWindow {
                         }
                     }
                 }
-            }
 
-            QtLabs.FolderDialog {
-                id: addProjectFolderDialog
-                currentFolder: QtLabs.StandardPaths.standardLocations(QtLabs.StandardPaths.HomeLocation)[0]
-                onAccepted: projectsModel.addProjectByPath([folder])
-            }
-            RowLayout {  // TODO: move to ListView's footer
-                Layout.alignment: Qt.AlignBottom | Qt.AlignHCenter
-                Layout.fillWidth: true
-
-                Connections {
-                    target: projectsModel
-                    onDuplicateFound: projectsListView.currentIndex = duplicateIndex
+                Labs.FolderDialog {
+                    id: addProjectFolderDialog
+                    currentFolder: Labs.StandardPaths.standardLocations(Labs.StandardPaths.HomeLocation)[0]
+                    onAccepted: projectsModel.addProjectByPath([folder])
                 }
-                Button {
-                    text: 'Add'
-                    Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
-                    display: AbstractButton.TextBesideIcon
-                    icon.source: 'icons/add.svg'
-                    onClicked: addProjectFolderDialog.open()
-                    ToolTip.visible: projectsListView.count === 0 && !loadingOverlay.visible  // show when there is no items in the list
-                    ToolTip.text: "<b>Hint:</b> add your project using this button or drag'n'drop it into the window"
-                }
-                Button {
-                    text: 'Remove'
-                    visible: projectsListView.currentIndex !== -1  // show only if any item is selected
-                    Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
-                    display: AbstractButton.TextBesideIcon
-                    icon.source: 'icons/remove.svg'
-                    onClicked: moveToPrevAndRemove()
+                footerPositioning: ListView.OverlayFooter
+                footer: Rectangle {
+                    z: 2
+                    width: projectsListView.width
+                    implicitHeight: listFooter.implicitHeight
+                    color: mainWindow.color
+                    RowLayout {
+                        id: listFooter
+                        anchors.centerIn: parent
+                        Connections {
+                            target: projectsModel
+                            onDuplicateFound: projectsListView.currentIndex = duplicateIndex
+                        }
+                        Button {
+                            text: 'Add'
+                            Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
+                            display: AbstractButton.TextBesideIcon
+                            icon.source: 'icons/add.svg'
+                            onClicked: addProjectFolderDialog.open()
+                            ToolTip.visible: projectsListView.count === 0 && !loadingOverlay.visible  // show when there is no items in the list
+                            ToolTip.text: "<b>Hint:</b> add your project using this button or drag'n'drop it into the window"
+                        }
+                        Button {
+                            text: 'Remove'
+                            visible: projectsListView.currentIndex !== -1  // show only if any item is selected
+                            Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
+                            display: AbstractButton.TextBesideIcon
+                            icon.source: 'icons/remove.svg'
+                            onClicked: removeCurrentProject()
+                        }
+                    }
                 }
             }
         }
@@ -493,13 +502,13 @@ ApplicationWindow {
                                 Detect changes of a project outside of the app
                             */
                             property bool projectIncorrectDialogIsOpen: false
-                            QtDialogs.MessageDialog {
+                            Dialogs.MessageDialog {
                                 id: projectIncorrectDialog
                                 text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
                                        The project will be removed from the app. It will not affect any real content`
-                                icon: QtDialogs.StandardIcon.Critical
+                                icon: Dialogs.StandardIcon.Critical
                                 onAccepted: {
-                                    moveToPrevAndRemove();
+                                    removeCurrentProject();
                                     mainOrInitScreen.projectIncorrectDialogIsOpen = false;
                                 }
                             }
@@ -917,15 +926,14 @@ ApplicationWindow {
                                                             sysTrayIcon.showMessage(
                                                                 success ? 'Success' : 'Error',
                                                                 `${project.name} - ${model.name}`,
-                                                                success ? QtLabs.SystemTrayIcon.Information : QtLabs.SystemTrayIcon.Warning,
+                                                                success ? Labs.SystemTrayIcon.Information : Labs.SystemTrayIcon.Warning,
                                                                 5000
                                                             );
                                                         }
 
                                                         if (shouldBeHighlightedWhileRunning &&
-                                                            ((buttonIndex === (buttonsModel.count - 1)) ||
-                                                             (projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
-                                                            )
+                                                            (buttonIndex === (buttonsModel.count - 1) ||
+                                                             projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
                                                         ) {
                                                             for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                                 projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
@@ -981,7 +989,6 @@ ApplicationWindow {
                                             readOnly: true
                                             selectByMouse: true
                                             wrapMode: Text.WordWrap
-                                            font.family: 'Courier'
                                             font.pointSize: 10  // different on different platforms, Qt's bug
                                             textFormat: TextEdit.RichText
                                         }

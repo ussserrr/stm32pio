@@ -377,6 +377,14 @@ class ProjectsList(QAbstractListModel):
         the QML GUI).
         """
 
+        if len(str_list) > 1:
+            for path_str in str_list:
+                self.addProjectByPath([path_str])
+            return
+        elif len(str_list) == 0:
+            module_logger.warning("No path were given")
+            return
+
         paths_list: List[str] = []
         for path_str in str_list:
             path_qurl = QUrl(path_str)
@@ -385,17 +393,9 @@ class ProjectsList(QAbstractListModel):
             elif path_qurl.isRelative():  # this means that the path string is not starting with 'file://' prefix
                 paths_list.append(path_str)  # just use source string
 
-        if len(paths_list) == 1:
-            path = paths_list[0]
-        elif len(paths_list) > 1:
-            for path in paths_list:  # TODO: not so elegant...
-                self.addProjectByPath([path])
-            return
-        else:
-            module_logger.warning("No path were given")
-            return
+        path = paths_list[0]
 
-        duplicate_index = next((idx for idx, list_item in enumerate(self.projects) if
+        duplicate_index = next((idx for idx, list_item in enumerate(self.projects) if list_item.project is not None and
                                 list_item.project.path.samefile(pathlib.Path(path))), -1)
         if duplicate_index >= 0:
             module_logger.warning(f"This project is already in the list: {path}")

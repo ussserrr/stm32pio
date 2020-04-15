@@ -10,6 +10,7 @@
  - [x] When the list item is not active after the action the "current stage" line is not correct anymore. Consider updating or (better) gray out
  - [ ] Tests (research approaches and patterns)
  - [ ] Test performance with a large number of projects in the model
+ - [ ] Test with different timings
  - [x] Reduce number of calls to 'state' (many IO operations)
  - [x] Drag and drop the new folder into the app window
  - [x] Multiple projects addition
@@ -34,6 +35,7 @@
  - [x] Mark last error'ed action
  - [x] Action buttons widget state machine diagram
  - [x] Fix messed up performance when the list index changes!
+ - [x] Fix tooltip on Linux ('Add' works OK actually)
  - [ ] Relative resource paths:
  
         ```
