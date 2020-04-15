@@ -6,12 +6,13 @@
  - [ ] Create VSCode plugin
 
 ## GUI version
+ - [x] Tray icon notification
  - [x] When the list item is not active after the action the "current stage" line is not correct anymore. Consider updating or (better) gray out
  - [ ] Tests (research approaches and patterns)
  - [ ] Test performance with a large number of projects in the model
  - [x] Reduce number of calls to 'state' (many IO operations)
  - [x] Drag and drop the new folder into the app window
- - [ ] Multiple projects addition
+ - [x] Multiple projects addition
  - [ ] Divide on multiple modules (both Python and QML)
  - [ ] Implement other methods for Qt abstract models
  - [x] Warning on 'Clean' action (maybe the window with a checkbox "Do not ask in the future" (QSettings parameter))
@@ -29,7 +30,7 @@
  - [x] Fix loader when action running
  - [ ] Start with a folder opened if it was provided on CLI (for example, `stm32pio_gui .`)
  - [x] Mark list item when action is done and it is not a current item (i.e. notify a user)
- - [ ] Highlight actions that were picked for continuous run (with some border, for example)
+ - [x] Highlight actions that were picked for continuous run (with some border, for example)
  - [x] Mark last error'ed action
  - [x] Action buttons widget state machine diagram
  - [x] Fix messed up performance when the list index changes!

@@ -68,13 +68,28 @@ ApplicationWindow {
                 leftPadding: -3
             }
 
+            Label {
+                text: 'Notifications'
+                Layout.preferredWidth: 140
+            }
+            CheckBox {
+                id: notifications
+                leftPadding: -3
+            }
+            Item { Layout.preferredWidth: 140 }
+            Text {
+                Layout.preferredWidth: 250
+                wrapMode: Text.Wrap
+                text: "Get messages about completed project actions when the app is in background"
+            }
+
             Text {
                 Layout.columnSpan: 2
                 Layout.maximumWidth: parent.width
                 topPadding: 30
                 bottomPadding: 30
                 wrapMode: Text.Wrap
-                text: "To clear ALL app settings including the list of added projects click \"Reset\" then restart the app"
+                text: 'To clear ALL app settings including the list of added projects click "Reset" then restart the app'
             }
         }
         // Set UI values there so they are always reflect actual parameters
@@ -82,11 +97,16 @@ ApplicationWindow {
             if (visible) {
                 editor.text = settings.get('editor');
                 verbose.checked = settings.get('verbose');
+                notifications.checked = settings.get('notifications');
             }
         }
         onAccepted: {
             settings.set('editor', editor.text);
             settings.set('verbose', verbose.checked);
+            if (settings.get('notifications') !== notifications.checked) {
+                settings.set('notifications', notifications.checked);
+                sysTrayIcon.visible = notifications.checked;
+            }
         }
         onReset: {
             settings.clear();
@@ -112,7 +132,8 @@ ApplicationWindow {
                     horizontalAlignment: TextEdit.AlignHCenter
                     verticalAlignment: TextEdit.AlignVCenter
                     text: `2018 - 2020 © ussserrr<br>
-                           <a href='https://github.com/ussserrr/stm32pio'>GitHub</a>`
+                           <a href='https://github.com/ussserrr/stm32pio'>GitHub</a><br>
+                           Powered by Python3, PlatformIO, Qt for Python`
                     onLinkActivated: {
                         Qt.openUrlExternally(link);
                         aboutDialog.close();
@@ -166,6 +187,12 @@ ApplicationWindow {
         }
     }
 
+    QtLabs.SystemTrayIcon {
+        id: sysTrayIcon
+        icon.source: 'icons/icon.svg'
+        visible: true
+    }
+
     DropArea {
         id: dropArea
         anchors.fill: parent
@@ -191,7 +218,7 @@ ApplicationWindow {
                 }
                 Text {
                     // anchors.topMargin: 20
-                    text: "Drop project folder to add..."
+                    text: "Drop projects folders to add..."
                     font.pointSize: 24  // different on different platforms, Qt's bug
                     font.weight: Font.Black  // heaviest
                 }
@@ -697,9 +724,11 @@ ApplicationWindow {
                                             text: model.name
                                             Layout.rightMargin: model.margin
                                             property bool shouldBeHighlighted: false
+                                            property bool shouldBeHighlightedWhileRunning: false
                                             property int buttonIndex: -1
                                             Component.onCompleted: {
                                                 buttonIndex = index;
+                                                background.border.color = 'dimgray';
                                             }
                                             ToolTip {
                                                 visible: parent.hovered
@@ -816,6 +845,7 @@ ApplicationWindow {
                                                     if (shiftPressed && buttonIndex >= buttonsModel.statefulActionsStartIndex) {
                                                         for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                             projActionsRow.children[i].shouldBeHighlighted = false;
+                                                            projActionsRow.children[i].shouldBeHighlightedWhileRunning = true;
                                                         }
                                                         for (let i = buttonsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
                                                             project.run(buttonsModel.get(i).action, []);
@@ -870,6 +900,9 @@ ApplicationWindow {
                                                         palette.button = 'gold';
                                                     }
                                                     glow.visible = false;
+                                                    if (shouldBeHighlightedWhileRunning) {
+                                                        background.border.width = 2;
+                                                    }
                                                 }
                                                 onActionDone: {
                                                     if (action === model.action) {
@@ -879,6 +912,26 @@ ApplicationWindow {
                                                             glow.color = 'lightcoral';
                                                         }
                                                         glow.visible = true;
+
+                                                        if (settings.get('notifications') && !mainWindow.active) {
+                                                            sysTrayIcon.showMessage(
+                                                                success ? 'Success' : 'Error',
+                                                                `${project.name} - ${model.name}`,
+                                                                success ? QtLabs.SystemTrayIcon.Information : QtLabs.SystemTrayIcon.Warning,
+                                                                5000
+                                                            );
+                                                        }
+
+                                                        if (shouldBeHighlightedWhileRunning &&
+                                                            ((buttonIndex === (buttonsModel.count - 1)) ||
+                                                             (projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
+                                                            )
+                                                        ) {
+                                                            for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                                projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
+                                                                projActionsRow.children[i].background.border.width = 0;
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }

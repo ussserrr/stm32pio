@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# from __future__ import annotations
-
 import collections
 import logging
 import pathlib
@@ -12,6 +10,7 @@ import threading
 import time
 import traceback
 import weakref
+from typing import List
 
 try:
     from PySide2.QtCore import QUrl, Property, QAbstractListModel, QModelIndex, QObject, Qt, Slot, Signal, QThread,\
@@ -240,7 +239,6 @@ class ProjectListItem(QObject):
     @Slot(str)
     def actionStartedSlot(self, action: str):
         self.actionStarted.emit(action)
-        # print('actionRunning TRUE')
         self._is_action_running = True
         self.actionRunningChanged.emit()
 
@@ -248,7 +246,6 @@ class ProjectListItem(QObject):
     def actionDoneSlot(self, action: str, success: bool):
         if not success:
             self.workers_pool.clear()  # clear the queue - stop further execution
-        # print('actionRunning FALSE')
         self._is_action_running = False
         self.actionRunningChanged.emit()
         self.actionDone.emit(action, success)
@@ -380,7 +377,7 @@ class ProjectsList(QAbstractListModel):
         the QML GUI).
         """
 
-        paths_list = []
+        paths_list: List[str] = []
         for path_str in str_list:
             path_qurl = QUrl(path_str)
             if path_qurl.isLocalFile():
@@ -388,8 +385,12 @@ class ProjectsList(QAbstractListModel):
             elif path_qurl.isRelative():  # this means that the path string is not starting with 'file://' prefix
                 paths_list.append(path_str)  # just use source string
 
-        if len(paths_list):
-            path = paths_list[0]  # for now just respond on one item even if a list was provided
+        if len(paths_list) == 1:
+            path = paths_list[0]
+        elif len(paths_list) > 1:
+            for path in paths_list:  # TODO: not so elegant...
+                self.addProjectByPath([path])
+            return
         else:
             module_logger.warning("No path were given")
             return
@@ -475,16 +476,18 @@ class Settings(QSettings):
     QML side. Also, retrieve settings on creation.
     """
 
-    DEFAULT_SETTINGS = {
+    DEFAULTS = {
         'editor': '',
-        'verbose': False
+        'verbose': False,
+        'notifications': True
     }
 
-    def __init__(self, prefix: str, defaults: dict, qs_args: list = None, qs_kwargs: dict = None,
+    def __init__(self, prefix: str, defaults: dict = None, qs_args: list = None, qs_kwargs: dict = None,
                  external_triggers: dict = None):
 
         qs_args = qs_args if qs_args is not None else []
         qs_kwargs = qs_kwargs if qs_kwargs is not None else {}
+        defaults = defaults if defaults is not None else self.DEFAULTS
 
         super().__init__(*qs_args, **qs_kwargs)
 
@@ -558,10 +561,6 @@ def main():
             project.logger.setLevel(logging.DEBUG if value else logging.INFO)
 
     settings = Settings(prefix='app/settings/',
-                        defaults={
-                            'editor': '',
-                            'verbose': False
-                        },
                         qs_kwargs={
                             'parent': app
                         },
