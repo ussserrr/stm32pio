@@ -6,19 +6,20 @@
  - [ ] Create VSCode plugin
 
 ## GUI version
+ - [ ] Notify the user that the 'board' parameter is empty
+ - [ ] Mac: sometimes auto turned off shift highlighting after action (hide-restore helps)
+ - [x] in `ProjectListItem` set-up `currentAction` instead of `actionRunning`
  - [ ] Some visual flaws when the window have got resized (e.g. 'Add' button goes off-screen, 'Log' area crawls onto the status bar)
  - [x] Tray icon notifications
  - [x] When the list item is not active after the action the "current stage" line is not correct anymore. Consider updating or (better) gray out
  - [ ] Tests (research approaches and patterns)
  - [ ] Test performance with a large number of projects in the model. First test was made:
- 
-        1. Some projects occasionally change `initLoading` by itself (probably Loader unloads the content) (hence cannot click on them, busy indicator appearing)
-           
-           Note: Delegates are instantiated as needed and may be destroyed at any time. They are parented to ListView's contentItem, not to the view itself. State should never be stored in a delegate.
-           
-           Or do not use ListView at all (replace be Repeater, for example) as it can reset our "notifications"
-        2. Some projects show OK even after its deletion (only the app restart helps)
-
+      1. Some projects occasionally change `initLoading` by itself (probably Loader unloads the content) (hence cannot click on them, busy indicator appearing)
+         
+         Note: Delegates are instantiated as needed and may be destroyed at any time. They are parented to ListView's contentItem, not to the view itself. State should never be stored in a delegate.
+         
+         Use `id()` in `setInitInfo()`. Or do not use ListView at all (replace be Repeater, for example) as it can reset our "notifications"
+      2. Some projects show OK even after its deletion (only the app restart helps)
  - [ ] Test with different timings
  - [x] Reduce number of calls to 'state' (many IO operations)
  - [x] Drag and drop the new folder into the app window
@@ -44,7 +45,9 @@
  - [x] Mark last error'ed action
  - [x] Action buttons widget state machine diagram
  - [x] Fix messed up performance when the list index changes!
- - [x] Fix tooltip on Linux ('Add' works OK actually)
+ - [ ] Linux:
+      - Tooltip for 'Clean' not showing ('Add' works OK)
+      - Not a monospace font in the log area
  - [ ] Relative resource paths:
  
         ```

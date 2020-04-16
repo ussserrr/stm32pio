@@ -168,7 +168,7 @@ ApplicationWindow {
 
         if (initInfo[projectIndex] === 2) {
             delete initInfo[projectIndex];  // index can be reused
-            projectsModel.getProject(projectIndex).qmlLoaded();
+            projectsModel.get(projectIndex).qmlLoaded();
         }
     }
 
@@ -273,7 +273,7 @@ ApplicationWindow {
                         onLoaded: setInitInfo(index)
                         sourceComponent: RowLayout {
                             property bool initLoading: true  // initial waiting for the backend-side TODO: do not store state in the delegate!
-                            readonly property ProjectListItem project: projectsModel.getProject(index)
+                            readonly property ProjectListItem project: projectsModel.get(index)
                             Connections {
                                 target: project
                                 // Currently, this event is equivalent to the complete initialization of the backend side of the project
@@ -294,17 +294,17 @@ ApplicationWindow {
                                     }
                                 }
                                 onActionStarted: {
-                                    runningOrDone.currentIndex = 0;
-                                    runningOrDone.visible = true;
+                                    runningOrFinished.currentIndex = 0;
+                                    runningOrFinished.visible = true;
                                 }
-                                onActionDone: {
+                                onActionFinished: {
                                     if (index !== projectsListView.currentIndex) {
                                         projectCurrentStage.color = 'darkgray';  // show that the stage has changed from the last visit
-                                        runningOrDone.currentIndex = 1;  // show "notification" about the finished action
-                                        recentlyDoneIndicator.color = success ? 'lightgreen' : 'lightcoral';
-                                        runningOrDone.visible = true;
+                                        runningOrFinished.currentIndex = 1;  // show "notification" about the finished action
+                                        recentlyFinishedIndicator.color = success ? 'lightgreen' : 'lightcoral';
+                                        runningOrFinished.visible = true;
                                     } else {
-                                        runningOrDone.visible = false;
+                                        runningOrFinished.visible = false;
                                     }
                                 }
                             }
@@ -319,7 +319,7 @@ ApplicationWindow {
                                         }
                                         if (Qt.colorEqual(projectCurrentStage.color, 'darkgray')) {
                                             projectCurrentStage.color = 'black';
-                                            runningOrDone.visible = false;
+                                            runningOrFinished.visible = false;
                                         }
                                     }
                                 }
@@ -330,9 +330,9 @@ ApplicationWindow {
                                 Text {
                                     id: projectName
                                     leftPadding: 5
-                                    rightPadding: runningOrDone.visible ? 0 : leftPadding
+                                    rightPadding: runningOrFinished.visible ? 0 : leftPadding
                                     Layout.alignment: Qt.AlignBottom
-                                    Layout.preferredWidth: runningOrDone.visible ?
+                                    Layout.preferredWidth: runningOrFinished.visible ?
                                                            (projectsListView.width - parent.height - leftPadding) :
                                                            projectsListView.width
                                     elide: Text.ElideMiddle
@@ -342,21 +342,21 @@ ApplicationWindow {
                                 Text {
                                     id: projectCurrentStage
                                     leftPadding: 5
-                                    rightPadding: runningOrDone.visible ? 0 : leftPadding
+                                    rightPadding: runningOrFinished.visible ? 0 : leftPadding
                                     Layout.alignment: Qt.AlignTop
-                                    Layout.preferredWidth: runningOrDone.visible ?
+                                    Layout.preferredWidth: runningOrFinished.visible ?
                                                            (projectsListView.width - parent.height - leftPadding) :
                                                            projectsListView.width
                                     elide: Text.ElideRight
                                     maximumLineCount: 1
-                                    text: display.current_stage
+                                    text: display.currentStage
                                 }
                             }
 
                             // Show whether a busy indicator or a finished action notification
                             StackLayout {
                                 // TODO: probably can use DSM.StateMachine (or maybe regular State) for this, too
-                                id: runningOrDone
+                                id: runningOrFinished
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredWidth: parent.height
                                 Layout.preferredHeight: parent.height
@@ -372,7 +372,7 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     Rectangle {  // Circle :)
-                                        id: recentlyDoneIndicator
+                                        id: recentlyFinishedIndicator
                                         anchors.centerIn: parent
                                         width: 10
                                         height: width
@@ -471,7 +471,7 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
 
-                            readonly property ProjectListItem project: projectsModel.getProject(index)
+                            readonly property ProjectListItem project: projectsModel.get(index)
 
                             /*
                                State retrieving procedure is relatively expensive (many IO operations) so we optimize it by getting the state
@@ -490,7 +490,7 @@ ApplicationWindow {
                                 if (mainWindow.active &&  // the app got foreground
                                     projectIndex === projectsWorkspaceView.currentIndex &&  // only for the current list item
                                     !projectIncorrectDialog.visible &&
-                                    !project.actionRunning
+                                    project.currentAction === ''
                                 ) {
                                     const state = project.state;
                                     stateCached = state;
@@ -515,8 +515,8 @@ ApplicationWindow {
                                 target: project
                                 // Currently, this event is equivalent to the complete initialization of the backend side of the project
                                 onNameChanged: {
-                                    // const state = project.state;
-                                    const completedStages = Object.keys(stateCached).filter(stateName => stateCached[stateName]);
+                                    const state = project.state;
+                                    const completedStages = Object.keys(state).filter(stateName => state[stateName]);
                                     if (completedStages.length === 1 && completedStages[0] === 'EMPTY') {
                                         setupScreenLoader.active = true;
                                         mainOrInitScreen.currentIndex = 0;  // show init dialog
@@ -628,8 +628,8 @@ ApplicationWindow {
                                                 }
                                             }]);
                                             if (board.editText === board.textAt(0)) {
-                                                project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO \
-                                                                  project creation. You can set it in "stm32pio.ini" file in the project directory',
+                                                project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
+                                                                 'project creation. You can set it in "stm32pio.ini" file in the project directory',
                                                                  Logging.WARNING);
                                             }
 
@@ -731,7 +731,6 @@ ApplicationWindow {
                                             }
                                         }
                                         delegate: Button {
-                                            id: actionButton
                                             text: model.name
                                             Layout.rightMargin: model.margin
                                             property bool shouldBeHighlighted: false  // highlight on mouse over
@@ -783,12 +782,12 @@ ApplicationWindow {
                                                     }
                                                     DSM.SignalTransition {
                                                         targetState: highlighted
-                                                        signal: actionButton.shouldBeHighlightedChanged
-                                                        guard: actionButton.shouldBeHighlighted  // go only if...
+                                                        signal: shouldBeHighlightedChanged
+                                                        guard: shouldBeHighlighted  // go only if...
                                                     }
                                                     onEntered: {
-                                                        actionButton.enabled = true;
-                                                        actionButton.palette.buttonText = 'black';
+                                                        enabled = true;
+                                                        palette.buttonText = 'black';
                                                     }
                                                     DSM.State {
                                                         id: normal
@@ -798,7 +797,7 @@ ApplicationWindow {
                                                             guard: stateCached[model.stageRepresented] ? true : false  // explicitly convert to boolean
                                                         }
                                                         onEntered: {
-                                                            actionButton.palette.button = 'lightgray';
+                                                            palette.button = 'lightgray';
                                                         }
                                                     }
                                                     DSM.State {
@@ -809,7 +808,7 @@ ApplicationWindow {
                                                             guard: stateCached[model.stageRepresented] ? false : true
                                                         }
                                                         onEntered: {
-                                                            actionButton.palette.button = 'lightgreen';
+                                                            palette.button = 'lightgreen';
                                                         }
                                                     }
                                                     DSM.HistoryState {
@@ -818,25 +817,46 @@ ApplicationWindow {
                                                     }
                                                 }
                                                 DSM.State {
+                                                    // Activates/deactivates additional properties (such as color or border) on some conditions
+                                                    // (e.g. some action is currently running), see onEntered, onExited
                                                     id: disabled
                                                     DSM.SignalTransition {
                                                         targetState: mainHistory
-                                                        signal: project.actionDone
+                                                        signal: project.actionFinished
                                                     }
                                                     onEntered: {
-                                                        actionButton.enabled = false;
-                                                        actionButton.palette.buttonText = 'darkgray';
+                                                        enabled = false;
+                                                        palette.buttonText = 'darkgray';
+                                                        if (project.currentAction === model.action) {
+                                                            palette.button = 'gold';
+                                                        }
+                                                        if (shouldBeHighlightedWhileRunning) {
+                                                            background.border.width = 2;
+                                                        }
+                                                    }
+                                                    onExited: {
+                                                        // Erase highlighting if this action is last in the series or at all
+                                                        if (project.currentAction === model.action &&
+                                                            shouldBeHighlightedWhileRunning &&
+                                                            (buttonIndex === (projActionsModel.count - 1) ||
+                                                             projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
+                                                        ) {
+                                                            for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                                projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
+                                                                projActionsRow.children[i].background.border.width = 0;
+                                                            }
+                                                        }
                                                     }
                                                 }
                                                 DSM.State {
                                                     id: highlighted
                                                     DSM.SignalTransition {
                                                         targetState: mainHistory
-                                                        signal: actionButton.shouldBeHighlightedChanged
-                                                        guard: !actionButton.shouldBeHighlighted
+                                                        signal: shouldBeHighlightedChanged
+                                                        guard: !shouldBeHighlighted
                                                     }
                                                     onEntered: {
-                                                        actionButton.palette.button = Qt.lighter('lightgreen', 1.2);
+                                                        palette.button = Qt.lighter('lightgreen', 1.2);
                                                         palette.buttonText = 'dimgray';
                                                     }
                                                 }
@@ -914,16 +934,16 @@ ApplicationWindow {
                                             Connections {
                                                 target: project
                                                 onActionStarted: {
-                                                    if (action === model.action) {
-                                                        // Some properties like this are still managed outside of the DSM but this is, probably, OK
-                                                        palette.button = 'gold';
-                                                    }
+                                                    // if (action === model.action) {
+                                                    //     // Some properties like this are still managed outside of the DSM but this is, probably, OK
+                                                    //     palette.button = 'gold';
+                                                    // }
                                                     glow.visible = false;
-                                                    if (shouldBeHighlightedWhileRunning) {
-                                                        background.border.width = 2;
-                                                    }
+                                                    // if (shouldBeHighlightedWhileRunning) {
+                                                    //     background.border.width = 2;
+                                                    // }
                                                 }
-                                                onActionDone: {
+                                                onActionFinished: {
                                                     if (action === model.action) {
                                                         if (success) {
                                                             glow.color = 'lightgreen';
@@ -941,16 +961,16 @@ ApplicationWindow {
                                                             );
                                                         }
 
-                                                        // Erase highlighting if this action is last in the series or at all
-                                                        if (shouldBeHighlightedWhileRunning &&
-                                                            (buttonIndex === (projActionsModel.count - 1) ||
-                                                             projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
-                                                        ) {
-                                                            for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                                projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
-                                                                projActionsRow.children[i].background.border.width = 0;
-                                                            }
-                                                        }
+                                                        // // Erase highlighting if this action is last in the series or at all
+                                                        // if (shouldBeHighlightedWhileRunning &&
+                                                        //     (buttonIndex === (projActionsModel.count - 1) ||
+                                                        //      projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
+                                                        // ) {
+                                                        //     for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                        //         projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
+                                                        //         projActionsRow.children[i].background.border.width = 0;
+                                                        //     }
+                                                        // }
                                                     }
                                                 }
                                             }
