@@ -189,9 +189,9 @@ class ProjectListItem(QObject):
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
                                                self.name if self.project is None else str(self.project))
             self.qml_ready.wait()  # wait for the GUI to initialize
-            self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
             self.stateChanged.emit()
+            self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
 
     @Property(bool)
     def fromStartup(self):

@@ -207,6 +207,7 @@ class Stm32pio:
         Constructing and returning the current state of the project (tweaked dict, see ProjectState docs)
         """
 
+        print('wants state')
         # self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
 
         pio_is_initialized = False

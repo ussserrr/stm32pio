@@ -6,10 +6,19 @@
  - [ ] Create VSCode plugin
 
 ## GUI version
- - [x] Tray icon notification
+ - [ ] Some visual flaws when the window have got resized (e.g. 'Add' button goes off-screen, 'Log' area crawls onto the status bar)
+ - [x] Tray icon notifications
  - [x] When the list item is not active after the action the "current stage" line is not correct anymore. Consider updating or (better) gray out
  - [ ] Tests (research approaches and patterns)
- - [ ] Test performance with a large number of projects in the model
+ - [ ] Test performance with a large number of projects in the model. First test was made:
+ 
+        1. Some projects occasionally change `initLoading` by itself (probably Loader unloads the content) (hence cannot click on them, busy indicator appearing)
+           
+           Note: Delegates are instantiated as needed and may be destroyed at any time. They are parented to ListView's contentItem, not to the view itself. State should never be stored in a delegate.
+           
+           Or do not use ListView at all (replace be Repeater, for example) as it can reset our "notifications"
+        2. Some projects show OK even after its deletion (only the app restart helps)
+
  - [ ] Test with different timings
  - [x] Reduce number of calls to 'state' (many IO operations)
  - [x] Drag and drop the new folder into the app window

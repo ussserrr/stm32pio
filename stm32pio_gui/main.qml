@@ -21,7 +21,7 @@ ApplicationWindow {
     color: 'whitesmoke'
 
     /*
-       Notify the front-end about the end of an initial loading
+       Notify the front about the end of an initial loading
     */
     signal backendLoaded()
     onBackendLoaded: loadingOverlay.close()
@@ -43,7 +43,7 @@ ApplicationWindow {
     /*
        Slightly customized QSettings
     */
-    property Settings settings: appSettings
+    readonly property Settings settings: appSettings
     Dialogs.Dialog {
         id: settingsDialog
         title: 'Settings'
@@ -52,16 +52,17 @@ ApplicationWindow {
             columns: 2
 
             Label {
-                text: 'Editor'
                 Layout.preferredWidth: 140
+                text: 'Editor'
             }
             TextField {
                 id: editor
+                placeholderText: "e.g. atom"
             }
 
             Label {
-                text: 'Verbose output'
                 Layout.preferredWidth: 140
+                text: 'Verbose output'
             }
             CheckBox {
                 id: verbose
@@ -69,16 +70,16 @@ ApplicationWindow {
             }
 
             Label {
-                text: 'Notifications'
                 Layout.preferredWidth: 140
+                text: 'Notifications'
             }
             CheckBox {
                 id: notifications
                 leftPadding: -3
             }
-            Item { Layout.preferredWidth: 140 }
+            Item { Layout.preferredWidth: 140 }  // spacer
             Text {
-                Layout.preferredWidth: 250  // Detected recursive rearrange. Aborting after two iterations (on Windows)
+                Layout.preferredWidth: 250  // Detected recursive rearrange. Aborting after two iterations
                 wrapMode: Text.Wrap
                 color: 'dimgray'
                 text: "Get messages about completed project actions when the app is in background"
@@ -93,7 +94,7 @@ ApplicationWindow {
                 text: 'To clear ALL app settings including the list of added projects click "Reset" then restart the app'
             }
         }
-        // Set UI values there so they are always reflect actual parameters
+        // Set UI values there so they are always reflect the actual parameters
         onVisibleChanged: {
             if (visible) {
                 editor.text = settings.get('editor');
@@ -157,7 +158,7 @@ ApplicationWindow {
        a number of widgets currently loaded for each project in model and informs the Qt-side right after all
        necessary components become ready.
     */
-    property var initInfo: ({})
+    readonly property var initInfo: ({})
     function setInitInfo(projectIndex) {
         if (projectIndex in initInfo) {
             initInfo[projectIndex]++;
@@ -202,12 +203,8 @@ ApplicationWindow {
             parent: Overlay.overlay
             anchors.centerIn: Overlay.overlay
             modal: true
-            background: Rectangle {
-                opacity: 0.0
-            }
-            Overlay.modal: Rectangle {
-                color: "#aaffffff"
-            }
+            background: Rectangle { opacity: 0.0 }
+            Overlay.modal: Rectangle { color: "#aaffffff" }
             contentItem: Column {
                 spacing: 20
                 Image {
@@ -218,7 +215,6 @@ ApplicationWindow {
                     sourceSize.width: 64
                 }
                 Text {
-                    // anchors.topMargin: 20
                     text: "Drop projects folders to add..."
                     font.pointSize: 24  // different on different platforms, Qt's bug
                     font.weight: Font.Black  // heaviest
@@ -270,16 +266,16 @@ ApplicationWindow {
                 delegate: Component {
                     /*
                        (See setInitInfo docs) One of the two main widgets representing the project. Use Loader component
-                       as it can give us the relible time of all its children loading completion (unlike Component.onCompleted)
+                       as it can give us the relible timestamp of all its children loading completion (unlike Component.onCompleted)
                     */
                     id: listViewDelegate
                     Loader {
                         onLoaded: setInitInfo(index)
                         sourceComponent: RowLayout {
-                            property bool initLoading: true  // initial waiting for the backend-side
-                            property ProjectListItem project: projectsModel.getProject(index)
+                            property bool initLoading: true  // initial waiting for the backend-side TODO: do not store state in the delegate!
+                            readonly property ProjectListItem project: projectsModel.getProject(index)
                             Connections {
-                                target: project  // (newbie hint) sender which signals we want to catch below
+                                target: project
                                 // Currently, this event is equivalent to the complete initialization of the backend side of the project
                                 onNameChanged: {
                                     initLoading = false;
@@ -303,8 +299,8 @@ ApplicationWindow {
                                 }
                                 onActionDone: {
                                     if (index !== projectsListView.currentIndex) {
-                                        projectCurrentStage.color = 'darkgray';
-                                        runningOrDone.currentIndex = 1;
+                                        projectCurrentStage.color = 'darkgray';  // show that the stage has changed from the last visit
+                                        runningOrDone.currentIndex = 1;  // show "notification" about the finished action
                                         recentlyDoneIndicator.color = success ? 'lightgreen' : 'lightcoral';
                                         runningOrDone.visible = true;
                                     } else {
@@ -315,6 +311,7 @@ ApplicationWindow {
                             Connections {
                                 target: projectsListView
                                 onCurrentIndexChanged: {
+                                    // "Read" all "notifications" after navigating to the list element
                                     if (projectsListView.currentIndex === index) {
                                         if (Qt.colorEqual(projectName.color, 'seagreen')) {
                                             projectName.color = 'black';
@@ -356,8 +353,9 @@ ApplicationWindow {
                                 }
                             }
 
+                            // Show whether a busy indicator or a finished action notification
                             StackLayout {
-                                // TODO: probably can use DSM.StateMachine (or maybe regular State) for it, too
+                                // TODO: probably can use DSM.StateMachine (or maybe regular State) for this, too
                                 id: runningOrDone
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredWidth: parent.height
@@ -373,7 +371,7 @@ ApplicationWindow {
                                 Item {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
-                                    Rectangle {
+                                    Rectangle {  // Circle :)
                                         id: recentlyDoneIndicator
                                         anchors.centerIn: parent
                                         width: 10
@@ -401,7 +399,7 @@ ApplicationWindow {
                     onAccepted: projectsModel.addProjectByPath([folder])
                 }
                 footerPositioning: ListView.OverlayFooter
-                footer: Rectangle {
+                footer: Rectangle {  // Probably should use Pane but need to override default window color then
                     z: 2
                     width: projectsListView.width
                     implicitHeight: listFooter.implicitHeight
@@ -411,6 +409,7 @@ ApplicationWindow {
                         anchors.centerIn: parent
                         Connections {
                             target: projectsModel
+                            // Just added project is already in the list so abort the addition and jump to the existing one
                             onDuplicateFound: projectsListView.currentIndex = duplicateIndex
                         }
                         Button {
@@ -466,31 +465,60 @@ ApplicationWindow {
                            Use another one StackLayout to separate Project initialization "screen" and Main one
                         */
                         sourceComponent: StackLayout {
-                            id: mainOrInitScreen  // for clarity
+                            id: mainOrInitScreen
                             currentIndex: -1  // at widget creation we do not show main nor init screen
 
                             Layout.fillWidth: true
                             Layout.fillHeight: true
 
-                            property ProjectListItem project: projectsModel.getProject(index)
+                            readonly property ProjectListItem project: projectsModel.getProject(index)
+
+                            /*
+                               State retrieving procedure is relatively expensive (many IO operations) so we optimize it by getting the state
+                               only in certain situations (see Component.onCompleted below) and caching a value in the local varible. Then, all
+                               widgets can pick up this value as many times as they want while not abusing the real property getter. Such a subscription
+                               can be established by the creation of a local reference to the cache and listening to the change event like this:
+
+                                    property var stateCachedNotifier: stateCached
+                                    onStateCachedNotifierChanged: {
+                                        // use stateCached there
+                                    }
+                            */
+                            signal handleState()
+                            property var stateCached: ({})
+                            onHandleState: {
+                                if (mainWindow.active &&  // the app got foreground
+                                    projectIndex === projectsWorkspaceView.currentIndex &&  // only for the current list item
+                                    !projectIncorrectDialog.visible &&
+                                    !project.actionRunning
+                                ) {
+                                    const state = project.state;
+                                    stateCached = state;
+
+                                    project.stageChanged();  // side-effect: update the stage at the same time
+
+                                    // if (!state['INIT_ERROR'] && !state['EMPTY']) {  // i.e. no .ioc file but the project was able to initialize itself
+                                    //     // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
+                                    //     projectIncorrectDialogIsOpen = true;
+                                    //     projectIncorrectDialog.open();
+                                    // }
+                                }
+                            }
+                            Component.onCompleted: {
+                                // Several events lead to a single handler
+                                project.stateChanged.connect(handleState);  // the model has notified about the change
+                                projectsWorkspaceView.currentIndexChanged.connect(handleState);  // the project was selected in the list
+                                mainWindow.activeChanged.connect(handleState);  // the app window has got (or lost, filter in the handler) the focus
+                            }
 
                             Connections {
-                                target: project  // sender
-                                onLogAdded: {
-                                    if (level === Logging.WARNING) {
-                                        log.append('<font color="goldenrod"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
-                                    } else if (level >= Logging.ERROR) {
-                                        log.append('<font color="red"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
-                                    } else {
-                                        log.append('<pre style="white-space: pre-wrap">' + message + '</pre>');
-                                    }
-                                }
+                                target: project
                                 // Currently, this event is equivalent to the complete initialization of the backend side of the project
                                 onNameChanged: {
-                                    const state = project.state;
-                                    const completedStages = Object.keys(state).filter(stateName => state[stateName]);
+                                    // const state = project.state;
+                                    const completedStages = Object.keys(stateCached).filter(stateName => stateCached[stateName]);
                                     if (completedStages.length === 1 && completedStages[0] === 'EMPTY') {
-                                        initScreenLoader.active = true;
+                                        setupScreenLoader.active = true;
                                         mainOrInitScreen.currentIndex = 0;  // show init dialog
                                     } else {
                                         mainOrInitScreen.currentIndex = 1;  // show main view
@@ -498,43 +526,18 @@ ApplicationWindow {
                                 }
                             }
 
-                            /*
-                                Detect changes of a project outside of the app
-                            */
-                            property bool projectIncorrectDialogIsOpen: false
+                            // property bool projectIncorrectDialogIsOpen: false
                             Dialogs.MessageDialog {
                                 id: projectIncorrectDialog
+                                visible: Object.keys(stateCached).length && !stateCached['INIT_ERROR'] && !stateCached['EMPTY']
                                 text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
                                        The project will be removed from the app. It will not affect any real content`
                                 icon: Dialogs.StandardIcon.Critical
                                 onAccepted: {
                                     removeCurrentProject();
-                                    mainOrInitScreen.projectIncorrectDialogIsOpen = false;
+                                    // mainOrInitScreen.projectIncorrectDialogIsOpen = false;
                                 }
                             }
-                            signal handleState()
-                            property var stateCached: ({})
-                            onHandleState: {
-                                if (mainWindow.active && (projectIndex === projectsWorkspaceView.currentIndex) && !projectIncorrectDialogIsOpen && !project.actionRunning) {
-                                    const state = project.state;
-                                    stateCached = state;
-
-                                    project.stageChanged();  // side-effect: update the stage at the same time
-
-                                    if (!state['INIT_ERROR'] && !state['EMPTY']) {  // i.e. no .ioc file but the project was able to initialize itself
-                                        // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
-                                        projectIncorrectDialogIsOpen = true;
-                                        projectIncorrectDialog.open();
-                                    }
-                                }
-                            }
-                            Component.onCompleted: {
-                                // Several events lead to a single handler
-                                project.stateChanged.connect(handleState);
-                                projectsWorkspaceView.currentIndexChanged.connect(handleState);  // the project was selected in the list
-                                mainWindow.activeChanged.connect(handleState);  // the app window has got the focus
-                            }
-
 
                             /*
                                Index: 0. Project initialization "screen"
@@ -542,7 +545,7 @@ ApplicationWindow {
                                Prompt a user to perform initial setup
                             */
                             Loader {
-                                id: initScreenLoader
+                                id: setupScreenLoader
                                 active: false
                                 sourceComponent: Column {
                                     Text {
@@ -558,19 +561,15 @@ ApplicationWindow {
                                             editable: true
                                             model: boardsModel  // backend-side (simple string model)
                                             textRole: 'display'
-                                            onAccepted: {
-                                                focus = false;
-                                            }
-                                            onActivated: {
-                                                focus = false;
-                                            }
+                                            onAccepted: focus = false
+                                            onActivated: focus = false
                                             onFocusChanged: {
-                                                if (!focus) {
+                                                if (focus) {
+                                                    selectAll();
+                                                } else {
                                                     if (find(editText) === -1) {
                                                         editText = textAt(0);  // should be 'None' at index 0
                                                     }
-                                                } else {
-                                                    selectAll();
                                                 }
                                             }
                                         }
@@ -584,9 +583,10 @@ ApplicationWindow {
                                             ToolTip {
                                                 visible: runCheckBox.hovered
                                                 Component.onCompleted: {
+                                                    // Form the tool tip text using action names
                                                     const actions = [];
-                                                    for (let i = buttonsModel.statefulActionsStartIndex; i < buttonsModel.count; ++i) {
-                                                        actions.push(`<b>${buttonsModel.get(i).name}</b>`);
+                                                    for (let i = projActionsModel.statefulActionsStartIndex; i < projActionsModel.count; ++i) {
+                                                        actions.push(`<b>${projActionsModel.get(i).name}</b>`);
                                                     }
                                                     text = `Do: ${actions.join(' → ')}`;
                                                 }
@@ -621,21 +621,21 @@ ApplicationWindow {
                                         topPadding: 20
                                         leftPadding: 18
                                         onClicked: {
-                                            // All 'run' operations will be queued
+                                            // All 'run' operations will be queued by the backend
                                             project.run('save_config', [{
                                                 'project': {
                                                     'board': board.editText === board.textAt(0) ? '' : board.editText
                                                 }
                                             }]);
                                             if (board.editText === board.textAt(0)) {
-                                                project.logAdded("WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO \
-                                                                  project creation. You can set it in 'stm32pio.ini' file in the project directory",
+                                                project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO \
+                                                                  project creation. You can set it in "stm32pio.ini" file in the project directory',
                                                                  Logging.WARNING);
                                             }
 
                                             if (runCheckBox.checked) {
-                                                for (let i = buttonsModel.statefulActionsStartIndex + 1; i < buttonsModel.count; ++i) {
-                                                    project.run(buttonsModel.get(i).action, []);
+                                                for (let i = projActionsModel.statefulActionsStartIndex + 1; i < projActionsModel.count; ++i) {
+                                                    project.run(projActionsModel.get(i).action, []);
                                                 }
                                             }
 
@@ -644,7 +644,7 @@ ApplicationWindow {
                                             }
 
                                             mainOrInitScreen.currentIndex = 1;  // go to main screen
-                                            initScreenLoader.sourceComponent = undefined;  // destroy init screen
+                                            setupScreenLoader.sourceComponent = undefined;  // destroy init screen
                                         }
                                     }
                                 }
@@ -657,50 +657,52 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
 
-                                property var stateCachedNotifier: stateCached
-                                onStateCachedNotifierChanged: {
-                                    if (stateCached['INIT_ERROR']) {
-                                        projActionsRow.visible = false;
-                                        initErrorMessage.visible = true;
-                                    }
-                                }
+                                // property var stateCachedNotifier: stateCached
+                                // onStateCachedNotifierChanged: {
+                                //     if (stateCached['INIT_ERROR']) {
+                                //         projActionsRow.visible = false;
+                                //         initErrorMessage.visible = true;
+                                //     }
+                                // }
 
                                 /*
                                    Show this or action buttons
                                 */
                                 Text {
                                     id: initErrorMessage
-                                    visible: false
+                                    visible: stateCached['INIT_ERROR'] ? true : false  // explicitly convert to boolean
                                     padding: 10
-                                    text: "The project cannot be initialized"
-                                    color: 'red'
+                                    text: "<b>The project cannot be initialized</b>"
+                                    color: 'indianred'
                                 }
 
                                 /*
                                    The core widget - a group of buttons mapping all main actions that can be performed on the given project.
                                    They also serve the project state displaying - each button indicates a stage associated with it:
-                                    - green: done
+                                    - green (and green glow): done
                                     - yellow: in progress right now
-                                    - red: an error has occured during the last execution
+                                    - red glow: an error has occured during the last execution
                                 */
                                 RowLayout {
                                     id: projActionsRow
+                                    visible: stateCached['INIT_ERROR'] ? false : true
                                     Layout.fillWidth: true
                                     Layout.bottomMargin: 7
                                     z: 1  // for the glowing animation
                                     Repeater {
                                         model: ListModel {
-                                            id: buttonsModel
+                                            id: projActionsModel
                                             readonly property int statefulActionsStartIndex: 2
                                             ListElement {
                                                 name: 'Clean'
                                                 action: 'clean'
-                                                tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder except the current .ioc file and clear all logs"
+                                                tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder \
+                                                          except the current .ioc file and clear all logs"
                                             }
                                             ListElement {
                                                 name: 'Open editor'
                                                 action: 'start_editor'
-                                                margin: 15  // margin to visually separate first 2 actions as they doesn't represent any stage
+                                                margin: 15  // margin to visually separate first 2 actions as they don't represent any stage
                                             }
                                             ListElement {
                                                 name: 'Initialize'
@@ -732,8 +734,8 @@ ApplicationWindow {
                                             id: actionButton
                                             text: model.name
                                             Layout.rightMargin: model.margin
-                                            property bool shouldBeHighlighted: false
-                                            property bool shouldBeHighlightedWhileRunning: false
+                                            property bool shouldBeHighlighted: false  // highlight on mouse over
+                                            property bool shouldBeHighlightedWhileRunning: false  // distinguish actions picked out for the batch run
                                             property int buttonIndex: -1
                                             Component.onCompleted: {
                                                 buttonIndex = index;
@@ -750,7 +752,8 @@ ApplicationWindow {
                                                 }
                                             }
                                             onClicked: {
-                                                const args = [];  // JS array cannot be attached to a ListElement (at least in a non-hacky manner)
+                                                // JS array cannot be attached to a ListElement (at least in a non-hacky manner) so we fill arguments here
+                                                const args = [];
                                                 switch (model.action) {
                                                     case 'start_editor':
                                                         args.push(settings.get('editor'));
@@ -763,9 +766,14 @@ ApplicationWindow {
                                                 }
                                                 project.run(model.action, args);
                                             }
+                                            /*
+                                               As the button reflects relatively complex logic it's easier to maintain using the state machine technique.
+                                               We define states and allowed transitions between them, all other stuff is managed by the DSM framework.
+                                               You can find the graphical diagram somewhere in the docs
+                                            */
                                             DSM.StateMachine {
-                                                initialState: main
-                                                running: true
+                                                initialState: main  // start position
+                                                running: true  // run immediately
                                                 DSM.State {
                                                     id: main
                                                     initialState: normal
@@ -776,7 +784,7 @@ ApplicationWindow {
                                                     DSM.SignalTransition {
                                                         targetState: highlighted
                                                         signal: actionButton.shouldBeHighlightedChanged
-                                                        guard: actionButton.shouldBeHighlighted
+                                                        guard: actionButton.shouldBeHighlighted  // go only if...
                                                     }
                                                     onEntered: {
                                                         actionButton.enabled = true;
@@ -798,7 +806,7 @@ ApplicationWindow {
                                                         DSM.SignalTransition {
                                                             targetState: normal
                                                             signal: stateCachedChanged
-                                                            guard: stateCached[model.stageRepresented] ? false : true  // explicitly convert to boolean
+                                                            guard: stateCached[model.stageRepresented] ? false : true
                                                         }
                                                         onEntered: {
                                                             actionButton.palette.button = 'lightgreen';
@@ -834,9 +842,9 @@ ApplicationWindow {
                                                 }
                                             }
                                             /*
-                                               Detect modifier keys:
-                                                - Ctrl (Cmd): start the editor after an operation(s)
-                                                - Shift: continuous actions run
+                                               Detect modifier keys using overlayed MouseArea:
+                                                - Ctrl (Cmd): start the editor after the action(s)
+                                                - Shift: batch actions run
                                             */
                                             MouseArea {
                                                 anchors.fill: parent
@@ -846,21 +854,22 @@ ApplicationWindow {
                                                 property bool shiftPressed: false
                                                 property bool shiftPressedLastState: false
                                                 function shiftHandler() {
-                                                    for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                    // manage the appearance of all [stateful] buttons prior this one
+                                                    for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                         projActionsRow.children[i].shouldBeHighlighted = shiftPressed;
                                                     }
                                                 }
                                                 onClicked: {
-                                                    if (shiftPressed && buttonIndex >= buttonsModel.statefulActionsStartIndex) {
-                                                        for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                    if (shiftPressed && buttonIndex >= projActionsModel.statefulActionsStartIndex) {
+                                                        for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                             projActionsRow.children[i].shouldBeHighlighted = false;
                                                             projActionsRow.children[i].shouldBeHighlightedWhileRunning = true;
                                                         }
-                                                        for (let i = buttonsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
-                                                            project.run(buttonsModel.get(i).action, []);
+                                                        for (let i = projActionsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
+                                                            project.run(projActionsModel.get(i).action, []);
                                                         }
                                                     }
-                                                    parent.clicked();
+                                                    parent.clicked();  // pass the event to the underlying button though all work can be done in-place
                                                     if (ctrlPressed && model.action !== 'start_editor') {
                                                         project.run('start_editor', [settings.get('editor')]);
                                                     }
@@ -872,7 +881,7 @@ ApplicationWindow {
                                                     }
 
                                                     shiftPressed = mouse.modifiers & Qt.ShiftModifier;  // bitwise AND
-                                                    if (shiftPressedLastState !== shiftPressed) {  // reduce number of unnecessary shiftHandler() calls
+                                                    if (shiftPressedLastState !== shiftPressed) {  // reduce a number of unnecessary shiftHandler() calls
                                                         shiftPressedLastState = shiftPressed;
                                                         shiftHandler();
                                                     }
@@ -881,7 +890,7 @@ ApplicationWindow {
                                                     if (model.action !== 'start_editor') {
                                                         let preparedText = `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b>
                                                                             after the operation`;
-                                                        if (buttonIndex >= buttonsModel.statefulActionsStartIndex) {
+                                                        if (buttonIndex >= projActionsModel.statefulActionsStartIndex) {
                                                             preparedText +=
                                                                 `, <b>Shift</b>-click to perform all actions prior this one (including).
                                                                  <b>Ctrl</b>-<b>Shift</b>-click for both`;
@@ -906,6 +915,7 @@ ApplicationWindow {
                                                 target: project
                                                 onActionStarted: {
                                                     if (action === model.action) {
+                                                        // Some properties like this are still managed outside of the DSM but this is, probably, OK
                                                         palette.button = 'gold';
                                                     }
                                                     glow.visible = false;
@@ -924,18 +934,19 @@ ApplicationWindow {
 
                                                         if (settings.get('notifications') && !mainWindow.active) {
                                                             sysTrayIcon.showMessage(
-                                                                success ? 'Success' : 'Error',
-                                                                `${project.name} - ${model.name}`,
-                                                                success ? Labs.SystemTrayIcon.Information : Labs.SystemTrayIcon.Warning,
-                                                                5000
+                                                                success ? 'Success' : 'Error',  // title
+                                                                `${project.name} - ${model.name}`,  // text
+                                                                success ? Labs.SystemTrayIcon.Information : Labs.SystemTrayIcon.Warning,  // icon
+                                                                5000  // ms
                                                             );
                                                         }
 
+                                                        // Erase highlighting if this action is last in the series or at all
                                                         if (shouldBeHighlightedWhileRunning &&
-                                                            (buttonIndex === (buttonsModel.count - 1) ||
+                                                            (buttonIndex === (projActionsModel.count - 1) ||
                                                              projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
                                                         ) {
-                                                            for (let i = buttonsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                            for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                                 projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
                                                                 projActionsRow.children[i].background.border.width = 0;
                                                             }
@@ -953,9 +964,7 @@ ApplicationWindow {
                                                 cornerRadius: 25
                                                 glowRadius: 20
                                                 spread: 0.25
-                                                onVisibleChanged: {
-                                                    visible ? glowAnimation.start() : glowAnimation.complete();
-                                                }
+                                                onVisibleChanged: visible ? glowAnimation.start() : glowAnimation.complete()
                                                 SequentialAnimation {
                                                     id: glowAnimation
                                                     loops: 3
@@ -991,6 +1000,18 @@ ApplicationWindow {
                                             wrapMode: Text.WordWrap
                                             font.pointSize: 10  // different on different platforms, Qt's bug
                                             textFormat: TextEdit.RichText
+                                            Connections {
+                                                target: project
+                                                onLogAdded: {
+                                                    if (level === Logging.WARNING) {
+                                                        log.append('<font color="goldenrod"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
+                                                    } else if (level >= Logging.ERROR) {
+                                                        log.append('<font color="indianred"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
+                                                    } else {
+                                                        log.append('<pre style="white-space: pre-wrap">' + message + '</pre>');
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -1003,8 +1024,8 @@ ApplicationWindow {
     }
 
     /*
-       Simple text line. Currently, doesn't support smart intrinsic properties as a fully-fledged status bar,
-       but is used only for a single feature so not a big deal
+       Improvised status bar - simple text line. Currently, doesn't support smart intrinsic properties
+       as a fully-fledged status bar, but is used only for a single feature so not a big deal right now
     */
     footer: Text {
         id: statusBar
