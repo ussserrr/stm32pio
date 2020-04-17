@@ -237,6 +237,7 @@ class ProjectListItem(QObject):
         Get the current project state in the appropriate Qt form. Update the cached 'current stage' value as a side
         effect
         """
+        module_logger.info(f"{self.name} {time.time()}")
         if self.project is not None:
             state = self.project.state
 

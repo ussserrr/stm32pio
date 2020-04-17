@@ -207,7 +207,6 @@ class Stm32pio:
         Constructing and returning the current state of the project (tweaked dict, see ProjectState docs)
         """
 
-        print('wants state')
         # self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
 
         pio_is_initialized = False
@@ -583,7 +582,7 @@ class Stm32pio:
 
         sanitized_input = shlex.quote(editor_command)
 
-        self.logger.info(f"starting an editor {sanitized_input}...")
+        self.logger.info(f'starting an editor "{sanitized_input}"...')
         try:
             # Works unstable on some Windows 7 systems, but correct on Win10...
             # result = subprocess.run([editor_command, str(self.path)], check=True)

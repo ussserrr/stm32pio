@@ -157,6 +157,8 @@ ApplicationWindow {
        QML-side implementation details to the backend we define this helper function that counts and stores
        a number of widgets currently loaded for each project in model and informs the Qt-side right after all
        necessary components become ready.
+
+       TODO: should be remade to use Python id() as a unique identifier, see TODO.md
     */
     readonly property var initInfo: ({})
     function setInitInfo(projectIndex) {
@@ -449,18 +451,18 @@ ApplicationWindow {
 
             Connections {
                 target: projectsListView
-                onCurrentIndexChanged: projectsWorkspaceView.currentIndex = projectsListView.currentIndex
+                onCurrentIndexChanged: {
+                    // console.log('currentIndex', projectsListView.currentIndex, projectsWorkspaceView.currentIndex);
+                    projectsWorkspaceView.currentIndex = projectsListView.currentIndex;
+                }
             }
             Repeater {
                 // Use similar to ListView pattern (same projects model, Loader component)
                 model: projectsModel
                 delegate: Component {
                     Loader {
-                        property int projectIndex: -1
-                        onLoaded: {
-                            projectIndex = index;
-                            setInitInfo(projectIndex)
-                        }
+                        property int projectIndex: index  // binding so will be automatically updated on change
+                        onLoaded: setInitInfo(index)
                         /*
                            Use another one StackLayout to separate Project initialization "screen" and Main one
                         */
@@ -1019,6 +1021,7 @@ ApplicationWindow {
                                             selectByMouse: true
                                             wrapMode: Text.WordWrap
                                             font.pointSize: 10  // different on different platforms, Qt's bug
+                                            font.weight: Font.DemiBold
                                             textFormat: TextEdit.RichText
                                             Connections {
                                                 target: project

@@ -37,7 +37,8 @@
  - [ ] `TypeError: Cannot read property 'actionRunning' of null (deconstruction order)` (on project deletion only)
  - [ ] QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
  - [x] Fix high CPU usage (most likely some thread consuming)
- - [ ] Bug in log box scrolling behavior (autoscroll sometimes turns off, should re-enable when starting any action)
+ - [ ] Lost log box autoscroll when manually scrolling between the actions
+ - [ ] Crash on shutdown in Win and Linux (errors such as `[QML] CRITICAL QThread: Destroyed while thread is still running Process finished with exit code 1073741845`)
  - [x] Fix loader when action running
  - [ ] Start with a folder opened if it was provided on CLI (for example, `stm32pio_gui .`)
  - [x] Mark list item when action is done and it is not a current item (i.e. notify a user)
