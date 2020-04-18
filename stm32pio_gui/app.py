@@ -237,7 +237,6 @@ class ProjectListItem(QObject):
         Get the current project state in the appropriate Qt form. Update the cached 'current stage' value as a side
         effect
         """
-        module_logger.info(f"{self.name} {time.time()}")
         if self.project is not None:
             state = self.project.state
 
@@ -682,7 +681,6 @@ def main():
         boards = ['None'] + stm32pio.util.get_platformio_boards('platformio')
 
     def loaded(_, success):
-        # TODO: somehow handle an initialization error
         boards_model.setStringList(boards)
         projects = [ProjectListItem(project_args=[path], from_startup=True, parent=projects_model) for path in projects_paths]
         for p in projects:

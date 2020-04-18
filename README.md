@@ -3,6 +3,8 @@ Small cross-platform Python app that can create and update [PlatformIO](https://
 
 It uses STM32CubeMX to generate a HAL-framework-based code and alongside creates PlatformIO project with compatible parameters to stick them both together.
 
+The [GUI version](/stm32pio_gui) is available, too.
+
 ![Logo](/screenshots/logo.png)
 
 

@@ -8,12 +8,12 @@
  - [ ] Create VSCode plugin
 
 ## GUI version
+ - [ ] Handle the initialization error (when boards are receiving)
+ - [ ] Maybe `data()` `QAbstractListModel` method can be used instead of custom `get()`
  - [ ] Can probably detect Ctrl and Shift clicks without moving the mouse first
  - [ ] Notify the user that the 'board' parameter is empty
  - [ ] Mac: sometimes auto turned off shift highlighting after action (hide-restore helps)
- - [x] In `ProjectListItem` set-up `currentAction` instead of `actionRunning`
  - [ ] Some visual flaws when the window have got resized (e.g. 'Add' button position doesn't change until the list gets focus, 'Log' area crawls onto the status bar)
- - [x] Tray icon notifications
  - [ ] Gray out "stage" line in all projects except current
  - [ ] Tests (research approaches and patterns)
  - [ ] Test performance with a large number of projects in the model. First test was made:
@@ -24,31 +24,15 @@
          Use `id()` in `setInitInfo()`. Or do not use ListView at all (replace by Repeater, for example) as it can reset our "notifications"
       2. Some projects show OK even after its deletion (only the app restart helps)
  - [ ] Test with different timings
- - [x] Reduce number of calls to 'state' (many IO operations)
- - [x] Drag and drop the new folder into the app window
- - [x] Multiple projects addition
  - [ ] Divide on multiple modules (both Python and QML)
  - [ ] Implement other methods for Qt abstract models
  - [ ] Warning on 'Clean' action (maybe the window with a checkbox "Do not ask in the future" (QSettings parameter))
- - [x] On 'Clean' clean the log too
- - [x] Stop the chain of commands if someone drops -1 or an exception
  - [ ] 2 types of logging formatters for 2 verbosity levels
- - [x] Check for projects duplication
- - [x] Maybe use QML State for action buttons appearance
- - [x] Projects are not destructed until quit (something preserving the link probably...)
- - [x] Fix settings (window doesn't match real)
  - [ ] `TypeError: Cannot read property 'actionRunning' of null` (deconstruction order) (on project deletion only)
  - [ ] QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
- - [x] Fix high CPU usage (most likely some thread consuming)
  - [ ] Lost log box autoscroll when manually scrolling between the actions
  - [ ] Crash on shutdown in Win and Linux (errors such as `[QML] CRITICAL QThread: Destroyed while thread is still running Process finished with exit code 1073741845`)
- - [x] Fix loader when action running
  - [ ] Start with a folder opened if it was provided on CLI (for example, `stm32pio_gui .`)
- - [x] Mark list item when action is done and it is not a current item (i.e. notify a user)
- - [x] Highlight actions that were picked for continuous run (with some border, for example)
- - [x] Mark last error'ed action
- - [x] Action buttons widget state machine diagram
- - [x] Fix messed up performance when the list index changes!
  - [ ] Linux:
       - Not a monospace font in the log area
  - [ ] Relative resource paths:
@@ -93,3 +77,4 @@
  - [ ] check if `platformio.ini` config will be successfully parsed when there are interpolation and/or empty parameters
  - [x] check if `.ioc` file is a text file on project initialization. Let `_find_ioc_file()` method to use explicitly provided file (useful for GUI). Maybe let user specify it via CLI
  - [ ] mb add CLI command for starting the GUI version (for example, `stm32pio --gui`)
+ - [ ] test using virtualenv

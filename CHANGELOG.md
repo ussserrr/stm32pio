@@ -195,3 +195,36 @@
  - Changed: separate `Stm32pio` arguments onto 2 categories: project parameters and instance options and use dictionaries for them. First one has now the same form as the project config `configparser.ConfigParser` and merging into the default and file settings on the project creation. Instance options are more related to the programmatic instance itself and contains currently 2 options - `logger` and `save_on_destruction`
  - Changed: use `append()` instead of `insert()` to modify `sys.path`
  - Changed: when raising the exceptions use more elegant expressions (e.g. `raise FileNotFoundError(file)` instead of `raise FileNotFoundError("file FILE was not found")`). Use `pathlib.Path().resolve(strict=True)` where appropriate to shorten the code
+
+## ver. 1.20 (18.04.20)
+ - New: GUI. System tray notifications when the main window is not in the foreground (can be turned off in the settings)
+ - New: GUI. Drag-and-drop folder(s) to add
+ - New: GUI. README, screenshots, diagrams
+ - New: GUI. Catch projects duplication on appending
+ - New: GUI. Mark the list item when the action is done and it is not a current item
+ - New: GUI. Highlight the actions that were picked for the series
+ - New: GUI. setuptools `extras` option to install the GUI version via pip
+ - New: GUI. Wrap imports into `try...catch`
+ - New: GUI. Reset settings feature
+ - New: GUI. New `ProjectListItem` members: `_from_startup` flag, `_current_action` string with corresponding properties and signals
+ - New: GUI. More extensive use of the `typing` annotations
+ - New: GUI. Allow to pass extra setter functions to the `Settings` which will be called on the value change
+ - New: allow to specify the `.ioc` file instead of the directory. Check that `.ioc` is a non-empty text file
+ - Fixed: GUI. Projects are not destructed until the app shutdown
+ - Fixed: GUI. Settings dialog doesn't correctly represents the parameters
+ - Fixed: GUI. Settings on Windows (case-sensitive vs insensitive situation)
+ - Fixed: GUI. List item loader
+ - Fixed: GUI. Flaws when index changes
+ - Changed: GUI. Clean the logs too when invoking the 'Clean' action
+ - Changed: GUI. Stop the chain of commands if someone drops -1 or an exception
+ - Changed: GUI. Use Qt StateMachine to control the visual appearance of the project action button
+ - Changed: GUI. Rename the module `stm32pio-gui` -> `stm32pio_gui`
+ - Changed: GUI. Better printing of exception messages
+ - Changed: GUI. Revised finalizer (similar to core version)
+ - Changed: GUI. Cache `state` and `state.current_stage` both for back- and frontend to reduce IO operations
+ - Changed: GUI. rename `ProjectActionWorker` -> `Worker` (as it is used for the variety of tasks) and some of its internals
+ - Changed: GUI. Pass `Settings` prefix as an argument for the constructor
+ - Changed: GUI. Move more stuff inside the `main()` function, less global variables
+ - Changed: exclude screenshots from the setuptools bundle
+ - Changed: restructure TODO.md into sections
+ - Changed: remove `from __future__ import annotations` statements

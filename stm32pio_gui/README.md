@@ -24,17 +24,22 @@ If you rather want to launch completely from the sources, currently it's possibl
 ```shell script
 stm32pio-repo/ $   python stm32pio_gui/app.py
 ```
+or
+```shell script
+stm32pio-repo/ $   python -m stm32pio_gui
+```
+
 
 
 ## Usage
 
-Add a folder with the `.ioc` file to begin with. You can also drag-and-drop it to the main window, in this case you can add multiple projects simultaneously. If the project is empty the initialization screen will be shown to help in setup:
+Add a folder with the `.ioc` file to begin with. You can also drag-and-drop it into the main window, in this case you can add multiple projects simultaneously. If the project is empty the initialization screen will be shown to help in setup:
 
 ![Init](screenshots/init_screen.png)
 
 You can skip it or enter one of the available PlatformIO STM32 boards. Select "Run" to apply all actions to the project (analog of the `new` CLI command).
 
-In the main screen the buttons row allows you to run specific actions while represents the state of the project at the same time. Green color means that this stage is fulfilled. The active project is refreshing automatically while all the others only when you click on them so the "stage" line at the projects list item can be outdated.
+In the main screen the buttons row allows you to run specific actions while represents the state of the project at the same time. Green color means that this stage is fulfilled. The active project is monitored automatically while all the others refresh only when you click on them so the "stage" line at the projects list item can be outdated.
 
 Let's assume you've worked on the project for some time and need to re-generate and rebuild the configuration. To schedule all the necessary actions to run one after another navigate to the last desired action pressing the Shift key. All the projects prior this one should be colored light-green now:
 
@@ -57,3 +62,5 @@ See `docs` directory to see state machine diagram of the project action button.
 ## Known issues
 
 The number of added projects that can be correctly represented is currently limited to about 5 due to some architectural mistakes. It's planned to be fixed in the near future.
+
+Right after the removing of the project from the list there are several errors on the terminal appears. It is most likely caused by the non proper destruction order of components and isn't something to be worried about. By a similar reasons the app itself sometimes crushes during the shutdown process (doesn't observed on the macOS, though).

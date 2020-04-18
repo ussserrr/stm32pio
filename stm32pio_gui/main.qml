@@ -82,7 +82,7 @@ ApplicationWindow {
                 Layout.preferredWidth: 250  // Detected recursive rearrange. Aborting after two iterations
                 wrapMode: Text.Wrap
                 color: 'dimgray'
-                text: "Get messages about completed project actions when the app is in background"
+                text: "Get messages about completed project actions when the app is in the background"
             }
 
             Text {
@@ -542,7 +542,7 @@ ApplicationWindow {
                                 active: false
                                 sourceComponent: Column {
                                     Text {
-                                        text: "To complete initialization you can provide PlatformIO name of the board"
+                                        text: "To complete initialization you can provide the PlatformIO name of the board"
                                         padding: 10
                                     }
                                     Row {
