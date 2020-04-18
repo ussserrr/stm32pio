@@ -206,3 +206,18 @@ class TestUnit(CustomTestCase):
         PlatformIO identifiers of boards are requested using PlatformIO CLI in JSON format
         """
         self.assertIsInstance(stm32pio.util.get_platformio_boards(platformio_cmd='platformio'), list)
+
+    def test_ioc_file_provided(self):
+        """
+        Test a correct handling of a case when the .ioc file was specified instead of the containing directory
+        """
+
+        # Create multiple .ioc files
+        shutil.copy(FIXTURE_PATH.joinpath('stm32pio-test-project.ioc'), FIXTURE_PATH.joinpath('42.ioc'))
+        shutil.copy(FIXTURE_PATH.joinpath('stm32pio-test-project.ioc'), FIXTURE_PATH.joinpath('Abracadabra.ioc'))
+
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH.joinpath('42.ioc'))
+        self.assertTrue(project.ioc_file.samefile(FIXTURE_PATH.joinpath('42.ioc')),
+                        msg="Provided .ioc file wasn't chosen")
+        self.assertEqual(project.config.get('project', 'ioc_file'), '42.ioc',
+                         msg="Provided .ioc file is not in the config")

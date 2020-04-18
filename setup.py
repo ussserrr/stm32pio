@@ -32,6 +32,7 @@ setuptools.setup(
             'tests'
         ]
     ),
+    include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3 :: Only",
         "License :: OSI Approved :: MIT License",
@@ -50,10 +51,19 @@ setuptools.setup(
     setup_requires=[
         'wheel'
     ],
-    include_package_data=True,
+    # GUI module (stm32pio_gui) will be installed in any case (because find_packages() will find it) but its
+    # dependencies will be installed only when this option is given
+    extras_require={
+        'GUI': [
+            'PySide2'
+        ]
+    },
     entry_points={
         'console_scripts': [
             'stm32pio = stm32pio.app:main'
+        ],
+        'gui_scripts': [
+            'stm32pio_gui = stm32pio_gui.app:main [GUI]'
         ]
     }
 )

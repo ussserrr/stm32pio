@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__version__ = '1.10'
+__version__ = '1.20'
 
 import argparse
 import logging
@@ -23,9 +23,9 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     """
 
     parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
-                                                 "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Run "
-                                                 "'init' command to create config file and set the path to STM32CubeMX "
-                                                 "and other tools (if defaults doesn't work for you)")
+                                                 "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Visit "
+                                                 "https://github.com/ussserrr/stm32pio for more information. Use "
+                                                 "'help' command to take a glimpse on the available functionality")
     # Global arguments (there is also an automatically added '-h, --help' option)
     parser.add_argument('--version', action='version', version=f"stm32pio v{__version__}")
     parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count')
@@ -35,7 +35,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
 
     parser_init = subparsers.add_parser('init', help="create config .ini file so you can tweak parameters before "
                                                      "proceeding")
-    parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project")
+    parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project, glue them")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
     parser_status = subparsers.add_parser('status', help="get the description of the current project state")
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (delete ALL content of 'path' "
@@ -63,7 +63,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     return parser.parse_args(args)
 
 
-def main(sys_argv=None) -> int:
+def main(sys_argv: Optional[list] = None) -> int:
     """
     Can be used as a high-level wrapper to do complete tasks
 
@@ -159,7 +159,7 @@ def main(sys_argv=None) -> int:
 
     # Library is designed to throw the exception in bad cases so we catch here globally
     except Exception:
-        # ExceptionName: message
+        # Print format is: "ExceptionName: message"
         logger.exception(traceback.format_exception_only(*(sys.exc_info()[:2]))[-1],
                          exc_info=logger.isEnabledFor(logging.DEBUG))
         return -1
@@ -168,5 +168,5 @@ def main(sys_argv=None) -> int:
 
 
 if __name__ == '__main__':
-    sys.path.append(str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python3 app.py'
+    sys.path.append(str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python app.py'
     sys.exit(main())
