@@ -165,7 +165,7 @@ class Stm32pio:
         else:
             self.logger = logging.getLogger(f"{__name__}.{id(self)}")  # use id() as uniqueness guarantee
 
-        # The path is a primary identifier of the project so we process it first and foremost. Handle 'path/to/proj',
+        # The path is a primary entity of the project so we process it first and foremost. Handle 'path/to/proj',
         # 'path/to/proj/', '.', '../proj', etc., make the path absolute and check for existence. Also, the .ioc file can
         # be specified instead of the directory. In this case it is assumed that the parent path is an actual project
         # path and the provided .ioc file is used on a priority basis
@@ -246,8 +246,8 @@ class Stm32pio:
 
     def _find_ioc_file(self, explicit_file: pathlib.Path = None) -> pathlib.Path:
         """
-        Find and return an .ioc file. If there are more than one return first. If no .ioc file is present raise
-        FileNotFoundError exception
+        Find, check (that this is a non-empty text file) and return an .ioc file. If there are more than one return
+        first. If no .ioc file is present raise FileNotFoundError exception. Use explicit_file if it was provided
 
         Returns:
             absolute path to the .ioc file
@@ -356,9 +356,9 @@ class Stm32pio:
         Invokes base _save_config function. Preliminarily, updates the config with the given 'parameters' dictionary. It
         should has the following format:
             {
-                'section1_name': {
-                    'key1': 'value1',
-                    'key2': 'value2'
+                'project': {
+                    'board': 'nucleo_f031k6',
+                    'ioc_file': 'fan_controller.ioc'
                 },
                 ...
             }

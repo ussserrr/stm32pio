@@ -1,24 +1,27 @@
 # TODOs
 
 ## Business logic, business features
+ - [ ] Issues guide for the GitHub (OS, content of the config, project tree, enable verbose)
+ - [ ] GitHub CHANGELOG - separate New, Fixed, Changed into paragraphs
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Create VSCode plugin
 
 ## GUI version
+ - [ ] Can probably detect Ctrl and Shift clicks without moving the mouse first
  - [ ] Notify the user that the 'board' parameter is empty
  - [ ] Mac: sometimes auto turned off shift highlighting after action (hide-restore helps)
- - [x] in `ProjectListItem` set-up `currentAction` instead of `actionRunning`
- - [ ] Some visual flaws when the window have got resized (e.g. 'Add' button goes off-screen, 'Log' area crawls onto the status bar)
+ - [x] In `ProjectListItem` set-up `currentAction` instead of `actionRunning`
+ - [ ] Some visual flaws when the window have got resized (e.g. 'Add' button position doesn't change until the list gets focus, 'Log' area crawls onto the status bar)
  - [x] Tray icon notifications
- - [x] When the list item is not active after the action the "current stage" line is not correct anymore. Consider updating or (better) gray out
+ - [ ] Gray out "stage" line in all projects except current
  - [ ] Tests (research approaches and patterns)
  - [ ] Test performance with a large number of projects in the model. First test was made:
       1. Some projects occasionally change `initLoading` by itself (probably Loader unloads the content) (hence cannot click on them, busy indicator appearing)
-         
+
          Note: Delegates are instantiated as needed and may be destroyed at any time. They are parented to ListView's contentItem, not to the view itself. State should never be stored in a delegate.
-         
-         Use `id()` in `setInitInfo()`. Or do not use ListView at all (replace be Repeater, for example) as it can reset our "notifications"
+
+         Use `id()` in `setInitInfo()`. Or do not use ListView at all (replace by Repeater, for example) as it can reset our "notifications"
       2. Some projects show OK even after its deletion (only the app restart helps)
  - [ ] Test with different timings
  - [x] Reduce number of calls to 'state' (many IO operations)
@@ -26,7 +29,7 @@
  - [x] Multiple projects addition
  - [ ] Divide on multiple modules (both Python and QML)
  - [ ] Implement other methods for Qt abstract models
- - [x] Warning on 'Clean' action (maybe the window with a checkbox "Do not ask in the future" (QSettings parameter))
+ - [ ] Warning on 'Clean' action (maybe the window with a checkbox "Do not ask in the future" (QSettings parameter))
  - [x] On 'Clean' clean the log too
  - [x] Stop the chain of commands if someone drops -1 or an exception
  - [ ] 2 types of logging formatters for 2 verbosity levels
@@ -34,7 +37,7 @@
  - [x] Maybe use QML State for action buttons appearance
  - [x] Projects are not destructed until quit (something preserving the link probably...)
  - [x] Fix settings (window doesn't match real)
- - [ ] `TypeError: Cannot read property 'actionRunning' of null (deconstruction order)` (on project deletion only)
+ - [ ] `TypeError: Cannot read property 'actionRunning' of null` (deconstruction order) (on project deletion only)
  - [ ] QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
  - [x] Fix high CPU usage (most likely some thread consuming)
  - [ ] Lost log box autoscroll when manually scrolling between the actions
@@ -47,12 +50,11 @@
  - [x] Action buttons widget state machine diagram
  - [x] Fix messed up performance when the list index changes!
  - [ ] Linux:
-      - Tooltip for 'Clean' not showing ('Add' works OK)
       - Not a monospace font in the log area
  - [ ] Relative resource paths:
- 
+
         ```
-          ⌘  python3 Documents/GitHub/stm32pio/stm32pio_gui/app.py 
+          ⌘  python3 Documents/GitHub/stm32pio/stm32pio_gui/app.py
         INFO main Starting stm32pio_gui...
         qt.svg: Cannot open file '/Users/chufyrev/stm32pio_gui/icons/icon.svg', because: No such file or directory
         qt.svg: Cannot open file '/Users/chufyrev/stm32pio_gui/icons/icon.svg', because: No such file or directory

@@ -451,10 +451,7 @@ ApplicationWindow {
 
             Connections {
                 target: projectsListView
-                onCurrentIndexChanged: {
-                    // console.log('currentIndex', projectsListView.currentIndex, projectsWorkspaceView.currentIndex);
-                    projectsWorkspaceView.currentIndex = projectsListView.currentIndex;
-                }
+                onCurrentIndexChanged: projectsWorkspaceView.currentIndex = projectsListView.currentIndex
             }
             Repeater {
                 // Use similar to ListView pattern (same projects model, Loader component)
@@ -491,19 +488,16 @@ ApplicationWindow {
                             onHandleState: {
                                 if (mainWindow.active &&  // the app got foreground
                                     projectIndex === projectsWorkspaceView.currentIndex &&  // only for the current list item
-                                    !projectIncorrectDialog.visible &&
+                                    !projectIncorrectDialog.visible &&  // on macOS, there is an animation effect so this property isn't updated
+                                                                        // immediately and the state can be retrieved several times and some flaws
+                                                                        // may appear. Workaround - is to have a dedicated flag and update it
+                                                                        // manually but this isn't very elegant solution
                                     project.currentAction === ''
                                 ) {
                                     const state = project.state;
                                     stateCached = state;
 
                                     project.stageChanged();  // side-effect: update the stage at the same time
-
-                                    // if (!state['INIT_ERROR'] && !state['EMPTY']) {  // i.e. no .ioc file but the project was able to initialize itself
-                                    //     // projectIncorrectDialog.visible is not working correctly (seems like delay or smth.)
-                                    //     projectIncorrectDialogIsOpen = true;
-                                    //     projectIncorrectDialog.open();
-                                    // }
                                 }
                             }
                             Component.onCompleted: {
@@ -535,10 +529,7 @@ ApplicationWindow {
                                 text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
                                        The project will be removed from the app. It will not affect any real content`
                                 icon: Dialogs.StandardIcon.Critical
-                                onAccepted: {
-                                    removeCurrentProject();
-                                    // mainOrInitScreen.projectIncorrectDialogIsOpen = false;
-                                }
+                                onAccepted: removeCurrentProject()
                             }
 
                             /*
@@ -583,7 +574,7 @@ ApplicationWindow {
                                             text: 'Run'
                                             enabled: false
                                             ToolTip {
-                                                visible: runCheckBox.hovered
+                                                visible: runCheckBox.hovered  // not working on Linux (Manjaro LXQt)
                                                 Component.onCompleted: {
                                                     // Form the tool tip text using action names
                                                     const actions = [];
@@ -612,7 +603,7 @@ ApplicationWindow {
                                             text: 'Open editor'
                                             ToolTip {
                                                 text: "Start the editor specified in the <b>Settings</b> after the completion"
-                                                visible: openEditor.hovered
+                                                visible: openEditor.hovered  // not working on Linux (Manjaro LXQt)
                                             }
                                         }
                                     }
@@ -658,14 +649,6 @@ ApplicationWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-
-                                // property var stateCachedNotifier: stateCached
-                                // onStateCachedNotifierChanged: {
-                                //     if (stateCached['INIT_ERROR']) {
-                                //         projActionsRow.visible = false;
-                                //         initErrorMessage.visible = true;
-                                //     }
-                                // }
 
                                 /*
                                    Show this or action buttons
@@ -743,7 +726,7 @@ ApplicationWindow {
                                                 background.border.color = 'dimgray';
                                             }
                                             ToolTip {
-                                                visible: parent.hovered
+                                                visible: mouseArea.containsMouse
                                                 Component.onCompleted: {
                                                     if (model.tooltip) {
                                                         text = model.tooltip;
@@ -869,6 +852,7 @@ ApplicationWindow {
                                                 - Shift: batch actions run
                                             */
                                             MouseArea {
+                                                id: mouseArea
                                                 anchors.fill: parent
                                                 hoverEnabled: true
                                                 property bool ctrlPressed: false
@@ -936,14 +920,7 @@ ApplicationWindow {
                                             Connections {
                                                 target: project
                                                 onActionStarted: {
-                                                    // if (action === model.action) {
-                                                    //     // Some properties like this are still managed outside of the DSM but this is, probably, OK
-                                                    //     palette.button = 'gold';
-                                                    // }
                                                     glow.visible = false;
-                                                    // if (shouldBeHighlightedWhileRunning) {
-                                                    //     background.border.width = 2;
-                                                    // }
                                                 }
                                                 onActionFinished: {
                                                     if (action === model.action) {
@@ -962,17 +939,6 @@ ApplicationWindow {
                                                                 5000  // ms
                                                             );
                                                         }
-
-                                                        // // Erase highlighting if this action is last in the series or at all
-                                                        // if (shouldBeHighlightedWhileRunning &&
-                                                        //     (buttonIndex === (projActionsModel.count - 1) ||
-                                                        //      projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
-                                                        // ) {
-                                                        //     for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                        //         projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
-                                                        //         projActionsRow.children[i].background.border.width = 0;
-                                                        //     }
-                                                        // }
                                                     }
                                                 }
                                             }
