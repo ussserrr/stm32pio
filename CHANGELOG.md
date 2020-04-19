@@ -228,3 +228,6 @@
  - Changed: exclude screenshots from the setuptools bundle
  - Changed: restructure TODO.md into sections
  - Changed: remove `from __future__ import annotations` statements
+
+## ver. 1.21 (19.04.20)
+ - Fixed: GUI. All paths are now reliably treated both for QML and Python
