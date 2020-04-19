@@ -53,9 +53,11 @@ any-path/ $   python3 path/to/stm32pio-repo/stm32pio/app.py
 
 However, it's handier to install the utility to be able to run stm32pio from anywhere. Use
 ```shell script
-stm32pio-repo/ $   pip install .
+stm32pio-repo/ $   pip install wheel
+stm32pio-repo/ $   python setup.py sdist bdist_wheel
+stm32pio-repo/ $   pip install dist/stm32pio-X.XX-py3-none-any.whl
 ```
-command to launch the setup process. Now you can simply type `stm32pio` in the terminal to run the utility in any directory.
+commands to launch the setup process. Now you can simply type `stm32pio` in the terminal to run the utility in any directory.
 
 Finally, the PyPI distribution (starting from v0.95) is available:
 ```shell script

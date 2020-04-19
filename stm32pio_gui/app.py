@@ -665,7 +665,6 @@ def main():
         logging.getLevelName(logging.DEBUG): logging.DEBUG,
         logging.getLevelName(logging.NOTSET): logging.NOTSET
     })
-    engine.rootContext().setContextProperty('resourcesPath', str(MODULE_PATH))
     engine.rootContext().setContextProperty('projectsModel', projects_model)
     engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.rootContext().setContextProperty('appSettings', settings)

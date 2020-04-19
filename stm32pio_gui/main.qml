@@ -193,7 +193,7 @@ ApplicationWindow {
 
     Labs.SystemTrayIcon {
         id: sysTrayIcon
-        icon.source: resourcesPath + '/icons/icon.svg'
+        icon.source: './icons/icon.svg'
         visible: settings.get('notifications')
     }
 
@@ -212,7 +212,7 @@ ApplicationWindow {
                 Image {
                     id: dropPopupContent
                     anchors.horizontalCenter: parent.horizontalCenter
-                    source: resourcesPath + '/icons/drop-here.svg'
+                    source: './icons/drop-here.svg'
                     fillMode: Image.PreserveAspectFit
                     sourceSize.width: 64
                 }
@@ -418,7 +418,7 @@ ApplicationWindow {
                             text: 'Add'
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
                             display: AbstractButton.TextBesideIcon
-                            icon.source: resourcesPath + '/icons/add.svg'
+                            icon.source: './icons/add.svg'
                             onClicked: addProjectFolderDialog.open()
                             ToolTip.visible: projectsListView.count === 0 && !loadingOverlay.visible  // show when there is no items in the list
                             ToolTip.text: "<b>Hint:</b> add your project using this button or drag'n'drop it into the window"
@@ -428,7 +428,7 @@ ApplicationWindow {
                             visible: projectsListView.currentIndex !== -1  // show only if any item is selected
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
                             display: AbstractButton.TextBesideIcon
-                            icon.source: resourcesPath + '/icons/remove.svg'
+                            icon.source: './icons/remove.svg'
                             onClicked: removeCurrentProject()
                         }
                     }
