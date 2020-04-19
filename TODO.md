@@ -35,22 +35,6 @@
  - [ ] Start with a folder opened if it was provided on CLI (for example, `stm32pio_gui .`)
  - [ ] Linux:
       - Not a monospace font in the log area
- - [ ] Relative resource paths:
-
-        ```
-          ⌘  python3 Documents/GitHub/stm32pio/stm32pio_gui/app.py
-        INFO main Starting stm32pio_gui...
-        qt.svg: Cannot open file '/Users/chufyrev/stm32pio_gui/icons/icon.svg', because: No such file or directory
-        qt.svg: Cannot open file '/Users/chufyrev/stm32pio_gui/icons/icon.svg', because: No such file or directory
-        QQmlApplicationEngine failed to load component
-        file:///Users/chufyrev/stm32pio_gui/main.qml: No such file or directory
-        Traceback (most recent call last):
-          File "Documents/GitHub/stm32pio/stm32pio_gui/app.py", line 629, in <module>
-            sys.exit(main())
-          File "Documents/GitHub/stm32pio/stm32pio_gui/app.py", line 590, in main
-            main_window = engine.rootObjects()[0]
-        IndexError: list index out of range
-        ```
 
 ## Core library
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...

@@ -30,12 +30,14 @@ except ImportError as e:
           "or manually install its dependencies by yourself")
     sys.exit(-1)
 
+ROOT_PATH = pathlib.Path(sys.path[0]).parent
+MODULE_PATH = pathlib.Path(__file__).parent
 try:
     import stm32pio.settings
     import stm32pio.lib
     import stm32pio.util
 except ModuleNotFoundError:
-    sys.path.insert(0, str(pathlib.Path(sys.path[0]).parent))
+    sys.path.insert(0, str(ROOT_PATH))
     import stm32pio.settings
     import stm32pio.lib
     import stm32pio.util
@@ -609,7 +611,7 @@ def main():
     # Used as a settings identifier too
     app.setOrganizationName('ussserrr')
     app.setApplicationName('stm32pio')
-    app.setWindowIcon(QIcon('stm32pio_gui/icons/icon.svg'))
+    app.setWindowIcon(QIcon(str(MODULE_PATH.joinpath('icons/icon.svg'))))
 
 
     global settings
@@ -667,7 +669,7 @@ def main():
     engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.rootContext().setContextProperty('appSettings', settings)
 
-    engine.load(QUrl.fromLocalFile('stm32pio_gui/main.qml'))
+    engine.load(QUrl.fromLocalFile(str(MODULE_PATH.joinpath('main.qml'))))
 
     main_window = engine.rootObjects()[0]
 
@@ -704,7 +706,4 @@ settings = QSettings()  # placeholder, will be replaced in main()
 
 
 if __name__ == '__main__':
-    # import os
-    # os.chdir(str(pathlib.Path(sys.path[0])))
-    # print(pathlib.Path.cwd())
     sys.exit(main())
