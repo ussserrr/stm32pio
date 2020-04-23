@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 Please describe the bug and supplement the additional information:
- - OS and its version
+ - OS, Python and their versions
  - content of the config file `stm32pio.ini`
  - your project folder tree
 
