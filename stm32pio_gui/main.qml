@@ -1,5 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12
+import QtQml.Models 2.12
 import QtQuick.Layouts 1.12
 import QtGraphicalEffects 1.12
 import QtQuick.Dialogs 1.3 as Dialogs
@@ -265,15 +266,17 @@ ApplicationWindow {
                 highlightMoveDuration: 0  // turn off animations
                 highlightMoveVelocity: -1
 
-                model: projectsModel  // backend-side
-                delegate: Component {
-                    /*
-                       (See setInitInfo docs) One of the two main widgets representing the project. Use Loader component
-                       as it can give us the relible timestamp of all its children loading completion (unlike Component.onCompleted)
-                    */
-                    id: listViewDelegate
-                    Loader {
-                        onLoaded: setInitInfo(index)
+                model: DelegateModel {
+                    model: projectsModel  // backend-side
+                    delegate: Loader {
+                        /*
+                        (See setInitInfo docs) One of the two main widgets representing the project. Use Loader component
+                        as it can give us the relible timestamp of all its children loading completion (unlike Component.onCompleted)
+                        */
+                        onLoaded: {
+                            setInitInfo(index);
+                            DelegateModel.inPersistedItems = 1;
+                        }
                         sourceComponent: RowLayout {
                             property bool initLoading: true  // initial waiting for the backend-side TODO: do not store state in the delegate!
                             readonly property ProjectListItem project: projectsModel.get(index)
@@ -389,7 +392,6 @@ ApplicationWindow {
                                 y: parent.y
                                 width: parent.width
                                 height: parent.height
-                                // enabled: !parent.initLoading
                                 onClicked: projectsListView.currentIndex = index
                             }
                         }
