@@ -20,6 +20,16 @@ import stm32pio.settings
 import stm32pio.util
 
 
+_stages_string_representations = {
+    'UNDEFINED': 'The project is messed up',
+    'EMPTY': '.ioc file is present',
+    'INITIALIZED': 'stm32pio initialized',
+    'GENERATED': 'CubeMX code generated',
+    'PIO_INITIALIZED': 'PlatformIO project initialized',
+    'PATCHED': 'PlatformIO project patched',
+    'BUILT': 'PlatformIO project built'
+}
+
 @enum.unique
 class ProjectStage(enum.IntEnum):
     """
@@ -47,16 +57,7 @@ class ProjectStage(enum.IntEnum):
     BUILT = enum.auto()
 
     def __str__(self):
-        string_representations = {
-            'UNDEFINED': 'The project is messed up',
-            'EMPTY': '.ioc file is present',
-            'INITIALIZED': 'stm32pio initialized',
-            'GENERATED': 'CubeMX code generated',
-            'PIO_INITIALIZED': 'PlatformIO project initialized',
-            'PATCHED': 'PlatformIO project patched',
-            'BUILT': 'PlatformIO project built'
-        }
-        return string_representations[self.name]
+        return _stages_string_representations[self.name]
 
 
 class ProjectState(collections.OrderedDict):
@@ -419,9 +420,9 @@ class Stm32pio:
                 self.logger.info("successful code generation")
                 return result.returncode
             else:
-                error_lines = [line for line in result_output.splitlines() if ' [ERROR] ' in line]
+                error_lines = [line for line in result_output.splitlines(keepends=True) if ' [ERROR] ' in line]
                 if len(error_lines):
-                    self.logger.error('\n'.join(error_lines), 'from_subprocess')
+                    self.logger.error(error_lines, 'from_subprocess')
                     raise Exception(error_msg)
                 else:
                     self.logger.warning("Undefined result from the CubeMX (neither error or success symptoms were "
@@ -429,7 +430,7 @@ class Stm32pio:
                     return result.returncode
         else:
             # Probably 'java' error (e.g. no CubeMX is present)
-            self.logger.error(f"return code is {result.returncode}\n\n{result_output}")
+            self.logger.error(f"Return code is {result.returncode}. Output:\n\n{result_output}", 'from_subprocess')
             raise Exception(error_msg)
 
 
@@ -460,13 +461,13 @@ class Stm32pio:
         if result.returncode == 0:
             # PlatformIO returns 0 even on some errors (e.g. no '--board' argument)
             if 'error' in result.stdout.lower():
-                self.logger.error(result.stdout)
+                self.logger.error(result.stdout, 'from_subprocess')
                 raise Exception(error_msg)
             self.logger.debug(result.stdout, 'from_subprocess')
             self.logger.info("successful PlatformIO project initialization")
             return result.returncode
         else:
-            self.logger.error(result.stdout)
+            self.logger.error(f"Return code is {result.returncode}. Output:\n\n{result.stdout}", 'from_subprocess')
             raise Exception(error_msg)
 
 
@@ -481,8 +482,7 @@ class Stm32pio:
         """
 
         platformio_ini = configparser.ConfigParser(interpolation=None)
-        if len(platformio_ini.read(self.path.joinpath('platformio.ini'))) == 0:
-            raise FileNotFoundError('platformio.ini')
+        platformio_ini.read(self.path.joinpath('platformio.ini').resolve(strict=True))
         return platformio_ini
 
 
@@ -573,6 +573,32 @@ class Stm32pio:
         self.logger.info("project has been patched")
 
 
+    def build(self) -> int:
+        """
+        Initiate a build of the PlatformIO project by the PlatformIO ('run' command). PlatformIO prints warning and
+        error messages by itself to the STDERR so there is no need to catch it and output by us
+
+        Returns:
+            passes a return code of the PlatformIO
+        """
+
+        self.logger.info("starting PlatformIO project build...")
+
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', str(self.path)]
+        if not self.logger.isEnabledFor(logging.DEBUG):
+            command_arr.append('--silent')
+
+        log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
+        with stm32pio.util.LogPipe(self.logger, log_level) as log:
+            result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
+
+        if result.returncode == 0:
+            self.logger.info("successful PlatformIO build")
+        else:
+            self.logger.error("PlatformIO build error")
+        return result.returncode
+
+
     def start_editor(self, editor_command: str) -> int:
         """
         Start the editor specified by 'editor_command' with the project opened (assuming that
@@ -600,32 +626,6 @@ class Stm32pio:
         except subprocess.CalledProcessError as e:
             self.logger.error(f"failed to start the editor {sanitized_input}: {e.stdout}")
             return e.returncode
-
-
-    def build(self) -> int:
-        """
-        Initiate a build of the PlatformIO project by the PlatformIO ('run' command). PlatformIO prints warning and
-        error messages by itself to the STDERR so there is no need to catch it and output by us
-
-        Returns:
-            passes a return code of the PlatformIO
-        """
-
-        self.logger.info("starting PlatformIO project build...")
-
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', str(self.path)]
-        if not self.logger.isEnabledFor(logging.DEBUG):
-            command_arr.append('--silent')
-
-        log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
-        with stm32pio.util.LogPipe(self.logger, log_level) as log:
-            result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
-
-        if result.returncode == 0:
-            self.logger.info("successful PlatformIO build")
-        else:
-            self.logger.error("PlatformIO build error")
-        return result.returncode
 
 
     def clean(self) -> None:

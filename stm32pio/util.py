@@ -25,13 +25,13 @@ def log_record_factory(*log_record_args, **log_record_kwargs):
     """
     Replace the default factory of logging.LogRecord's instances so we can handle our special logging flags
     """
-    args_idx = 5  # index of 'args' argument in the positional arguments list
+    ARGS_IDX = 5  # index of 'args' argument in the positional arguments list
 
-    if 'from_subprocess' in log_record_args[args_idx]:
+    if 'from_subprocess' in log_record_args[ARGS_IDX]:
         # Remove our custom flag from the tuple (it is inside a tuple that is inside a list)
-        new_log_record_args = log_record_args[:args_idx] + \
-                              (tuple(arg for arg in log_record_args[args_idx] if arg != 'from_subprocess'),) + \
-                              log_record_args[args_idx + 1:]
+        new_log_record_args = log_record_args[:ARGS_IDX] + \
+                              (tuple(arg for arg in log_record_args[ARGS_IDX] if arg != 'from_subprocess'),) + \
+                              log_record_args[ARGS_IDX + 1:]
         # Construct an ordinary LogRecord and append our flag as an attribute
         record = default_log_record_factory(*new_log_record_args, **log_record_kwargs)
         record.from_subprocess = True

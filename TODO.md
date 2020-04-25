@@ -1,23 +1,26 @@
 # TODOs
 
-## Business logic, business features
+## Business logic, features
  - [ ] Issues guide for the GitHub (OS, content of the config, project tree, enable verbose)
  - [ ] GitHub CHANGELOG - separate New, Fixed, Changed into paragraphs
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Create VSCode plugin
+ - [ ] UML diagrams (core, GUI back- and front-ends, thread flows, events, etc.)
+ - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker one in Azure Pipelines, basic at Travis CI
 
 ## GUI version
+ - [ ] Obtain boards on demand (not at the startup)
  - [x] Expose version to the About dialog
- - [ ] Handle a theoretical initialization error (when boards are receiving)
+ - [x] Handle a theoretical initialization error (when boards are receiving)
  - [ ] Maybe `data()` `QAbstractListModel` method can be used instead of custom `get()`
  - [ ] Can probably detect Ctrl and Shift clicks without moving the mouse first
- - [ ] Notify the user that the 'board' parameter is empty
+ - [x] Notify the user that the 'board' parameter is empty
  - [ ] Mac: sometimes auto turned off shift highlighting after action (hide-restore helps)
  - [ ] Some visual flaws when the window have got resized (e.g. 'Add' button position doesn't change until the list gets focus, 'Log' area crawls onto the status bar)
- - [ ] Gray out "stage" line in all projects except current
+ - [x] Gray out "stage" line in all projects except current
  - [ ] Tests (research approaches and patterns)
- - [ ] Test performance with a large number of projects in the model. First test was made:
+ - [x] Test performance with a large number of projects in the model. First test was made:
       1. Some projects occasionally change `initLoading` by itself (probably Loader unloads the content) (hence cannot click on them, busy indicator appearing)
 
          Note: Delegates are instantiated as needed and may be destroyed at any time. They are parented to ListView's contentItem, not to the view itself. State should never be stored in a delegate.
@@ -29,14 +32,14 @@
  - [ ] Implement other methods for Qt abstract models
  - [ ] Warning on 'Clean' action (maybe the window with a checkbox "Do not ask in the future" (QSettings parameter))
  - [ ] 2 types of logging formatters for 2 verbosity levels
- - [ ] `TypeError: Cannot read property 'actionRunning' of null` (deconstruction order) (on project deletion only)
+ - [x] `TypeError: Cannot read property 'actionRunning' of null` (deconstruction order) (on project deletion only)
  - [ ] QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
  - [ ] Lost log box autoscroll when manually scrolling between the actions
  - [ ] Crash on shutdown in Win and Linux (errors such as `[QML] CRITICAL QThread: Destroyed while thread is still running Process finished with exit code 1073741845`)
  - [ ] Start with a folder opened if it was provided on CLI (for example, `stm32pio_gui .`)
  - [ ] Linux:
       - Not a monospace font in the log area
- - [ ] Currently running projects can be temporarily pinned to the top (and stays there on scrolling). See QML Package type
+ - [ ] Temporarily pin projects with currently running actions to the top (and stay there on scrolling). See QML Package type
 
 ## Core library
  - [x] https://github.com/ussserrr/stm32pio/issues/13
@@ -53,8 +56,6 @@
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
  - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe remade current logging schema (current is, perhaps, a cause of the strange error while testing (in the logging thread), also modifies global settings (log message factory))
- - [ ] UML diagrams (core, GUI back- and front-ends, thread flows, events, etc.)
- - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker one in Azure Pipelines, basic at Travis CI
  - [ ] Test preserving user files and folders on regeneration and mb other operations
  - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
  - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode). And, in general, we should show the error reason right off
@@ -67,3 +68,4 @@
  - [ ] test using virtualenv
  - [ ] test for different `.ioc` files (i.e. F0, F1, F4 and so on) as it is not the same actually
  - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini
+ - [ ] cache boards for a small interval of time

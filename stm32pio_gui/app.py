@@ -227,6 +227,15 @@ class ProjectListItem(QObject):
         """Is this project is here from the beginning of the app life?"""
         return self._from_startup
 
+    @Property('QVariant')
+    def config(self) -> dict:
+        """Inner project's ConfigParser config converted to the dictionary (QML JS object)"""
+        return {
+            section: {
+                key: value for (key, value) in self.project.config.items(section)
+            } if self.project is not None else {} for section in ['app', 'project']
+        }
+
     @Property(str, notify=nameChanged)
     def name(self) -> str:
         """Human-readable name of the project. Will evaluate to the absolute path if it cannot be instantiated"""
@@ -642,10 +651,10 @@ def main():
     #         module_logger.debug(f"{key}: {settings.value(key)} (type: {type(settings.value(key))})")
 
     settings.beginGroup('app')
-    projects_paths = []
+    restored_projects_paths = []
     for index in range(settings.beginReadArray('projects')):
         settings.setArrayIndex(index)
-        projects_paths.append(settings.value('path'))
+        restored_projects_paths.append(settings.value('path'))
     settings.endArray()
     settings.endGroup()
 
@@ -656,7 +665,6 @@ def main():
     qmlRegisterType(Settings, 'Settings', 1, 0, 'Settings')
 
     projects_model = ProjectsList(parent=engine)
-    boards = []
     boards_model = QStringListModel(parent=engine)
 
     engine.rootContext().setContextProperty('appVersion', stm32pio.app.__version__)
@@ -682,15 +690,15 @@ def main():
     # start-up operations here if there will be need to. Use the same Worker to spawn the thread at pool.
 
     def loading():
-        nonlocal boards
         boards = ['None'] + stm32pio.util.get_platformio_boards('platformio')
+        boards_model.setStringList(boards)
 
     def loaded(_, success):
-        boards_model.setStringList(boards)
-        projects = [ProjectListItem(project_args=[path], from_startup=True, parent=projects_model) for path in projects_paths]
-        for p in projects:
-            projects_model.addProject(p)
-        main_window.backendLoaded.emit()  # inform the GUI
+        # Qt objects cannot be parented from the different thread so we restore the projects list in the main thread
+        for path in restored_projects_paths:
+            projects_model.addProject(ProjectListItem(project_args=[path], from_startup=True, parent=projects_model))
+
+        main_window.backendLoaded.emit(success)  # inform the GUI
 
     loader = Worker(loading, logger=module_logger)
     loader.finished.connect(loaded)
