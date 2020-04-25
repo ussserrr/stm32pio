@@ -49,7 +49,7 @@ stm32pio-repo/ $   python3 stm32pio/app.py  # or
 stm32pio-repo/ $   python3 -m stm32pio  # or
 any-path/ $   python3 path/to/stm32pio-repo/stm32pio/app.py
 ```
-(we assume python3 and pip3 hereinafter). It is possible to run the app like this from anywhere.
+(we assume `python3` and `pip3` hereinafter). It is possible to run the app like this from anywhere.
 
 However, it's handier to install the utility to be able to run stm32pio from anywhere. Use
 ```shell script

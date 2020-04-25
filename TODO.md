@@ -8,7 +8,8 @@
  - [ ] Create VSCode plugin
 
 ## GUI version
- - [ ] Handle the initialization error (when boards are receiving)
+ - [x] Expose version to the About dialog
+ - [ ] Handle a theoretical initialization error (when boards are receiving)
  - [ ] Maybe `data()` `QAbstractListModel` method can be used instead of custom `get()`
  - [ ] Can probably detect Ctrl and Shift clicks without moving the mouse first
  - [ ] Notify the user that the 'board' parameter is empty
@@ -21,7 +22,7 @@
 
          Note: Delegates are instantiated as needed and may be destroyed at any time. They are parented to ListView's contentItem, not to the view itself. State should never be stored in a delegate.
 
-         Use `id()` in `setInitInfo()`. Or do not use ListView at all (replace by Repeater, for example) as it can reset our "notifications"
+         Use `id()` in `setInitInfo()`. Or do not use ListView at all (replace by Repeater, for example) as it can reset our "notifications" when reloading
       2. Some projects show OK even after its deletion (only the app restart helps)
  - [ ] Test with different timings
  - [ ] Divide on multiple modules (both Python and QML)
@@ -35,8 +36,10 @@
  - [ ] Start with a folder opened if it was provided on CLI (for example, `stm32pio_gui .`)
  - [ ] Linux:
       - Not a monospace font in the log area
+ - [ ] Currently running projects can be temporarily pinned to the top (and stays there on scrolling). See QML Package type
 
 ## Core library
+ - [x] https://github.com/ussserrr/stm32pio/issues/13
  - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments while old ones aren't)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
@@ -62,3 +65,5 @@
  - [x] check if `.ioc` file is a text file on project initialization. Let `_find_ioc_file()` method to use explicitly provided file (useful for GUI). Maybe let user specify it via CLI
  - [ ] mb add CLI command for starting the GUI version (for example, `stm32pio --gui`)
  - [ ] test using virtualenv
+ - [ ] test for different `.ioc` files (i.e. F0, F1, F4 and so on) as it is not the same actually
+ - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini

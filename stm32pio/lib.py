@@ -415,12 +415,18 @@ class Stm32pio:
         if result.returncode == 0:
             # CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared
             # and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), should analyze the output
-            error_lines = [line for line in result_output.splitlines() if '[ERROR]' in line]
-            if len(error_lines):
-                self.logger.error('\n'.join(error_lines))
-                raise Exception(error_msg)
-            self.logger.info("successful code generation")
-            return result.returncode
+            if 'Code succesfully generated ' in result_output:
+                self.logger.info("successful code generation")
+                return result.returncode
+            else:
+                error_lines = [line for line in result_output.splitlines() if ' [ERROR] ' in line]
+                if len(error_lines):
+                    self.logger.error('\n'.join(error_lines), 'from_subprocess')
+                    raise Exception(error_msg)
+                else:
+                    self.logger.warning("Undefined result from the CubeMX (neither error or success symptoms were "
+                                        "found in the logs). Keep going but there might be an error")
+                    return result.returncode
         else:
             # Probably 'java' error (e.g. no CubeMX is present)
             self.logger.error(f"return code is {result.returncode}\n\n{result_output}")

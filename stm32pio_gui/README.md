@@ -63,4 +63,4 @@ See `docs` directory to see state machine diagram of the project action button.
 
 The number of added projects that can be correctly represented is currently limited to about 5 due to some architectural mistakes. It's planned to be fixed in the near future.
 
-Right after the removing of the project from the list there are several errors on the terminal appears. It is most likely caused by the non proper destruction order of components and isn't something to be worried about. By a similar reasons the app itself sometimes crushes during the shutdown process (doesn't observed on the macOS, though).
+Right after the removing of the project from the list there are several errors on the terminal appears. It is most likely caused by the non-proper (and tricky) destruction order of components and isn't something to be worried about. By a similar reasons the app itself sometimes crushes during the shutdown process (doesn't observed on the macOS, though).

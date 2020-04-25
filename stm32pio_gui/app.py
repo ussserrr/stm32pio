@@ -36,11 +36,13 @@ try:
     import stm32pio.settings
     import stm32pio.lib
     import stm32pio.util
+    import stm32pio.app
 except ModuleNotFoundError:
     sys.path.insert(0, str(ROOT_PATH))
     import stm32pio.settings
     import stm32pio.lib
     import stm32pio.util
+    import stm32pio.app
 
 
 
@@ -657,6 +659,7 @@ def main():
     boards = []
     boards_model = QStringListModel(parent=engine)
 
+    engine.rootContext().setContextProperty('appVersion', stm32pio.app.__version__)
     engine.rootContext().setContextProperty('Logging', {
         logging.getLevelName(logging.CRITICAL): logging.CRITICAL,
         logging.getLevelName(logging.ERROR): logging.ERROR,

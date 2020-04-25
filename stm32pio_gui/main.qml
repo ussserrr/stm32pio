@@ -122,18 +122,19 @@ ApplicationWindow {
         standardButtons: Dialogs.StandardButton.Close
         ColumnLayout {
             Rectangle {
-                width: 250
-                height: 100
+                width: 280
+                height: aboutDialogTextArea.implicitHeight
                 TextArea {
+                    id: aboutDialogTextArea
                     width: parent.width
-                    height: parent.height
                     readOnly: true
                     selectByMouse: true
                     wrapMode: Text.WordWrap
                     textFormat: TextEdit.RichText
                     horizontalAlignment: TextEdit.AlignHCenter
                     verticalAlignment: TextEdit.AlignVCenter
-                    text: `2018 - 2020 © ussserrr<br>
+                    text: `ver. ${appVersion}<br>
+                           2018 - 2020 © ussserrr<br>
                            <a href='https://github.com/ussserrr/stm32pio'>GitHub</a><br><br>
                            Powered by Python3, PlatformIO, Qt for Python, FlatIcons and other awesome technologies`
                     onLinkActivated: {
@@ -388,7 +389,7 @@ ApplicationWindow {
                                 y: parent.y
                                 width: parent.width
                                 height: parent.height
-                                enabled: !parent.initLoading
+                                // enabled: !parent.initLoading
                                 onClicked: projectsListView.currentIndex = index
                             }
                         }
@@ -525,7 +526,11 @@ ApplicationWindow {
                             // property bool projectIncorrectDialogIsOpen: false
                             Dialogs.MessageDialog {
                                 id: projectIncorrectDialog
-                                visible: Object.keys(stateCached).length && !stateCached['INIT_ERROR'] && !stateCached['EMPTY']
+                                visible: Object.keys(stateCached).length && [
+                                            'LOADING',  // ignore transitional state
+                                            'INIT_ERROR',  // we have another view for this state, skip
+                                            'EMPTY'  // true if .ioc file is present, false otherwise
+                                        ].every(key => !stateCached[key])
                                 text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
                                        The project will be removed from the app. It will not affect any real content`
                                 icon: Dialogs.StandardIcon.Critical
