@@ -91,7 +91,7 @@ ApplicationWindow {
             }
             Item { Layout.preferredWidth: 140 }  // spacer
             Text {
-                Layout.preferredWidth: 250  // Detected recursive rearrange. Aborting after two iterations
+                Layout.preferredWidth: 250  // TODO: a cause of "Detected recursive rearrange. Aborting after two iterations"
                 wrapMode: Text.Wrap
                 color: 'dimgray'
                 text: "Get messages about completed project actions when the app is in the background"
@@ -170,8 +170,6 @@ ApplicationWindow {
        QML-side implementation details to the backend we define this helper function that counts and stores
        a number of widgets currently loaded for each project in model and informs the Qt-side right after all
        necessary components become ready.
-
-       TODO: should be remade to use Python id() as a unique identifier, see TODO.md
     */
     readonly property var initInfo: ({})
     function setInitInfo(projectIndex) {
@@ -242,10 +240,10 @@ ApplicationWindow {
         }
         onDropped: {
             if (drop.urls.length) {
-                // We need to convert to the array of strings as typeof(drop.urls) === 'object'
+                // We need to convert to an array of strings till typeof(drop.urls) === 'object'
                 projectsModel.addProjectByPath(Object.keys(drop.urls).map(u => drop.urls[u]));
             } else if (drop.text) {
-                // Wrap into the array for consistency
+                // Wrap into an array for consistency
                 projectsModel.addProjectByPath([drop.text]);
             } else {
                 console.log("Incorrect drag'n'drop event");
@@ -282,18 +280,22 @@ ApplicationWindow {
                 highlightMoveVelocity: -1
 
                 model: DelegateModel {
+                    /*
+                       Use DelegateModel as it has a feature to always preserve specified list items in memory so we can store an actual state
+                       directly in the delegate
+                    */
                     model: projectsModel  // backend-side
                     delegate: Loader {
                         /*
-                        (See setInitInfo docs) One of the two main widgets representing the project. Use Loader component
-                        as it can give us the relible timestamp of all its children loading completion (unlike Component.onCompleted)
+                           (See setInitInfo docs) One of the two main widgets representing the project. Use Loader component
+                           as it can give us the relible timestamp of all its children loading completion (unlike Component.onCompleted)
                         */
                         onLoaded: {
                             setInitInfo(index);
                             DelegateModel.inPersistedItems = 1;
                         }
                         sourceComponent: RowLayout {
-                            property bool initLoading: true  // initial waiting for the backend-side TODO: do not store state in the delegate!
+                            property bool initLoading: true  // initial waiting for the backend-side
                             readonly property ProjectListItem project: projectsModel.get(index)
                             Connections {
                                 target: project
@@ -340,6 +342,8 @@ ApplicationWindow {
                                         }
                                         if (Qt.colorEqual(projectCurrentStage.color, 'darkgray')) {
                                             projectCurrentStage.color = 'black';
+                                        }
+                                        if (runningOrFinished.currentIndex === 1) {  // TODO: ugly
                                             runningOrFinished.visible = false;
                                         }
                                     } else {
@@ -482,7 +486,7 @@ ApplicationWindow {
                     property int projectIndex: index  // binding so will be automatically updated on change
                     onLoaded: setInitInfo(index)
                     /*
-                        Use another one StackLayout to separate Project initialization "screen" and Main one
+                       Use another one StackLayout to separate Project initialization "screen" and Main one
                     */
                     sourceComponent: StackLayout {
                         id: mainOrInitScreen
@@ -494,15 +498,15 @@ ApplicationWindow {
                         readonly property ProjectListItem project: projectsModel.get(index)
 
                         /*
-                            State retrieving procedure is relatively expensive (many IO operations) so we optimize it by getting the state
-                            only in certain situations (see Component.onCompleted below) and caching a value in the local varible. Then, all
-                            widgets can pick up this value as many times as they want while not abusing the real property getter. Such a subscription
-                            can be established by the creation of a local reference to the cache and listening to the change event like this:
+                           State retrieving procedure is relatively expensive (many IO operations) so we optimize it by getting the state
+                           only in certain situations (see Component.onCompleted below) and caching a value in the local varible. Then, all
+                           widgets can pick up this value as many times as they want while not abusing the real property getter. Such a subscription
+                           can be established by the creation of a local reference to the cache and listening to the change event like this:
 
-                                property var stateCachedNotifier: stateCached
-                                onStateCachedNotifierChanged: {
-                                    // use stateCached there
-                                }
+                               property var stateCachedNotifier: stateCached
+                               onStateCachedNotifierChanged: {
+                                   // use stateCached there
+                               }
                         */
                         signal handleState()
                         property var stateCached: ({})
@@ -541,8 +545,8 @@ ApplicationWindow {
                                     const config = project.config;
                                     if (Object.keys(config['project']).length && !config['project']['board']) {
                                         project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                                            'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                                            Logging.WARNING);
+                                                         'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                                                         Logging.WARNING);
                                     }
                                     mainOrInitScreen.currentIndex = 1;  // show main view
                                 }
@@ -555,17 +559,17 @@ ApplicationWindow {
                                         'LOADING',  // ignore transitional state
                                         'INIT_ERROR',  // we have another view for this state, skip
                                         'EMPTY'  // true if .ioc file is present, false otherwise
-                                    ].every(key => !stateCached[key])
+                                     ].every(key => !stateCached[key])
                             text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
-                                    The project will be removed from the app. It will not affect any real content`
+                                   The project will be removed from the app. It will not affect any real content`
                             icon: Dialogs.StandardIcon.Warning
                             onAccepted: removeCurrentProject()
                         }
 
                         /*
-                            Index: 0. Project initialization "screen"
+                           Index: 0. Project initialization "screen"
 
-                            Prompt a user to perform initial setup
+                           Prompt a user to perform initial setup
                         */
                         Loader {
                             id: setupScreenLoader
@@ -597,7 +601,7 @@ ApplicationWindow {
                                         }
                                     }
                                     /*
-                                        Trigger full run
+                                       Trigger full run
                                     */
                                     CheckBox {
                                         id: runCheckBox
@@ -652,8 +656,8 @@ ApplicationWindow {
                                         }]);
                                         if (board.editText === board.textAt(0)) {
                                             project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                                                'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                                                Logging.WARNING);
+                                                             'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                                                             Logging.WARNING);
                                         }
 
                                         if (runCheckBox.checked) {
@@ -674,14 +678,14 @@ ApplicationWindow {
                         }
 
                         /*
-                            Index: 1. Main "screen"
+                           Index: 1. Main "screen"
                         */
                         ColumnLayout {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
 
                             /*
-                                Show this or action buttons
+                               Show this or action buttons
                             */
                             Text {
                                 id: initErrorMessage
@@ -692,11 +696,11 @@ ApplicationWindow {
                             }
 
                             /*
-                                The core widget - a group of buttons mapping all main actions that can be performed on the given project.
-                                They also serve the project state displaying - each button indicates a stage associated with it:
-                                - green (and green glow): done
-                                - yellow: in progress right now
-                                - red glow: an error has occured during the last execution
+                               The core widget - a group of buttons mapping all main actions that can be performed on the given project.
+                               They also serve the project state displaying - each button indicates a stage associated with it:
+                                 - green (and green glow): done
+                                 - yellow: in progress right now
+                                 - red glow: an error has occured during the last execution
                             */
                             RowLayout {
                                 id: projActionsRow
@@ -712,7 +716,7 @@ ApplicationWindow {
                                             name: 'Clean'
                                             action: 'clean'
                                             tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder \
-                                                        except the current .ioc file and clear all logs"
+                                                      except the current .ioc file and clear all logs"
                                         }
                                         ListElement {
                                             name: 'Open editor'
@@ -781,9 +785,9 @@ ApplicationWindow {
                                             project.run(model.action, args);
                                         }
                                         /*
-                                            As the button reflects relatively complex logic it's easier to maintain using the state machine technique.
-                                            We define states and allowed transitions between them, all other stuff is managed by the DSM framework.
-                                            You can find the graphical diagram somewhere in the docs
+                                           As the button reflects relatively complex logic it's easier to maintain using the state machine technique.
+                                           We define states and allowed transitions between them, all other stuff is managed by the DSM framework.
+                                           You can find the graphical diagram somewhere in the docs
                                         */
                                         DSM.StateMachine {
                                             initialState: main  // start position
@@ -854,7 +858,7 @@ ApplicationWindow {
                                                     if (project.currentAction === model.action &&
                                                         shouldBeHighlightedWhileRunning &&
                                                         (buttonIndex === (projActionsModel.count - 1) ||
-                                                            projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
+                                                         projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
                                                     ) {
                                                         for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                             projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
@@ -877,9 +881,9 @@ ApplicationWindow {
                                             }
                                         }
                                         /*
-                                            Detect modifier keys using overlayed MouseArea:
-                                            - Ctrl (Cmd): start the editor after the action(s)
-                                            - Shift: batch actions run
+                                           Detect modifier keys using overlayed MouseArea:
+                                             - Ctrl (Cmd): start the editor after the action(s)
+                                             - Shift: batch actions run
                                         */
                                         MouseArea {
                                             id: mouseArea
@@ -929,7 +933,7 @@ ApplicationWindow {
                                                     if (buttonIndex >= projActionsModel.statefulActionsStartIndex) {
                                                         preparedText +=
                                                             `, <b>Shift</b>-click to perform all actions prior this one (including).
-                                                                <b>Ctrl</b>-<b>Shift</b>-click for both`;
+                                                             <b>Ctrl</b>-<b>Shift</b>-click for both`;
                                                     }
                                                     statusBar.text = preparedText;
                                                 }
@@ -973,7 +977,7 @@ ApplicationWindow {
                                             }
                                         }
                                         /*
-                                            Blinky glowing
+                                           Blinky glowing
                                         */
                                         RectangularGlow {
                                             id: glow

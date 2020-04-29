@@ -3,6 +3,8 @@ import inspect
 import pathlib
 import platform
 
+import stm32pio.lib
+
 
 my_os = platform.system()
 

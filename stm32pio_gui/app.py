@@ -8,9 +8,8 @@ import platform
 import sys
 import threading
 import time
-import traceback
 import weakref
-from typing import List, Callable, Optional, Dict, Any
+from typing import List, Callable, Optional, Dict, Any, Mapping
 
 try:
     from PySide2.QtCore import QUrl, Property, QAbstractListModel, QModelIndex, QObject, Qt, Slot, Signal, QThread,\
@@ -30,8 +29,8 @@ except ImportError as e:
           "or manually install its dependencies by yourself")
     sys.exit(-1)
 
-ROOT_PATH = pathlib.Path(sys.path[0]).parent
-MODULE_PATH = pathlib.Path(__file__).parent
+ROOT_PATH = pathlib.Path(sys.path[0]).parent  # repo's or the site-package's root
+MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. stm32pio-repo/stm32pio_gui/
 try:
     import stm32pio.settings
     import stm32pio.lib
@@ -46,17 +45,24 @@ except ModuleNotFoundError:
 
 
 
-class BufferedLoggingHandler(logging.Handler):
+class BuffersDispatchingHandler(logging.Handler):
     """
     Simple logging.Handler subclass putting all incoming records into the given buffer
     """
 
-    def __init__(self, buffer: collections.deque):
-        super().__init__()
-        self.buffer = buffer
+    buffers: Mapping[int, collections.deque] = {}
 
     def emit(self, record: logging.LogRecord) -> None:
-        self.buffer.append(record)
+        if hasattr(record, 'project_id'):
+            buffer = self.buffers.get(record.project_id)
+            if buffer is not None:
+                buffer.append(record)
+            else:
+                module_logger.warning(f"Logging buffer for the project id {record.project_id} not found. The message "
+                                      f"was:\n{record.msg}")
+        else:
+            module_logger.warning(f"LogRecord doesn't have a project_id attribute. Perhaps this is a result "
+                                  f"of the logging setup misconfiguration. The message was:\n{record.msg}")
 
 
 class LoggingWorker(QObject):
@@ -74,18 +80,15 @@ class LoggingWorker(QObject):
 
     sendLog = Signal(str, int)
 
-    def __init__(self, logger: logging.Logger, parent: QObject = None):
+    def __init__(self, project_id: int, parent: QObject = None):
         super().__init__(parent=parent)
 
+        self.project_id = project_id
         self.buffer = collections.deque()
+        projects_logger_handler.buffers[project_id] = self.buffer
+
         self.stopped = threading.Event()
         self.can_flush_log = threading.Event()
-        self.logging_handler = BufferedLoggingHandler(self.buffer)
-
-        logger.addHandler(self.logging_handler)
-        self.logging_handler.setFormatter(stm32pio.util.DispatchingFormatter(
-            f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s",
-            special=stm32pio.util.special_formatters))
 
         self.thread = QThread()
         self.moveToThread(self.thread)
@@ -100,8 +103,9 @@ class LoggingWorker(QObject):
         while not self.stopped.wait(timeout=0.050):
             if self.can_flush_log.is_set() and len(self.buffer):
                 record = self.buffer.popleft()
-                self.sendLog.emit(self.logging_handler.format(record), record.levelno)
+                self.sendLog.emit(projects_logger_handler.format(record), record.levelno)
         module_logger.debug('exit logging worker')
+        projects_logger_handler.buffers.pop(self.project_id)
         self.thread.quit()
 
 
@@ -141,9 +145,9 @@ class ProjectListItem(QObject):
 
         self._from_startup = from_startup
 
-        self.logger = logging.getLogger(f"{stm32pio.lib.__name__}.{id(self)}")
-        self.logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
-        self.logging_worker = LoggingWorker(self.logger)
+        underlying_logger = logging.getLogger('stm32pio.gui.projects')
+        self.logger = stm32pio.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
+        self.logging_worker = LoggingWorker(id(self))
         self.logging_worker.sendLog.connect(self.logAdded)
 
         # QThreadPool can automatically queue new incoming tasks if a number of them are larger than maxThreadCount
@@ -185,9 +189,7 @@ class ProjectListItem(QObject):
         try:
             self.project = stm32pio.lib.Stm32pio(*args, **kwargs)
         except Exception:
-            # Error during the initialization. Print format is: "ExceptionName: message"
-            self.logger.exception(traceback.format_exception_only(*(sys.exc_info()[:2]))[-1],
-                                  exc_info=self.logger.isEnabledFor(logging.DEBUG))
+            stm32pio.util.log_current_exception(self.logger)
             if len(args):
                 self._name = args[0]  # use a project path string (as it should be a first argument) as a name
             else:
@@ -362,9 +364,7 @@ class Worker(QObject, QRunnable):
             result = self.func(*self.args)
         except Exception:
             if self.logger is not None:
-                # Print format is: "ExceptionName: message"
-                self.logger.exception(traceback.format_exception_only(*(sys.exc_info()[:2]))[-1],
-                                      exc_info=self.logger.isEnabledFor(logging.DEBUG))
+                stm32pio.util.log_current_exception(self.logger)
             result = -1
 
         if result is None or (type(result) == int and result == 0):
@@ -578,16 +578,15 @@ class Settings(QSettings):
 
 
 def main():
-    global module_logger
     module_log_handler = logging.StreamHandler()
     module_log_handler.setFormatter(logging.Formatter("%(levelname)s %(funcName)s %(message)s"))
     module_logger.addHandler(module_log_handler)
-    module_logger.setLevel(logging.INFO)
+    module_logger.setLevel(logging.INFO)  # set again after getting QSettings
     module_logger.info('Starting stm32pio_gui...')
 
     def qt_message_handler(mode, context, message):
         """
-        Register this logging handler for the Qt stuff if your plarform doesn't provide the built-in one or if you want to
+        Register this logging handler for the Qt stuff if your platform doesn't provide the built-in one or if you want to
         customize it
         """
         if mode == QtInfoMsg:
@@ -604,7 +603,7 @@ def main():
 
     # Apparently Windows version of PySide2 doesn't have QML logging feature turn on so we fill this gap
     # TODO: set up for other platforms too (separate console.debug, console.warn, etc.)
-    qml_logger = logging.getLogger('qml')
+    qml_logger = logging.getLogger('stm32pio.gui.qml')
     if platform.system() == 'Windows':
         qml_log_handler = logging.StreamHandler()
         qml_log_handler.setFormatter(logging.Formatter("[QML] %(levelname)s %(message)s"))
@@ -629,22 +628,25 @@ def main():
 
     def verbose_setter(value):
         module_logger.setLevel(logging.DEBUG if value else logging.INFO)
-        for project in projects_model.projects:
-            project.logger.setLevel(logging.DEBUG if value else logging.INFO)
+        qml_logger.setLevel(logging.DEBUG if value else logging.INFO)
+        projects_logger.setLevel(logging.DEBUG if value else logging.INFO)
+        formatter.verbosity = stm32pio.util.verbosity_levels['verbose'] if value else stm32pio.util.verbosity_levels['normal']
 
-    settings = Settings(prefix='app/settings/',
-                        qs_kwargs={
-                            'parent': app
-                        },
-                        external_triggers={
-                            'verbose': verbose_setter
-                        })
-    # settings.clear()  # clear all
-    # settings.remove('app/settings')
-    # settings.remove('app/projects')
+    settings = Settings(prefix='app/settings/', qs_kwargs={ 'parent': app },
+                        external_triggers={ 'verbose': verbose_setter })
 
-    module_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
-    qml_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
+    projects_logger = logging.getLogger('stm32pio.gui.projects')
+    projects_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
+    formatter = stm32pio.util.DispatchingFormatter(
+        general={
+            stm32pio.util.verbosity_levels['normal']: logging.Formatter("%(levelname)-8s %(message)s"),
+            stm32pio.util.verbosity_levels['verbose']: logging.Formatter(
+                f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s")
+        })
+    projects_logger_handler.setFormatter(formatter)
+    projects_logger.addHandler(projects_logger_handler)
+
+    verbose_setter(settings.get('verbose'))
     # if module_logger.isEnabledFor(logging.DEBUG):
     #     module_logger.debug("App QSettings:")
     #     for key in settings.allKeys():
@@ -668,14 +670,7 @@ def main():
     boards_model = QStringListModel(parent=engine)
 
     engine.rootContext().setContextProperty('appVersion', stm32pio.app.__version__)
-    engine.rootContext().setContextProperty('Logging', {
-        logging.getLevelName(logging.CRITICAL): logging.CRITICAL,
-        logging.getLevelName(logging.ERROR): logging.ERROR,
-        logging.getLevelName(logging.WARNING): logging.WARNING,
-        logging.getLevelName(logging.INFO): logging.INFO,
-        logging.getLevelName(logging.DEBUG): logging.DEBUG,
-        logging.getLevelName(logging.NOTSET): logging.NOTSET
-    })
+    engine.rootContext().setContextProperty('Logging', stm32pio.util.logging_levels)
     engine.rootContext().setContextProperty('projectsModel', projects_model)
     engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.rootContext().setContextProperty('appSettings', settings)
@@ -693,10 +688,14 @@ def main():
         boards = ['None'] + stm32pio.util.get_platformio_boards('platformio')
         boards_model.setStringList(boards)
 
-    def loaded(_, success):
+    def loaded(_: str, success: bool):
         # Qt objects cannot be parented from the different thread so we restore the projects list in the main thread
-        for path in restored_projects_paths:
-            projects_model.addProject(ProjectListItem(project_args=[path], from_startup=True, parent=projects_model))
+        try:
+            for path in restored_projects_paths:
+                projects_model.addProject(ProjectListItem(project_args=[path], from_startup=True, parent=projects_model))
+        except Exception:
+            stm32pio.util.log_current_exception(module_logger)
+            success = False
 
         main_window.backendLoaded.emit(success)  # inform the GUI
 
@@ -709,9 +708,11 @@ def main():
 
 
 
-# Globals
-module_logger = logging.getLogger(__name__)  # use it as a console logger for whatever you want to, typically not
-                                             # related to the concrete project
+# [necessary] globals
+module_logger = logging.getLogger(f'stm32pio.gui.{__name__}')  # use it as a console logger for whatever you want to,
+                                                               # typically not related to the concrete project
+projects_logger_handler = BuffersDispatchingHandler()  # a storage of the buffers for the logging messages of all
+                                                       # current projects (see its docs for more info)
 settings = QSettings()  # placeholder, will be replaced in main()
 
 

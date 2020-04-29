@@ -92,24 +92,24 @@ class ProjectState(collections.OrderedDict):
     @property
     def current_stage(self) -> ProjectStage:
         last_consistent_stage = ProjectStage.UNDEFINED
-        zero_found = False
+        not_fulfilled_stage_found = False
 
         # Search for a consecutive sequence of True's and find the last of them. For example, if the array is
         #   [1,1,1,0,0,0,0]
         #        ^
         # we should consider 2 as the last index
-        for name, value in self.items():
-            if value:
-                if zero_found:
+        for stage_name, stage_fulfilled in self.items():
+            if stage_fulfilled:
+                if not_fulfilled_stage_found:
                     # Fall back to the UNDEFINED stage if we have breaks in conditions results array. E.g., for
                     #   [1,1,1,0,1,0,0]
                     # we should return UNDEFINED as it doesn't look like a correct set of files actually
                     last_consistent_stage = ProjectStage.UNDEFINED
                     break
                 else:
-                    last_consistent_stage = name
+                    last_consistent_stage = stage_name
             else:
-                zero_found = True
+                not_fulfilled_stage_found = True
 
         return last_consistent_stage
 
@@ -148,23 +148,31 @@ class Stm32pio:
                                           (unique for every instance)
     """
 
+    INSTANCE_OPTIONS_DEFAULTS = {  # TODO: use Python 3.8 TypedDict
+        'save_on_destruction': False,
+        'logger': None
+    }
+
     def __init__(self, dirty_path: str, parameters: dict = None, instance_options: dict = None):
 
         if parameters is None:
             parameters = {}
 
-        if instance_options is None:  # TODO: use Python 3.8 TypedDict
-            instance_options = {
-                'save_on_destruction': False,
-                'logger': None
-            }
+        if instance_options is None:
+            instance_options = copy.copy(self.INSTANCE_OPTIONS_DEFAULTS)
+        else:
+            # Insert missing pairs but do not touch any extra ones if there is some
+            for key, value in copy.copy(self.INSTANCE_OPTIONS_DEFAULTS).items():
+                if key not in instance_options:
+                    instance_options[key] = value
 
         # The individual loggers for every single project allow to fine-tune the output when multiple projects are
         # created by the third-party code.
-        if 'logger' in instance_options and instance_options['logger'] is not None:
+        if instance_options['logger'] is not None:
             self.logger = instance_options['logger']
         else:
-            self.logger = logging.getLogger(f"{__name__}.{id(self)}")  # use id() as uniqueness guarantee
+            underlying_logger = logging.getLogger('stm32pio.projects')
+            self.logger = stm32pio.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
 
         # The path is a primary entity of the project so we process it first and foremost. Handle 'path/to/proj',
         # 'path/to/proj/', '.', '../proj', etc., make the path absolute and check for existence. Also, the .ioc file can
@@ -193,7 +201,7 @@ class Stm32pio:
                 self.logger.warning(f"'{parameters['board']}' was not found in PlatformIO. "
                                     "Run 'platformio boards' for possible names")
 
-        if 'save_on_destruction' in instance_options and instance_options['save_on_destruction']:
+        if instance_options['save_on_destruction']:
             # Save the config on an instance destruction
             self._finalizer = weakref.finalize(self, self._save_config, self.config, self.path, self.logger)
 
@@ -218,7 +226,7 @@ class Stm32pio:
         platformio_ini_is_patched = False
         if pio_is_initialized:  # make no sense to proceed if there is something happened in the first place
             with contextlib.suppress(Exception):  # we just want to know the information and don't care about details
-                platformio_ini_is_patched = self.platformio_ini_is_patched()
+                platformio_ini_is_patched = self.platformio_ini_is_patched
 
         # Create the temporary ordered dictionary and fill it with the conditions results arrays
         stages_conditions = collections.OrderedDict()
@@ -416,13 +424,13 @@ class Stm32pio:
         if result.returncode == 0:
             # CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared
             # and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), should analyze the output
-            if 'Code succesfully generated ' in result_output:
+            if 'Code succesfully generated' in result_output:
                 self.logger.info("successful code generation")
                 return result.returncode
             else:
-                error_lines = [line for line in result_output.splitlines(keepends=True) if ' [ERROR] ' in line]
+                error_lines = [line for line in result_output.splitlines(keepends=True) if '[ERROR]' in line]
                 if len(error_lines):
-                    self.logger.error(error_lines, 'from_subprocess')
+                    self.logger.error(error_lines, extra={ 'from_subprocess': True })
                     raise Exception(error_msg)
                 else:
                     self.logger.warning("Undefined result from the CubeMX (neither error or success symptoms were "
@@ -430,7 +438,8 @@ class Stm32pio:
                     return result.returncode
         else:
             # Probably 'java' error (e.g. no CubeMX is present)
-            self.logger.error(f"Return code is {result.returncode}. Output:\n\n{result_output}", 'from_subprocess')
+            self.logger.error(f"Return code is {result.returncode}. Output:\n\n{result_output}",
+                              extra={ 'from_subprocess': True })
             raise Exception(error_msg)
 
 
@@ -461,13 +470,14 @@ class Stm32pio:
         if result.returncode == 0:
             # PlatformIO returns 0 even on some errors (e.g. no '--board' argument)
             if 'error' in result.stdout.lower():
-                self.logger.error(result.stdout, 'from_subprocess')
+                self.logger.error(result.stdout, extra={ 'from_subprocess': True })
                 raise Exception(error_msg)
-            self.logger.debug(result.stdout, 'from_subprocess')
+            self.logger.debug(result.stdout, extra={ 'from_subprocess': True })
             self.logger.info("successful PlatformIO project initialization")
             return result.returncode
         else:
-            self.logger.error(f"Return code is {result.returncode}. Output:\n\n{result.stdout}", 'from_subprocess')
+            self.logger.error(f"Return code is {result.returncode}. Output:\n\n{result.stdout}",
+                              extra={ 'from_subprocess': True })
             raise Exception(error_msg)
 
 
@@ -486,6 +496,7 @@ class Stm32pio:
         return platformio_ini
 
 
+    @property
     def platformio_ini_is_patched(self) -> bool:
         """
         Check whether 'platformio.ini' config file is patched or not. It doesn't check for complete project patching
@@ -532,7 +543,7 @@ class Stm32pio:
 
         self.logger.debug("patching 'platformio.ini' file...")
 
-        if self.platformio_ini_is_patched():
+        if self.platformio_ini_is_patched:
             self.logger.info("'platformio.ini' has been already patched")
         else:
             # Existing .ini file
@@ -620,7 +631,7 @@ class Stm32pio:
             # result = subprocess.run([editor_command, str(self.path)], check=True)
             result = subprocess.run(f"{sanitized_input} {str(self.path)}", shell=True, check=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            self.logger.debug(result.stdout, 'from_subprocess')
+            self.logger.debug(result.stdout, extra={ 'from_subprocess': True })
 
             return result.returncode
         except subprocess.CalledProcessError as e:
