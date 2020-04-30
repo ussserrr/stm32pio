@@ -630,7 +630,7 @@ def main():
         module_logger.setLevel(logging.DEBUG if value else logging.INFO)
         qml_logger.setLevel(logging.DEBUG if value else logging.INFO)
         projects_logger.setLevel(logging.DEBUG if value else logging.INFO)
-        formatter.verbosity = stm32pio.util.verbosity_levels['verbose'] if value else stm32pio.util.verbosity_levels['normal']
+        formatter.verbosity = stm32pio.util.Verbosity.VERBOSE if value else stm32pio.util.Verbosity.NORMAL
 
     settings = Settings(prefix='app/settings/', qs_kwargs={ 'parent': app },
                         external_triggers={ 'verbose': verbose_setter })
@@ -639,8 +639,8 @@ def main():
     projects_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
     formatter = stm32pio.util.DispatchingFormatter(
         general={
-            stm32pio.util.verbosity_levels['normal']: logging.Formatter("%(levelname)-8s %(message)s"),
-            stm32pio.util.verbosity_levels['verbose']: logging.Formatter(
+            stm32pio.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
+            stm32pio.util.Verbosity.VERBOSE: logging.Formatter(
                 f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s")
         })
     projects_logger_handler.setFormatter(formatter)

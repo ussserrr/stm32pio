@@ -2,7 +2,7 @@
 Some auxiliary entities not falling into other categories
 """
 
-import collections
+import enum
 import json
 import logging
 import os
@@ -13,25 +13,10 @@ import traceback
 import warnings
 from typing import Any, List, Mapping, MutableMapping, Tuple, Optional
 
-module_logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)  # this file logger
 
 
-def log_current_exception(logger: logging.Logger, show_traceback_threshold_level=logging.DEBUG):
-    """Print format is: ExceptionName: message"""
-    logger.exception(traceback.format_exception_only(*(sys.exc_info()[:2]))[-1],
-                     exc_info=logger.isEnabledFor(show_traceback_threshold_level))
-
-
-class ProjectLoggerAdapter(logging.LoggerAdapter):
-    def process(self, msg: Any, kwargs: MutableMapping[str, Any]) -> Tuple[Any, MutableMapping[str, Any]]:
-        if 'extra' in kwargs:
-            kwargs['extra'].update(self.extra)
-        else:
-            kwargs['extra'] = self.extra
-        return msg, kwargs
-
-
-logging_levels = {
+logging_levels = {  # for exposing the levels to the GUI
     logging.getLevelName(logging.CRITICAL): logging.CRITICAL,
     logging.getLevelName(logging.ERROR): logging.ERROR,
     logging.getLevelName(logging.WARNING): logging.WARNING,
@@ -40,32 +25,86 @@ logging_levels = {
     logging.getLevelName(logging.NOTSET): logging.NOTSET
 }
 
-verbosity_levels = collections.OrderedDict(
-    normal=0,
-    verbose=1
-)
+
+def log_current_exception(logger: logging.Logger, show_traceback_threshold_level=logging.DEBUG):
+    """
+    Print format is:
+
+        ExceptionName: message
+        [optional] traceback
+    """
+    logger.exception(traceback.format_exception_only(*(sys.exc_info()[:2]))[-1],
+                     exc_info=logger.isEnabledFor(show_traceback_threshold_level))
+
+
+class ProjectLoggerAdapter(logging.LoggerAdapter):
+    """
+    Use this as a logger for every project:
+
+        self.logger = stm32pio.util.ProjectLoggerAdapter(logging.getLogger('some_singleton_projects_logger'),
+                                                         { 'project_id': id(self) })
+
+    It will automatically mix in 'project_id' (and any other property) to every LogRecord (whether you supply 'extra' in
+    your log call or not)
+    """
+    def process(self, msg: Any, kwargs: MutableMapping[str, Any]) -> Tuple[Any, MutableMapping[str, Any]]:
+        if 'extra' in kwargs:
+            kwargs['extra'].update(self.extra)
+        else:
+            kwargs['extra'] = self.extra
+        return msg, kwargs
+
+
+# Currently available verbosity levels. Verbosity determines how every LogRecord will be formatted (regardless its
+# logging level)
+@enum.unique
+class Verbosity(enum.IntEnum):
+    NORMAL = enum.auto()
+    VERBOSE = enum.auto()
+
 
 # Do not add or remove any information from the message and simply pass it "as-is"
 as_is_formatter = logging.Formatter('%(message)s')
-special_formatters = {
-    'from_subprocess': {
-        level: as_is_formatter for level in verbosity_levels.values()
-    }
-}
 
 
 class DispatchingFormatter(logging.Formatter):
     """
     The wrapper around the ordinary logging.Formatter allowing to have multiple formatters for different purposes.
-    'extra' argument of the log() function has a similar intention but different mechanics
+    General arguments schema:
+
+        {
+            verbosity=Verbosity.NORMAL,
+            general={
+                Verbosity.NORMAL: logging.Formatter(...)
+                Verbosity.VERBOSE: logging.Formatter(...)
+                ...
+            },
+            special={
+                'case_1': {
+                    Verbosity.NORMAL: logging.Formatter(...)
+                    ...
+                },
+                ...
+            }
+        }
     """
 
-    def __init__(self, *args, general: Mapping[int, logging.Formatter] = None,
-                 special: Mapping[str, Mapping[int, logging.Formatter]] = None, verbosity: int = 0, **kwargs):
+    # Mapping of logging formatters for "special". Currently, only "from_subprocess" is defined. It's good to hide such
+    # implementation details as much as possible though they are still tweakable from the outer code
+    special_formatters = {
+        'from_subprocess': {  # TODO: maybe remade as enum, too? To have an IDE hints and more safety in general
+            level: as_is_formatter for level in Verbosity
+        }
+    }
+
+    def __init__(self, *args, general: Mapping[Verbosity, logging.Formatter] = None,
+                 special: Mapping[str, Mapping[Verbosity, logging.Formatter]] = None,
+                 verbosity: Verbosity = Verbosity.NORMAL, **kwargs):
 
         super().__init__(*args, **kwargs)  # will be '%(message)s' if no arguments were given
 
         self.verbosity = verbosity
+        self._warn_was_shown = False
 
         if general is not None:
             self.general = general
@@ -77,28 +116,11 @@ class DispatchingFormatter(logging.Formatter):
         if special is not None:
             self.special = special
         else:
-            # warnings.warn("'special' argument is for providing the custom formatters for the special logging events "
-            #               "and should be a dict with cases names keys and described above dict values")
-            self.special = special_formatters
-
-        self._warn_was_shown = False
-
-    @property
-    def verbosity(self):
-        return self._verbosity
-
-    @verbosity.setter
-    def verbosity(self, value):
-        verbosity_levels_values = list(verbosity_levels.values())
-        if value < verbosity_levels_values[0]:
-            self._verbosity = verbosity_levels_values[0]
-        elif value > verbosity_levels_values[-1]:
-            self._verbosity = verbosity_levels_values[-1]
-        else:
-            self._verbosity = value
+            self.special = DispatchingFormatter.special_formatters  # use defaults
 
 
-    def find_formatter_for(self, record: logging.LogRecord, verbosity: int) -> Optional[logging.Formatter]:
+    def find_formatter_for(self, record: logging.LogRecord, verbosity: Verbosity) -> Optional[logging.Formatter]:
+        """Determine and return the appropriate formatter"""
         special_formatter = next((self.special[case] for case in self.special.keys() if hasattr(record, case)), None)
         if special_formatter is not None:
             return special_formatter.get(verbosity)
@@ -107,12 +129,11 @@ class DispatchingFormatter(logging.Formatter):
 
 
     def format(self, record: logging.LogRecord) -> str:
-        """
-        Use suitable formatter based on the LogRecord attributes
-        """
+        """Overridden method"""
 
-        formatter = self.find_formatter_for(record, record.verbosity if hasattr(record, 'verbosity') else self.verbosity)
-
+        # Allows to specify a verbosity level on the per-record basis, not only globally
+        formatter = self.find_formatter_for(record,
+                                            record.verbosity if hasattr(record, 'verbosity') else self.verbosity)
         if formatter is not None:
             return formatter.format(record)
         else:
@@ -122,10 +143,9 @@ class DispatchingFormatter(logging.Formatter):
             return super().format(record)
 
 
+
 class LogPipeRC:
-    """
-    Small class suitable for passing to the caller when the LogPipe context manager is invoked
-    """
+    """Small class suitable for passing to the caller when the LogPipe context manager is invoked"""
 
     value = ''  # string accumulating all incoming messages
 

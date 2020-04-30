@@ -15,6 +15,7 @@ import string
 import subprocess
 import tempfile
 import weakref
+from typing import Mapping, Any
 
 import stm32pio.settings
 import stm32pio.util
@@ -115,9 +116,7 @@ class ProjectState(collections.OrderedDict):
 
     @property
     def is_consistent(self) -> bool:
-        """
-        Whether the state has been went through the stages consequentially or not (the method is currently unused)
-        """
+        """Whether the state has been went through the stages consequentially or not"""
         return self.current_stage != ProjectStage.UNDEFINED
 
 
@@ -128,24 +127,16 @@ class Stm32pio:
     Represents a single project, encapsulating file system path to the project (main mandatory identifier) and some
     parameters in a configparser .ini file. As stm32pio can be installed via pip and has no global config we also
     storing global parameters (such as Java or STM32CubeMX invoking commands) in this config .ini file so the user can
-    specify settings on a per-project base. The config can be saved in a non-disturbing way automatically on the
+    specify settings on a per-project basis. The config can be saved in a non-disturbing way automatically on the
     instance destruction (e.g. by garbage collecting it) (use save_on_destruction=True flag), otherwise a user should
     explicitly save the config if he wants to (using config.save() method).
 
     The typical life cycle consists of project creation, passing mandatory 'dirty_path' argument. If also 'parameters'
-    dictionary is specified also these settings are processed (white-list approach is used so we set only those
-    parameters that are listed in the constructor code) (currently only 'board' parameter is included). Then it is
-    possible to perform API operations. WARNING. Please be careful with the 'clean' method as it deletes all the content
-    of the project directory except the main .ioc file.
+    dictionary is specified these settings are processed (see _load_config method). Then it is possible to perform API
+    operations.
 
-    Args:
-        dirty_path (str): path to the project (required)
-        parameters (dict): additional parameters to set on initialization stage (format is same as for project' config
-                           configparser.ConfigParser (see settings.py), values are merging)
-        instance_options (dict): some parameters, related more to the instance itself than to the project:
-            save_on_destruction (bool=True): register or not the finalizer that saves the config to file
-            logger (logging.Logger=None): if an external logger is given, it will be used, otherwise the new one will be created
-                                          (unique for every instance)
+    WARNING. Please be careful with the 'clean' method as it deletes all the content of the project directory except
+    the main .ioc file.
     """
 
     INSTANCE_OPTIONS_DEFAULTS = {  # TODO: use Python 3.8 TypedDict
@@ -153,21 +144,34 @@ class Stm32pio:
         'logger': None
     }
 
-    def __init__(self, dirty_path: str, parameters: dict = None, instance_options: dict = None):
+    def __init__(self, dirty_path: str, parameters: Mapping[str, Any] = None,
+                 instance_options: Mapping[str, Any] = None):
+        """
+        Args:
+            dirty_path: path to the project (required)
+            parameters: additional parameters to set on initialization stage (format is same as for project' config
+                        configparser.ConfigParser (see settings.py), values are merging via _load_config method)
+            instance_options: some parameters, related more to the instance itself than to the project:
+                save_on_destruction (bool=True): register or not the finalizer that saves the config to file
+                logger (logging.Logger=None): if an external logger is given, it will be used, otherwise the new one
+                                              will be created (unique for every instance)
+        """
 
         if parameters is None:
             parameters = {}
 
         if instance_options is None:
-            instance_options = copy.copy(self.INSTANCE_OPTIONS_DEFAULTS)
+            instance_options = copy.copy(Stm32pio.INSTANCE_OPTIONS_DEFAULTS)
         else:
-            # Insert missing pairs but do not touch any extra ones if there is some
-            for key, value in copy.copy(self.INSTANCE_OPTIONS_DEFAULTS).items():
+            # Create a shallow copy of the argument, a mutable mapping, as we probably going to add some pairs to it
+            instance_options = dict(instance_options)
+            # Insert missing pairs but do not touch any extra ones if there is any
+            for key, value in copy.copy(Stm32pio.INSTANCE_OPTIONS_DEFAULTS).items():
                 if key not in instance_options:
                     instance_options[key] = value
 
-        # The individual loggers for every single project allow to fine-tune the output when multiple projects are
-        # created by the third-party code.
+        # The individual loggers for every single project allows to fine-tune the output when the multiple projects are
+        # created by the third-party code
         if instance_options['logger'] is not None:
             self.logger = instance_options['logger']
         else:
@@ -190,6 +194,7 @@ class Stm32pio:
         self.ioc_file = self._find_ioc_file(explicit_file=ioc_file)
         self.config.set('project', 'ioc_file', self.ioc_file.name)
 
+        # Notify the caller about the board presence
         if 'board' in parameters and parameters['board'] is not None:
             try:
                 boards = stm32pio.util.get_platformio_boards(self.config.get('app', 'platformio_cmd'))
@@ -201,31 +206,28 @@ class Stm32pio:
                 self.logger.warning(f"'{parameters['board']}' was not found in PlatformIO. "
                                     "Run 'platformio boards' for possible names")
 
+        # Save the config on an instance destruction
         if instance_options['save_on_destruction']:
-            # Save the config on an instance destruction
             self._finalizer = weakref.finalize(self, self._save_config, self.config, self.path, self.logger)
 
 
     def __repr__(self):
+        """String representation of the project (use an absolute path for this)"""
         return f"Stm32pio project: {str(self.path)}"
 
 
     @property
     def state(self) -> ProjectState:
-        """
-        Constructing and returning the current state of the project (tweaked dict, see ProjectState docs)
-        """
-
-        # self.logger.debug(f"project content: {[item.name for item in self.path.iterdir()]}")
+        """Constructing and returning the current state of the project (tweaked dict, see ProjectState docs)"""
 
         pio_is_initialized = False
-        with contextlib.suppress(Exception):  # we just want to know the information and don't care about details
+        with contextlib.suppress(Exception):  # we just want to know the status and don't care about the details
             # Is present, is correct and is not empty
             pio_is_initialized = len(self.platformio_ini_config.sections()) != 0
 
         platformio_ini_is_patched = False
         if pio_is_initialized:  # make no sense to proceed if there is something happened in the first place
-            with contextlib.suppress(Exception):  # we just want to know the information and don't care about details
+            with contextlib.suppress(Exception):  # we just want to know the status and don't care about the details
                 platformio_ini_is_patched = self.platformio_ini_is_patched
 
         # Create the temporary ordered dictionary and fill it with the conditions results arrays
@@ -240,7 +242,7 @@ class Stm32pio:
         stages_conditions[ProjectStage.PIO_INITIALIZED] = [pio_is_initialized]
         stages_conditions[ProjectStage.PATCHED] = [platformio_ini_is_patched,
                                                    not self.path.joinpath('include').is_dir()]
-        # Hidden folder! Can be not visible in your familiar file manager and cause a confusion
+        # Hidden folder! Can be not visible in your file manager and cause a confusion
         stages_conditions[ProjectStage.BUILT] = [
             self.path.joinpath('.pio').is_dir() and
             any([item.is_file() for item in self.path.joinpath('.pio').rglob('*firmware*')])]
@@ -255,8 +257,8 @@ class Stm32pio:
 
     def _find_ioc_file(self, explicit_file: pathlib.Path = None) -> pathlib.Path:
         """
-        Find, check (that this is a non-empty text file) and return an .ioc file. If there are more than one return
-        first. If no .ioc file is present raise FileNotFoundError exception. Use explicit_file if it was provided
+        Find, check (that this is a non-empty text file) and return an .ioc file. If there are more than one - return
+        first. If no .ioc file is present - raise the FileNotFoundError exception. Use explicit_file if it was provided.
 
         Returns:
             absolute path to the .ioc file
@@ -293,13 +295,14 @@ class Stm32pio:
         # Check for the file correctness
         try:
             content = result_file.read_text()  # should be a text file
-            assert len(content) > 0
+            if len(content) == 0:
+                raise ValueError("the file is empty")
             return result_file
         except Exception as e:
             raise Exception(f"{result_file.name} is incorrect") from e
 
 
-    def _load_config(self, runtime_parameters: dict = None) -> configparser.ConfigParser:
+    def _load_config(self, runtime_parameters: Mapping[str, Any] = None) -> configparser.ConfigParser:
         """
         Prepare ConfigParser config for the project. Order of getting values (masking) (higher levels overwrites lower):
 
@@ -320,16 +323,16 @@ class Stm32pio:
 
         # ... then merge with user's config file values (if exist) ...
         self.logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
-        if len(config.read(str(self.path.joinpath(stm32pio.settings.config_file_name)))) == 0:
+        if len(config.read(self.path.joinpath(stm32pio.settings.config_file_name))) == 0:
             self.logger.debug(f"no or empty {stm32pio.settings.config_file_name} config file, will use the default one")
 
         # ... finally merge with the given in this session CLI parameters
         config.read_dict(runtime_parameters)
 
-        # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow
+        # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow a
         # propagation of this message
         if self.logger.isEnabledFor(logging.DEBUG):
-            debug_str = 'resolved config (merged):'
+            debug_str = 'resolved config:'
             for section in config.sections():
                 debug_str += f"\n========== {section} ==========\n"
                 for value in config.items(section):
@@ -341,7 +344,7 @@ class Stm32pio:
     @staticmethod
     def _save_config(config: configparser.ConfigParser, path: pathlib.Path, logger: logging.Logger) -> int:
         """
-        Writes ConfigParser config to the file path and logs using Logger logger.
+        Writes the ConfigParser 'config' to the file 'path' and logs using the Logger 'logger'.
 
         We declare this helper function which can be safely invoked by both internal methods and outer code. The latter
         case is suitable for using in weakref' finalizer objects as one of its main requirement is to not keep
@@ -385,12 +388,14 @@ class Stm32pio:
 
     def generate_code(self) -> int:
         """
-        Call STM32CubeMX app as 'java -jar' file to generate the code from the .ioc file. Pass commands to the
-        STM32CubeMX in a temp file
+        Call STM32CubeMX app as 'java -jar' file to generate the code from the .ioc file. Pass the commands to the
+        STM32CubeMX in a temp file.
 
         Returns:
             return code on success, raises an exception otherwise
         """
+
+        self.logger.info("starting to generate a code from the CubeMX .ioc file...")
 
         # Use mkstemp() instead of the higher-level API for the compatibility with the Windows (see tempfile docs for
         # more details)
@@ -403,11 +408,8 @@ class Stm32pio:
                 cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
                 cubemx_script_content = cubemx_script_template.substitute(ioc_file_absolute_path=self.ioc_file,
                                                                           project_dir_absolute_path=self.path)
+                cubemx_script.write(cubemx_script_content.encode())  # should encode, since mode='w+b'
 
-                # should encode, since mode='w+b'
-                cubemx_script.write(cubemx_script_content.encode())
-
-                self.logger.info("starting to generate a code from the CubeMX .ioc file...")
                 command_arr = [self.config.get('app', 'java_cmd'), '-jar', self.config.get('app', 'cubemx_cmd'), '-q',
                                cubemx_script_name, '-s']  # -q: read the commands from the file, -s: silent performance
                 # Redirect the output of the subprocess into the logging module (with DEBUG level)
@@ -428,6 +430,7 @@ class Stm32pio:
                 self.logger.info("successful code generation")
                 return result.returncode
             else:
+                # GUESSING
                 error_lines = [line for line in result_output.splitlines(keepends=True) if '[ERROR]' in line]
                 if len(error_lines):
                     self.logger.error(error_lines, extra={ 'from_subprocess': True })
@@ -437,7 +440,7 @@ class Stm32pio:
                                         "found in the logs). Keep going but there might be an error")
                     return result.returncode
         else:
-            # Probably 'java' error (e.g. no CubeMX is present)
+            # Most likely the 'java' error (e.g. no CubeMX is present)
             self.logger.error(f"Return code is {result.returncode}. Output:\n\n{result_output}",
                               extra={ 'from_subprocess': True })
             raise Exception(error_msg)
@@ -446,7 +449,7 @@ class Stm32pio:
     def pio_init(self) -> int:
         """
         Call PlatformIO CLI to initialize a new project. It uses parameters (path, board) collected before so the
-        confirmation about the data presence is lying on the invoking code
+        confirmation about the data presence is lying on the invoking code.
 
         Returns:
             return code of the PlatformIO on success, raises an exception otherwise
@@ -454,10 +457,14 @@ class Stm32pio:
 
         self.logger.info("starting PlatformIO project initialization...")
 
-        platformio_ini_file = self.path.joinpath('platformio.ini')
-        # If size is 0, PlatformIO will overwrite it
-        if platformio_ini_file.is_file() and platformio_ini_file.stat().st_size > 0:
-            self.logger.warning("'platformio.ini' file is already exist")
+        try:
+            if len(self.platformio_ini_config.sections()):
+                self.logger.warning("'platformio.ini' file is already exist")
+            # else: file is empty (PlatformIO should overwrite it)
+        except FileNotFoundError:
+            pass  # no file
+        except Exception:
+            self.logger.warning("'platformio.ini' file is already exist and incorrect")
 
         command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', str(self.path), '-b',
                        self.config.get('project', 'board'), '-O', 'framework=stm32cube']
@@ -469,7 +476,7 @@ class Stm32pio:
         error_msg = "PlatformIO project initialization error"
         if result.returncode == 0:
             # PlatformIO returns 0 even on some errors (e.g. no '--board' argument)
-            if 'error' in result.stdout.lower():
+            if 'error' in result.stdout.lower():  # GUESSING
                 self.logger.error(result.stdout, extra={ 'from_subprocess': True })
                 raise Exception(error_msg)
             self.logger.debug(result.stdout, extra={ 'from_subprocess': True })
@@ -484,11 +491,18 @@ class Stm32pio:
     @property
     def platformio_ini_config(self) -> configparser.ConfigParser:
         """
-        Reads and parses 'platformio.ini' PlatformIO config file into newly created configparser.ConfigParser instance.
-        Note, that the file may change over time and subsequent calls may produce different results because of this.
+        Reads and parses the 'platformio.ini' PlatformIO config file into a newly created configparser.ConfigParser
+        instance. Note, that the file may change over time and subsequent calls may produce different results because
+        of this.
 
         Raises FileNotFoundError if no 'platformio.ini' file is present. Passes out all other exceptions, most likely
-        caused by parsing errors (i.e. corrupted .INI format).
+        caused by parsing errors (i.e. corrupted .INI format), e.g.
+
+            configparser.MissingSectionHeaderError: File contains no section headers.
+
+        It doesn't use any interpolation as we do not interested in the particular values, just presence and correctness
+        When using this property for comparing, make sure your other config doesn't use the interpolation either so we
+        just can match raw unprocessed strings.
         """
 
         platformio_ini = configparser.ConfigParser(interpolation=None)
@@ -500,20 +514,20 @@ class Stm32pio:
     def platformio_ini_is_patched(self) -> bool:
         """
         Check whether 'platformio.ini' config file is patched or not. It doesn't check for complete project patching
-        (e.g. unnecessary folders deletion). Throws errors on non-existing file and on incorrect patch or file
+        (e.g. unnecessary folders deletion). Throws errors on non-existing file and on incorrect patch or file.
 
         Returns:
             boolean indicating a result
         """
 
         try:
-            platformio_ini = self.platformio_ini_config
+            platformio_ini = self.platformio_ini_config  # existing .ini file
         except FileNotFoundError as e:
             raise Exception("Cannot determine is project patched: 'platformio.ini' file not found") from e
         except Exception as e:
             raise Exception("Cannot determine is project patched: 'platformio.ini' file is incorrect") from e
 
-        patch_config = configparser.ConfigParser(interpolation=None)
+        patch_config = configparser.ConfigParser(interpolation=None)  # our patch has the INI config format, too
         try:
             patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
         except Exception as e:
@@ -536,9 +550,10 @@ class Stm32pio:
 
     def patch(self) -> None:
         """
-        Patch platformio.ini file by a user's patch. By default, it sets the created earlier (by CubeMX 'Src' and 'Inc')
-        folders as sources. configparser doesn't preserve any comments unfortunately so keep in mind that all of them
-        will be lost at this stage. Also, the order may be violated. In the end, remove old empty folders
+        Patch the 'platformio.ini' config file by a user's patch. By default, it sets the created earlier (by CubeMX
+        'Src' and 'Inc') folders as sources specifying it in the [platformio] INI section. configparser doesn't preserve
+        any comments unfortunately so keep in mind that all of them will be lost at this stage. Also, the order may be
+        violated. In the end, removes an old empty folders.
         """
 
         self.logger.debug("patching 'platformio.ini' file...")
@@ -546,12 +561,9 @@ class Stm32pio:
         if self.platformio_ini_is_patched:
             self.logger.info("'platformio.ini' has been already patched")
         else:
-            # Existing .ini file
-            platformio_ini_config = configparser.ConfigParser(interpolation=None)
-            platformio_ini_config.read(self.path.joinpath('platformio.ini'))
+            platformio_ini_config = self.platformio_ini_config  # existing .ini file
 
-            # Our patch has the config format too
-            patch_config = configparser.ConfigParser(interpolation=None)
+            patch_config = configparser.ConfigParser(interpolation=None)  # our patch has the INI config format, too
             patch_config.read_string(self.config.get('project', 'platformio_ini_patch_content'))
 
             # Merge 2 configs
@@ -563,7 +575,7 @@ class Stm32pio:
                     self.logger.debug(f"set [{patch_section}]{patch_key} = {patch_value}")
                     platformio_ini_config.set(patch_section, patch_key, patch_value)
 
-            # Save, overwriting the original file (deletes all comments!)
+            # Save, overwriting (node='w') the original file (deletes all comments!)
             with self.path.joinpath('platformio.ini').open(mode='w') as platformio_ini_file:
                 platformio_ini_config.write(platformio_ini_file)
                 self.logger.debug("'platformio.ini' has been patched")
@@ -573,6 +585,7 @@ class Stm32pio:
             self.logger.debug("'include' folder has been removed")
         except Exception:
             self.logger.info("cannot delete 'include' folder", exc_info=self.logger.isEnabledFor(logging.DEBUG))
+
         # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
         if not self.path.joinpath('SRC').is_dir():
             try:
@@ -599,6 +612,8 @@ class Stm32pio:
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
+        # In the non-verbose mode (logging.INFO) there would be a '--silent' option so if the PlatformIO will decide to
+        # output something then it's really important and we use logging.WARNING as a level
         log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
         with stm32pio.util.LogPipe(self.logger, log_level) as log:
             result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
@@ -612,7 +627,7 @@ class Stm32pio:
 
     def start_editor(self, editor_command: str) -> int:
         """
-        Start the editor specified by 'editor_command' with the project opened (assuming that
+        Start the editor specified by the 'editor_command' with a project opened (assuming that
             $ [editor] [folder]
         format works)
 

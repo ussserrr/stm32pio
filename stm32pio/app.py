@@ -4,6 +4,7 @@
 __version__ = '1.21'
 
 import argparse
+import inspect
 import logging
 import pathlib
 import sys
@@ -22,7 +23,7 @@ except ModuleNotFoundError:
 
 def parse_args(args: list) -> Optional[argparse.Namespace]:
     """
-    Dedicated function to parse the arguments given via the CLI
+    Dedicated function to parse the arguments given via CLI
 
     Args:
         args: list of strings CLI arguments
@@ -31,16 +32,17 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
         argparse.Namespace or None if no arguments were given
     """
 
-    root_parser = argparse.ArgumentParser(description="Automation of creating and updating STM32CubeMX-PlatformIO projects. "
-                                                 "Requirements: Python 3.6+, STM32CubeMX, Java, PlatformIO CLI. Visit "
-                                                 "https://github.com/ussserrr/stm32pio for more information. Use "
-                                                 "'help' command to take a glimpse on the available functionality")
+    root_parser = argparse.ArgumentParser(description=inspect.cleandoc('''
+        Automation of creating and updating STM32CubeMX-PlatformIO projects. Requirements: Python 3.6+, STM32CubeMX,
+        Java, PlatformIO CLI. Visit https://github.com/ussserrr/stm32pio for more information. Use 'help' command to
+        take a glimpse on the available functionality'''))
+
     # Global arguments (there is also an automatically added '-h, --help' option)
     root_parser.add_argument('--version', action='version', version=f"stm32pio v{__version__}")
     root_parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', default=0)
 
     subparsers = root_parser.add_subparsers(dest='subcommand', title='subcommands', description="valid subcommands",
-                                       help="modes of operation")
+                                            help="modes of operation")
 
     parser_init = subparsers.add_parser('init', help="create config .ini file so you can tweak parameters before "
                                                      "proceeding")
@@ -95,10 +97,11 @@ def main(sys_argv: Optional[list] = None) -> int:
         logger = logging.getLogger('stm32pio')
         logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
         handler = logging.StreamHandler()
-        formatter = stm32pio.util.DispatchingFormatter(verbosity=args.verbose,
+        formatter = stm32pio.util.DispatchingFormatter(
+            verbosity=stm32pio.util.Verbosity.VERBOSE if args.verbose else stm32pio.util.Verbosity.NORMAL,
             general={
-                stm32pio.util.verbosity_levels['normal']: logging.Formatter("%(levelname)-8s %(message)s"),
-                stm32pio.util.verbosity_levels['verbose']: logging.Formatter(
+                stm32pio.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
+                stm32pio.util.Verbosity.VERBOSE: logging.Formatter(
                     f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s")
             })
         handler.setFormatter(formatter)
@@ -114,8 +117,9 @@ def main(sys_argv: Optional[list] = None) -> int:
             project = stm32pio.lib.Stm32pio(args.project_path, parameters={ 'project': { 'board': args.board } },
                                             instance_options={ 'save_on_destruction': True })
             if not args.board:
-                logger.warning("STM32 PlatformIO board is not specified, it will be needed on PlatformIO project "
-                               "creation")
+                logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
+                               "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
+                               "identifier")
             logger.info("project has been initialized. You can now edit stm32pio.ini config file")
             if args.editor:
                 project.start_editor(args.editor)
@@ -124,7 +128,9 @@ def main(sys_argv: Optional[list] = None) -> int:
             project = stm32pio.lib.Stm32pio(args.project_path, parameters={ 'project': { 'board': args.board } },
                                             instance_options={ 'save_on_destruction': True })
             if project.config.get('project', 'board') == '':
-                raise Exception("STM32 PlatformIO board is not specified, it is needed for PlatformIO project creation")
+                raise Exception("PlatformIO board identifier is not specified, it is needed for PlatformIO project "
+                                "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
+                                "identifier")
             project.generate_code()
             project.pio_init()
             project.patch()

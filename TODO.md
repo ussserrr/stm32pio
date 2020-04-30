@@ -6,7 +6,7 @@
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Create VSCode plugin
- - [ ] UML diagrams (core, GUI back- and front-ends, thread flows, events, etc.)
+ - [ ] UML diagrams (core, logging (logger vs adapter vs handler vs formatter etc), GUI back- and front-ends, thread flows, events, etc.)
  - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker one in Azure Pipelines, basic at Travis CI
  - [ ] We can hide almost all logging setup behind the scene. Think of it as of a default implementation that can be changed though. Also, can make a `setup_logging()` function
 
@@ -56,14 +56,14 @@
  - [ ] redirect subprocess pipes to `DEVNULL` where suitable to suppress output (tests)
  - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
- - [ ] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe remade current logging schema (current is, perhaps, a cause of the strange error while testing (in the logging thread), also it modifies a global settings (log message factory))
+ - [x] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe remade current logging schema (current is, perhaps, a cause of the strange error while testing (in the logging thread), also it modifies a global settings (log message factory))
  - [ ] Test preserving user files and folders on regeneration and mb other operations
  - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
  - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode). And, in general, we should show the error reason right off
  - [ ] 'verbose' and 'non-verbose' tests as `subTest` (also `should_log_error_...`)
  - [ ] the lib sometimes raising, sometimes returning the code and it is not consistent. While the reasons behind such behavior are clear, would be great to always return a result code and raise the exceptions in the outer scope, if there is need to
  - [ ] check board (no sense to go further on 'new' if the board in config.ini is not correct)
- - [ ] check if `platformio.ini` config will be successfully parsed when there are interpolation and/or empty parameters
+ - [x] check if `platformio.ini` config will be successfully parsed when there are interpolation and/or empty parameters
  - [x] check if `.ioc` file is a text file on project initialization. Let `_find_ioc_file()` method to use explicitly provided file (useful for GUI). Maybe let user specify it via CLI
  - [ ] mb add CLI command for starting the GUI version (for example, `stm32pio --gui`)
  - [ ] test using virtualenv
