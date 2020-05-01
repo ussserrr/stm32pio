@@ -192,7 +192,7 @@ class Stm32pio:
         self.config = self._load_config(parameters)
 
         self.ioc_file = self._find_ioc_file(explicit_file=ioc_file)
-        self.config.set('project', 'ioc_file', self.ioc_file.name)
+        self.config.set('project', 'ioc_file', self.ioc_file.name)  # save only the name of file to the config
 
         # Notify the caller about the board presence
         if 'board' in parameters and parameters['board'] is not None:

@@ -50,7 +50,7 @@ config_default = collections.OrderedDict(
 
         # Runtime-determined values
         'board': '',
-        'ioc_file': ''  # required
+        'ioc_file': ''  # required, the file name (not a full path)
     }
 )
 

@@ -8,7 +8,7 @@ import inspect
 import logging
 import pathlib
 import sys
-from typing import Optional
+from typing import Optional, List
 
 try:
     import stm32pio.settings
@@ -21,7 +21,7 @@ except ModuleNotFoundError:
     import stm32pio.util
 
 
-def parse_args(args: list) -> Optional[argparse.Namespace]:
+def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     """
     Dedicated function to parse the arguments given via CLI
 
@@ -42,21 +42,24 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     root_parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', default=0)
 
     subparsers = root_parser.add_subparsers(dest='subcommand', title='subcommands', description="valid subcommands",
-                                            help="modes of operation")
+                                            help="available actions")
 
-    parser_init = subparsers.add_parser('init', help="create config .ini file so you can tweak parameters before "
-                                                     "proceeding")
-    parser_new = subparsers.add_parser('new', help="generate CubeMX code, create PlatformIO project, glue them")
+    parser_init = subparsers.add_parser('init',
+                                        help="create config .ini file to check and tweak parameters before proceeding")
+    parser_new = subparsers.add_parser('new',
+                                       help="generate CubeMX code, create PlatformIO project, glue them together")
+    parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. "
+                                                   "All arguments will be passed forward")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
     parser_status = subparsers.add_parser('status', help="get the description of the current project state")
-    parser_clean = subparsers.add_parser('clean', help="clean-up the project (delete ALL content of 'path' "
-                                                       "except the .ioc file)")
+    parser_clean = subparsers.add_parser('clean',
+                                         help="clean-up the project (delete ALL content of 'path' except an .ioc file)")
 
     # Common subparsers options
-    for parser in [parser_init, parser_new, parser_generate, parser_status, parser_clean]:
-        parser.add_argument('-d', '--directory', dest='project_path', default=pathlib.Path.cwd(),
+    for parser in [parser_init, parser_new, parser_gui, parser_generate, parser_status, parser_clean]:
+        parser.add_argument('-d', '--directory', dest='path', default=pathlib.Path.cwd(),
                             help="path to the project (current directory, if not given)")
-    for parser in [parser_init, parser_new]:
+    for parser in [parser_init, parser_new, parser_gui]:
         parser.add_argument('-b', '--board', dest='board', default='', help="PlatformIO name of the board")
     for parser in [parser_init, parser_new, parser_generate]:
         parser.add_argument('--start-editor', dest='editor',
@@ -74,7 +77,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     return root_parser.parse_args(args)
 
 
-def main(sys_argv: Optional[list] = None) -> int:
+def main(sys_argv: List[str] = None) -> int:
     """
     Can be used as a high-level wrapper to do complete tasks
 
@@ -93,7 +96,11 @@ def main(sys_argv: Optional[list] = None) -> int:
 
     args = parse_args(sys_argv)
 
-    if args is not None and args.subcommand is not None:
+    if args is not None and args.subcommand == 'gui':
+        import stm32pio_gui.app
+        gui_args = [arg for arg in sys_argv if arg != 'gui']
+        return stm32pio_gui.app.main(sys_argv=gui_args)
+    elif args is not None and args.subcommand is not None:
         logger = logging.getLogger('stm32pio')
         logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
         handler = logging.StreamHandler()
@@ -114,7 +121,7 @@ def main(sys_argv: Optional[list] = None) -> int:
     # Main routine
     try:
         if args.subcommand == 'init':
-            project = stm32pio.lib.Stm32pio(args.project_path, parameters={ 'project': { 'board': args.board } },
+            project = stm32pio.lib.Stm32pio(args.path, parameters={ 'project': { 'board': args.board } },
                                             instance_options={ 'save_on_destruction': True })
             if not args.board:
                 logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
@@ -125,7 +132,7 @@ def main(sys_argv: Optional[list] = None) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'new':
-            project = stm32pio.lib.Stm32pio(args.project_path, parameters={ 'project': { 'board': args.board } },
+            project = stm32pio.lib.Stm32pio(args.path, parameters={ 'project': { 'board': args.board } },
                                             instance_options={ 'save_on_destruction': True })
             if project.config.get('project', 'board') == '':
                 raise Exception("PlatformIO board identifier is not specified, it is needed for PlatformIO project "
@@ -140,7 +147,7 @@ def main(sys_argv: Optional[list] = None) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'generate':
-            project = stm32pio.lib.Stm32pio(args.project_path)
+            project = stm32pio.lib.Stm32pio(args.path)
             project.generate_code()
             if args.with_build:
                 project.build()
@@ -148,11 +155,11 @@ def main(sys_argv: Optional[list] = None) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'status':
-            project = stm32pio.lib.Stm32pio(args.project_path)
+            project = stm32pio.lib.Stm32pio(args.path)
             print(project.state)
 
         elif args.subcommand == 'clean':
-            project = stm32pio.lib.Stm32pio(args.project_path)
+            project = stm32pio.lib.Stm32pio(args.path)
             if args.quiet:
                 project.clean()
             else:

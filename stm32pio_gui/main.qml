@@ -185,6 +185,10 @@ ApplicationWindow {
         }
     }
 
+    Connections {
+        target: projectsModel
+        onGoToProject: projectsListView.currentIndex = indexToGo
+    }
     function removeCurrentProject() {
         const indexToRemove = projectsListView.currentIndex;
         indexToRemove === 0 ? projectsListView.incrementCurrentIndex() : projectsListView.decrementCurrentIndex();
@@ -241,10 +245,10 @@ ApplicationWindow {
         onDropped: {
             if (drop.urls.length) {
                 // We need to convert to an array of strings till typeof(drop.urls) === 'object'
-                projectsModel.addProjectByPath(Object.keys(drop.urls).map(u => drop.urls[u]));
+                projectsModel.addProjectsByPaths(Object.keys(drop.urls).map(u => drop.urls[u]));
             } else if (drop.text) {
                 // Wrap into an array for consistency
-                projectsModel.addProjectByPath([drop.text]);
+                projectsModel.addProjectsByPaths([drop.text]);
             } else {
                 console.log("Incorrect drag'n'drop event");
             }
@@ -424,7 +428,7 @@ ApplicationWindow {
                 Labs.FolderDialog {
                     id: addProjectFolderDialog
                     currentFolder: Labs.StandardPaths.standardLocations(Labs.StandardPaths.HomeLocation)[0]
-                    onAccepted: projectsModel.addProjectByPath([folder])
+                    onAccepted: projectsModel.addProjectsByPaths([folder])
                 }
                 footerPositioning: ListView.OverlayFooter
                 footer: Rectangle {  // Probably should use Pane but need to override default window color then
@@ -435,11 +439,6 @@ ApplicationWindow {
                     RowLayout {
                         id: listFooter
                         anchors.centerIn: parent
-                        Connections {
-                            target: projectsModel
-                            // Just added project is already in the list so abort the addition and jump to the existing one
-                            onDuplicateFound: projectsListView.currentIndex = duplicateIndex
-                        }
                         Button {
                             text: 'Add'
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
@@ -598,6 +597,14 @@ ApplicationWindow {
                                                     editText = textAt(0);  // should be 'None' at index 0
                                                 }
                                             }
+                                        }
+                                        Component.onCompleted: {
+                                            // Board can be already specified in the config, in this case we should paste it
+                                            const config = project.config;
+                                            if (Object.keys(config['project']).length && config['project']['board']) {
+                                                editText = config['project']['board'];
+                                            }
+                                            forceActiveFocus();
                                         }
                                     }
                                     /*

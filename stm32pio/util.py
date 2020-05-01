@@ -109,8 +109,9 @@ class DispatchingFormatter(logging.Formatter):
         if general is not None:
             self.general = general
         else:
-            warnings.warn("'general' argument is for providing the custom formatters for all the logging events except "
-                          "special ones and should be a dict with verbosity levels keys and logging.Formatter values")
+            warnings.warn("'general' argument for DispatchingFormatter was not provided. It contains formatters for "
+                          "all the logging events except special ones and should be a dict with verbosity levels keys "
+                          "and logging.Formatter values")
             self.general = {}
 
         if special is not None:

@@ -1,7 +1,7 @@
 # TODOs
 
-## Business logic, features
- - [ ] Issues guide for the GitHub (OS, content of the config, project tree, enable verbose)
+## Business logic, general features
+ - [x] Issues guide for the GitHub (OS, content of the config, project tree, enable verbose)
  - [ ] GitHub CHANGELOG - separate New, Fixed, Changed into paragraphs
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Arduino framework support (needs research to check if it is possible)
@@ -54,7 +54,7 @@
  - [ ] check logging work when embed stm32pio lib in a third-party stuff (no logging setup at all)
  - [ ] merge subprocess pipes to one where suitable (i.e. `stdout` and `stderr`)
  - [ ] redirect subprocess pipes to `DEVNULL` where suitable to suppress output (tests)
- - [ ] Two words about a synchronous nature of the lib and user's responsibility of async wrapping (if needed). Also, maybe migrate to async/await approach in the future
+ - [ ] maybe migrate to async/await approach in the future (return some kind of a "remote controller" to control the running action)
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
  - [x] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe remade current logging schema (current is, perhaps, a cause of the strange error while testing (in the logging thread), also it modifies a global settings (log message factory))
  - [ ] Test preserving user files and folders on regeneration and mb other operations
@@ -68,10 +68,10 @@
  - [ ] mb add CLI command for starting the GUI version (for example, `stm32pio --gui`)
  - [ ] test using virtualenv
  - [ ] test for different `.ioc` files (i.e. F0, F1, F4 and so on) as it is not the same actually
- - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (shell=True or a list of args)
+ - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (shell=True or a list of args (split a string))
  - [ ] cache boards for a small interval of time
- - [ ] use warnings.warn() (https://docs.python.org/3/howto/logging.html#logging-basic-tutorial)
- - [ ] count another '-v' as '-v' for PlatformIO calls
- - [ ] move GUI-related stuff from the `util.py`
- - [ ] typing (`Mapping` instead of `dict` and so on)
+ - [x] use warnings.warn() (https://docs.python.org/3/howto/logging.html#logging-basic-tutorial)
+ - [ ] count another '-v' as '-v' for PlatformIO calls (slider in GUI settings window)
+ - [x] move GUI-related stuff from the `util.py`
+ - [x] typing (`Mapping` instead of `dict` and so on)
  - [ ] check imports from 3rd-party code when the stm32pio installed from PyPI

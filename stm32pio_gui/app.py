@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import argparse
 import collections
+import gc
+import inspect
 import logging
 import pathlib
 import platform
@@ -145,7 +148,7 @@ class ProjectListItem(QObject):
 
         self._from_startup = from_startup
 
-        underlying_logger = logging.getLogger('stm32pio.gui.projects')
+        underlying_logger = logging.getLogger('stm32pio_gui.projects')
         self.logger = stm32pio.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
         self.logging_worker = LoggingWorker(id(self))
         self.logging_worker.sendLog.connect(self.logAdded)
@@ -188,8 +191,9 @@ class ProjectListItem(QObject):
         """
         try:
             self.project = stm32pio.lib.Stm32pio(*args, **kwargs)
-        except Exception:
+        except Exception as e:
             stm32pio.util.log_current_exception(self.logger)
+            # self.logger.debug('error')
             if len(args):
                 self._name = args[0]  # use a project path string (as it should be a first argument) as a name
             else:
@@ -219,7 +223,10 @@ class ProjectListItem(QObject):
         """
         module_logger.info(f"destroy {name}")
         # Wait forever for all the jobs to complete. Currently, we cannot abort them gracefully
-        workers_pool.waitForDone(msecs=-1)
+        try:
+            workers_pool.waitForDone(msecs=-1)
+        except Exception as e:
+            print(e)
         logging_worker.stopped.set()  # post the event in the logging worker to inform it...
         logging_worker.thread.wait()  # ...and wait for it to exit, too
 
@@ -389,7 +396,7 @@ class ProjectsList(QAbstractListModel):
     ProjectListItem.
     """
 
-    duplicateFound = Signal(int, arguments=['duplicateIndex'])
+    goToProject = Signal(int, arguments=['indexToGo'])
 
     def __init__(self, projects: List[ProjectListItem] = None, parent: QObject = None):
         """
@@ -416,36 +423,17 @@ class ProjectsList(QAbstractListModel):
         if role == Qt.DisplayRole or role is None:
             return self.projects[index.row()]
 
-    def addProject(self, project: ProjectListItem):
-        """
-        Append already formed ProjectListItem to the projects list
-        """
-        self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
-        self.projects.append(project)
-        self.endInsertRows()
-
-    @Slot('QStringList')
-    def addProjectByPath(self, str_list: list):
-        """
-        Create, append to the end and save in QSettings a new ProjectListItem instance with a given QUrl path (typically
-        is sent from the QML GUI).
-        """
-
-        if len(str_list) > 1:
-            for path_str in str_list:
-                self.addProjectByPath([path_str])
+    def addListItem(self, path_str: str, list_item_kwargs=None, save_in_settings=True, go_to_this=False):
+        path_qurl = QUrl(path_str)
+        if path_qurl.isEmpty():
+            # TODO: error
             return
-        elif len(str_list) == 0:
-            module_logger.warning("No path were given")
-            return
-
-        path_qurl = QUrl(str_list[0])
-        if path_qurl.isLocalFile():
+        elif path_qurl.isLocalFile():  # file://...
             path = path_qurl.toLocalFile()
         elif path_qurl.isRelative():  # this means that the path string is not starting with 'file://' prefix
-            path = str_list[0]  # just use a source string
+            path = path_str  # just use a source string
         else:
-            module_logger.error(f"Incorrect path: {str_list[0]}")
+            module_logger.error(f"Incorrect path: {path_str}")
             return
 
         # When we add a bunch of projects (or in the general case, too) recently added ones can be not instantiated yet
@@ -453,60 +441,93 @@ class ProjectsList(QAbstractListModel):
         duplicate_index = next((idx for idx, list_item in enumerate(self.projects) if list_item.project is not None and
                                 list_item.project.path.samefile(pathlib.Path(path))), -1)
         if duplicate_index > -1:
+            # Just added project is already in the list so abort the addition and jump to the existing one
             module_logger.warning(f"This project is already in the list: {path}")
-            self.duplicateFound.emit(duplicate_index)  # notify the GUI
+            self.goToProject.emit(duplicate_index)
             return
+
+        if list_item_kwargs is None:
+            list_item_kwargs = { 'project_args': [path] }
+        elif 'project_args' not in list_item_kwargs or len(list_item_kwargs['project_args']) == 0:
+            list_item_kwargs['project_args'] = [path]
+        else:
+            list_item_kwargs['project_args'][0] = path
 
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
 
-        project = ProjectListItem(project_args=[path], parent=self)
+        project = ProjectListItem(**list_item_kwargs)
         self.projects.append(project)
+        index_of_added = len(self.projects) - 1
 
         self.endInsertRows()
 
-        settings.beginGroup('app')
-        settings.beginWriteArray('projects')
-        settings.setArrayIndex(len(self.projects) - 1)
-        settings.setValue('path', path)
-        settings.endArray()
-        settings.endGroup()
+        if go_to_this:
+            self.goToProject.emit(index_of_added)
+
+        if save_in_settings:
+            settings.beginGroup('app')
+            settings.beginWriteArray('projects')
+            settings.setArrayIndex(index_of_added)
+            settings.setValue('path', path)
+            settings.endArray()
+            settings.endGroup()
+
+
+    @Slot('QStringList')
+    def addProjectsByPaths(self, paths: List[str]):
+        """
+        Create, append to the end and save in QSettings a new ProjectListItem instance with a given QUrl path (typically
+        is sent from the QML GUI).
+        """
+
+        if len(paths) == 0:
+            module_logger.warning("No path were given")
+            return
+        else:
+            for path in paths:
+                self.addListItem(path, save_in_settings=True, list_item_kwargs={ 'parent': self })
+
 
     @Slot(int)
     def removeProject(self, index: int):
         """
         Remove the project residing on the index both from the runtime list and QSettings
         """
-        if index in range(len(self.projects)):
-            self.beginRemoveRows(QModelIndex(), index, index)
 
-            project = self.projects.pop(index)
-            # It allows the project to be deconstructed (i.e. GC'ed) very soon, not at the app shutdown time
-            project.deleteLater()
+        if index not in range(len(self.projects)):
+            return
 
-            self.endRemoveRows()
+        self.beginRemoveRows(QModelIndex(), index, index)
 
-            settings.beginGroup('app')
+        project = self.projects.pop(index)
+        print([(type(obj), obj) for obj in gc.get_referrers(project)])
+        # It allows the project to be deconstructed (i.e. GC'ed) very soon, not at the app shutdown time
+        project.deleteLater()
 
-            # Get current settings ...
-            settings_projects_list = []
-            for idx in range(settings.beginReadArray('projects')):
-                settings.setArrayIndex(idx)
-                settings_projects_list.append(settings.value('path'))
-            settings.endArray()
+        self.endRemoveRows()
 
-            # ... drop the index ...
-            settings_projects_list.pop(index)
+        settings.beginGroup('app')
 
-            # ... and overwrite the list. We don't use self.projects[i].project.path as there is a chance that 'path'
-            # doesn't exist (e.g. not initialized for some reason project) but reuse the current values
-            settings.remove('projects')
-            settings.beginWriteArray('projects')
-            for idx, path in enumerate(settings_projects_list):
-                settings.setArrayIndex(idx)
-                settings.setValue('path', path)
-            settings.endArray()
+        # Get current settings ...
+        settings_projects_list = []
+        for idx in range(settings.beginReadArray('projects')):
+            settings.setArrayIndex(idx)
+            settings_projects_list.append(settings.value('path'))
+        settings.endArray()
 
-            settings.endGroup()
+        # ... drop the index ...
+        settings_projects_list.pop(index)
+
+        # ... and overwrite the list. We don't use self.projects[i].project.path as there is a chance that 'path'
+        # doesn't exist (e.g. not initialized for some reason project) but reuse the current values
+        settings.remove('projects')
+        settings.beginWriteArray('projects')
+        for idx, path in enumerate(settings_projects_list):
+            settings.setArrayIndex(idx)
+            settings.setValue('path', path)
+        settings.endArray()
+
+        settings.endGroup()
 
 
 
@@ -561,7 +582,7 @@ class Settings(QSettings):
     @Slot(str, result='QVariant')
     def get(self, key):
         value = self.value(self.prefix + key)
-        # Windows registry storage is case insensitive so 'False' is saved as 'false' and we need to handle this
+        # On case insensitive file systems 'False' is saved as 'false' so we need to handle this
         if value == 'false':
             value = False
         elif value == 'true':
@@ -577,7 +598,26 @@ class Settings(QSettings):
             self.external_triggers[key](value)
 
 
-def main():
+def parse_args(args: list) -> Optional[argparse.Namespace]:
+    parser = argparse.ArgumentParser(description=inspect.cleandoc('''lala'''))
+
+    # Global arguments (there is also an automatically added '-h, --help' option)
+    parser.add_argument('--version', action='version', version=f"stm32pio v{stm32pio.app.__version__}")
+
+    parser.add_argument('-d', '--directory', dest='path', default=str(pathlib.Path.cwd()),
+                        help="path to the project (current directory, if not given)")
+    parser.add_argument('-b', '--board', dest='board', default='', help="PlatformIO name of the board")
+
+    return parser.parse_args(args) if len(args) else None
+
+
+def main(sys_argv: List[str] = None) -> int:
+
+    if sys_argv is None:
+        sys_argv = sys.argv[1:]
+
+    args = parse_args(sys_argv)
+
     module_log_handler = logging.StreamHandler()
     module_log_handler.setFormatter(logging.Formatter("%(levelname)s %(funcName)s %(message)s"))
     module_logger.addHandler(module_log_handler)
@@ -586,7 +626,7 @@ def main():
 
     def qt_message_handler(mode, context, message):
         """
-        Register this logging handler for the Qt stuff if your platform doesn't provide the built-in one or if you want to
+        Register this logging handler for the Qt stuff if your platform doesn't provide a built-in one or if you want to
         customize it
         """
         if mode == QtInfoMsg:
@@ -603,7 +643,7 @@ def main():
 
     # Apparently Windows version of PySide2 doesn't have QML logging feature turn on so we fill this gap
     # TODO: set up for other platforms too (separate console.debug, console.warn, etc.)
-    qml_logger = logging.getLogger('stm32pio.gui.qml')
+    qml_logger = logging.getLogger('stm32pio_gui.qml')
     if platform.system() == 'Windows':
         qml_log_handler = logging.StreamHandler()
         qml_log_handler.setFormatter(logging.Formatter("[QML] %(levelname)s %(message)s"))
@@ -635,7 +675,7 @@ def main():
     settings = Settings(prefix='app/settings/', qs_kwargs={ 'parent': app },
                         external_triggers={ 'verbose': verbose_setter })
 
-    projects_logger = logging.getLogger('stm32pio.gui.projects')
+    projects_logger = logging.getLogger('stm32pio_gui.projects')
     projects_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
     formatter = stm32pio.util.DispatchingFormatter(
         general={
@@ -683,7 +723,6 @@ def main():
     # Getting PlatformIO boards can take long time when the PlatformIO cache is outdated but it is important to have
     # them before the projects list restoring, so we start a dedicated loading thread. We actually can add other
     # start-up operations here if there will be need to. Use the same Worker to spawn the thread at pool.
-
     def loading():
         boards = ['None'] + stm32pio.util.get_platformio_boards('platformio')
         boards_model.setStringList(boards)
@@ -692,7 +731,19 @@ def main():
         # Qt objects cannot be parented from the different thread so we restore the projects list in the main thread
         try:
             for path in restored_projects_paths:
-                projects_model.addProject(ProjectListItem(project_args=[path], from_startup=True, parent=projects_model))
+                projects_model.addListItem(path, save_in_settings=False, list_item_kwargs={
+                    'from_startup': True,
+                    'parent': projects_model
+                })
+
+            if args is not None:
+                list_item_kwargs = {
+                    'from_startup': True,
+                    'parent': projects_model
+                }
+                if args.board:
+                    list_item_kwargs['project_kwargs'] = { 'parameters': { 'project': { 'board': args.board } } }  # pizdec konechno...
+                projects_model.addListItem(args.path, save_in_settings=True, go_to_this=True, list_item_kwargs=list_item_kwargs)
         except Exception:
             stm32pio.util.log_current_exception(module_logger)
             success = False
@@ -709,7 +760,7 @@ def main():
 
 
 # [necessary] globals
-module_logger = logging.getLogger(f'stm32pio.gui.{__name__}')  # use it as a console logger for whatever you want to,
+module_logger = logging.getLogger(f'stm32pio_gui.{__name__}')  # use it as a console logger for whatever you want to,
                                                                # typically not related to the concrete project
 projects_logger_handler = BuffersDispatchingHandler()  # a storage of the buffers for the logging messages of all
                                                        # current projects (see its docs for more info)
