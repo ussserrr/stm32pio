@@ -9,6 +9,7 @@ import unittest.mock
 import stm32pio.app
 import stm32pio.lib
 import stm32pio.settings
+import stm32pio.util
 
 # Provides test constants
 from tests.test import *
@@ -16,8 +17,8 @@ from tests.test import *
 
 class TestCLI(CustomTestCase):
     """
-    Some tests to mimic the behavior of end-user tasks (CLI commands such as 'new', 'clean', etc.). Run main function
-    passing the arguments to it but sometimes even run as subprocess (to capture actual STDOUT/STDERR output)
+    Some tests to mimic the behavior of end-user tasks (CLI commands such as 'new', 'clean', etc.). Run the main
+    function passing the arguments to it but sometimes even run as subprocess (to capture actual STDOUT/STDERR output)
     """
 
     def test_clean(self):
@@ -31,10 +32,12 @@ class TestCLI(CustomTestCase):
 
                 # Clean ...
                 if case == '--quiet':
-                    return_code = stm32pio.app.main(sys_argv=['clean', case, '-d', str(FIXTURE_PATH)])
+                    return_code = stm32pio.app.main(sys_argv=['clean', case, '-d', str(FIXTURE_PATH)],
+                                                    should_setup_logging=False)
                 else:
                     with unittest.mock.patch('builtins.input', return_value=case):
-                        return_code = stm32pio.app.main(sys_argv=['clean', '-d', str(FIXTURE_PATH)])
+                        return_code = stm32pio.app.main(sys_argv=['clean', '-d', str(FIXTURE_PATH)],
+                                                        should_setup_logging=False)
 
                 self.assertEqual(return_code, 0, msg="Non-zero return code")
 
@@ -59,15 +62,16 @@ class TestCLI(CustomTestCase):
         """
         Successful build is the best indicator that all went right so we use '--with-build' option here
         """
-        return_code = stm32pio.app.main(sys_argv=['new', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD,
-                                                  '--with-build'])
+        return_code = stm32pio.app.main(
+            sys_argv=['new', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD, '--with-build'],
+            should_setup_logging=False)
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         # .ioc file should be preserved
         self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
 
     def test_generate(self):
-        return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(FIXTURE_PATH)])
+        return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(FIXTURE_PATH)], should_setup_logging=False)
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         for directory in ['Inc', 'Src']:
@@ -79,94 +83,87 @@ class TestCLI(CustomTestCase):
         # .ioc file should be preserved
         self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
 
-    def test_incorrect_path_should_log_error(self):
+    def test_should_log_error(self):
         """
-        We should see an error log message and non-zero return code
+        We should see an error log message and a non-zero return code
         """
-        path_not_exist = pathlib.Path('path_some_uniq_name/does/not/exist')
+        with self.subTest(error="Incorrect path"):
+            path_not_exist = pathlib.Path('path_some_uniq_name/does/not/exist')
+            with self.assertLogs(level='ERROR') as logs:
+                return_code = stm32pio.app.main(sys_argv=['init', '-d', str(path_not_exist)],
+                                                should_setup_logging=False)
+                self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
+                # Actual text varies for different OSes and system languages so we check only for a part of the string
+                self.assertTrue(next((True for msg in logs.output if 'path_some_uniq_name' in msg.lower()), False),
+                                msg="'ERROR' logging message hasn't been printed")
 
-        with self.assertLogs(level='ERROR') as logs:
-            return_code = stm32pio.app.main(sys_argv=['init', '-d', str(path_not_exist)])
-            self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
-            # Actual text may vary and depends on OS and system language so we check only for a part of path string
-            self.assertTrue(next((True for message in logs.output if 'path_some_uniq_name' in message.lower()), False),
-                            msg="'ERROR' logging message hasn't been printed")
+        with self.subTest(error="No .ioc file"):
+            dir_with_no_ioc_file = FIXTURE_PATH.joinpath('dir.with.no.ioc.file')
+            dir_with_no_ioc_file.mkdir(exist_ok=False)
+            with self.assertLogs(level='ERROR') as logs:
+                return_code = stm32pio.app.main(sys_argv=['init', '-d', str(dir_with_no_ioc_file)],
+                                                should_setup_logging=False)
+                self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
+                self.assertTrue(next((True for msg in logs.output if FileNotFoundError.__name__ in msg), False),
+                                msg="'ERROR' logging message hasn't been printed")
 
-    def test_no_ioc_file_should_log_error(self):
+    def test_verbosity(self):
         """
-        We should see an error log message and non-zero return code
-        """
-        dir_with_no_ioc_file = FIXTURE_PATH.joinpath('dir.with.no.ioc.file')
-        dir_with_no_ioc_file.mkdir(exist_ok=False)
+        Capture the full output. Check both the app logging messages and STM32CubeMX CLI output. Completely isolate
+        runs by using subprocess
 
-        with self.assertLogs(level='ERROR') as logs:
-            return_code = stm32pio.app.main(sys_argv=['init', '-d', str(dir_with_no_ioc_file)])
-            self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
-            self.assertTrue(next((True for message in logs.output if FileNotFoundError.__name__ in message), False),
-                            msg="'ERROR' logging message hasn't been printed")
-
-    def test_verbose(self):
-        """
-        Capture the full output. Check for both 'DEBUG' logging messages and STM32CubeMX CLI output. Verbose logs format
-        should match such a regex:
-
+        Verbose logs format should match such a regex:
             ^(?=(DEBUG|INFO|WARNING|ERROR|CRITICAL) {0,4})(?=.{8} (?=(build|pio_init|...) {0,26})(?=.{26} [^ ]))
+
+        Non-verbose:
+            ^(?=(INFO) {0,4})(?=.{8} ((?!( |build|pio_init|...))))
         """
 
         # inspect.getmembers() is great but it triggers class properties to execute leading to the unwanted code
         # execution
         methods = dir(stm32pio.lib.Stm32pio) + ['main']
 
-        buffer_stdout, buffer_stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(buffer_stderr):
-            return_code = stm32pio.app.main(sys_argv=['-v', 'new', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD])
+        with self.subTest(verbosity_level=stm32pio.util.Verbosity.NORMAL):
+            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(FIXTURE_PATH)],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
 
-        self.assertEqual(return_code, 0, msg="Non-zero return code")
-        # stderr and not stdout contains the actual output (by default for the logging module)
-        self.assertEqual(len(buffer_stdout.getvalue()), 0,
-                         msg="Process has printed something directly into STDOUT bypassing logging")
-        self.assertIn('DEBUG', buffer_stderr.getvalue(), msg="Verbose logging output hasn't been enabled on STDERR")
+            self.assertEqual(result.returncode, 0, msg="Non-zero return code")
+            # stderr and not stdout contains the actual output (by default for the logging module)
+            self.assertNotIn('DEBUG', result.stderr, msg="Verbose logging output has been enabled on stderr")
+            self.assertEqual(len(result.stdout), 0,
+                             msg="Entire app output should flow through the logging module")
 
-        # Inject all methods' names in the regex. Inject the width of field in a log format string
-        regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" + '|'.join(methods) + ") {0," +
-                           str(stm32pio.settings.log_fieldwidth_function) + "})(?=.{" +
-                           str(stm32pio.settings.log_fieldwidth_function) + "} [^ ]))", flags=re.MULTILINE)
-        self.assertGreaterEqual(len(re.findall(regex, buffer_stderr.getvalue())), 1,
-                                msg="Logs messages doesn't match the format")
+            regex = re.compile("^(?=(INFO) {0,4})(?=.{8} ((?!( |" + '|'.join(methods) + "))))", flags=re.MULTILINE)
+            self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1,
+                                    msg="Logs messages doesn't match the format")
 
-        # The snippet of the actual STM32CubeMX output
-        self.assertIn("Starting STM32CubeMX", buffer_stderr.getvalue(), msg="STM32CubeMX has not printed its logs")
+            # The snippet of the actual STM32CubeMX output
+            self.assertNotIn('Starting STM32CubeMX', result.stderr, msg="STM32CubeMX has printed its logs")
 
-    def test_non_verbose(self):
-        """
-        Capture the full output. We should not see any 'DEBUG' logging messages or STM32CubeMX CLI output. Logs format
-        should match such a regex:
+        with self.subTest(verbosity_level=stm32pio.util.Verbosity.VERBOSE):
+            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new', '-d', str(FIXTURE_PATH),
+                                     '-b', TEST_PROJECT_BOARD], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    encoding='utf-8')
 
-            ^(?=(INFO) {0,4})(?=.{8} ((?!( |build|pio_init|...))))
-        """
+            self.assertEqual(result.returncode, 0, msg="Non-zero return code")
+            # stderr and not stdout contains the actual output (by default for the logging module)
+            self.assertEqual(len(result.stdout), 0,
+                             msg="Process has printed something directly into STDOUT bypassing logging")
+            self.assertIn('DEBUG', result.stderr, msg="Verbose logging output hasn't been enabled on STDERR")
 
-        # inspect.getmembers is great but it triggers class properties leading to the unacceptable code execution
-        methods = dir(stm32pio.lib.Stm32pio) + ['main']
+            # Inject all methods' names in the regex. Inject the width of field in a log format string
+            regex = re.compile("^(?=(DEBUG) {0,4})(?=.{8} (?=(" + '|'.join(methods) + ") {0," +
+                               str(stm32pio.settings.log_fieldwidth_function) + "})(?=.{" +
+                               str(stm32pio.settings.log_fieldwidth_function) + "} [^ ]))", flags=re.MULTILINE)
+            self.assertGreaterEqual(len(re.findall(regex, result.stderr)), 1,
+                                    msg="Logs messages doesn't match the format")
 
-        buffer_stdout, buffer_stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(buffer_stderr):
-            return_code = stm32pio.app.main(sys_argv=['generate', '-d', str(FIXTURE_PATH)])
-
-        self.assertEqual(return_code, 0, msg="Non-zero return code")
-        # stderr and not stdout contains the actual output (by default for the logging module)
-        self.assertNotIn('DEBUG', buffer_stderr.getvalue(), msg="Verbose logging output has been enabled on stderr")
-        self.assertEqual(len(buffer_stdout.getvalue()), 0, msg="All app output should flow through the logging module")
-
-        regex = re.compile("^(?=(INFO) {0,4})(?=.{8} ((?!( |" + '|'.join(methods) + "))))", flags=re.MULTILINE)
-        self.assertGreaterEqual(len(re.findall(regex, buffer_stderr.getvalue())), 1,
-                                msg="Logs messages doesn't match the format")
-
-        # The snippet of the actual STM32CubeMX output
-        self.assertNotIn('Starting STM32CubeMX', buffer_stderr.getvalue(), msg="STM32CubeMX has printed its logs")
+            # The snippet of the actual STM32CubeMX output
+            self.assertIn("Starting STM32CubeMX", result.stderr, msg="STM32CubeMX has not printed its logs")
 
     def test_init(self):
         """
-        Check for config creation and parameters presence
+        Check for the config creation and parameters presence
         """
         result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(FIXTURE_PATH),
                                  '-b', TEST_PROJECT_BOARD], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -179,19 +176,20 @@ class TestCLI(CustomTestCase):
         config.read(str(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name)))
         for section, parameters in stm32pio.settings.config_default.items():
             for option, value in parameters.items():
-                with self.subTest(section=section, option=option, msg="Section/key is not found in saved config file"):
+                with self.subTest(section=section, option=option,
+                                  msg="Section/key is not found in the saved config file"):
                     self.assertIsNotNone(config.get(section, option, fallback=None))
         self.assertEqual(config.get('project', 'board', fallback="Not found"), TEST_PROJECT_BOARD,
                          msg="'board' has not been set")
 
     def test_status(self):
         """
-        Test the output returning by the app on a request to the 'status' command
+        Test the app output returned as a response to the 'status' command
         """
 
         buffer_stdout = io.StringIO()
         with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(None):
-            return_code = stm32pio.app.main(sys_argv=['status', '-d', str(FIXTURE_PATH)])
+            return_code = stm32pio.app.main(sys_argv=['status', '-d', str(FIXTURE_PATH)], should_setup_logging=False)
 
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
@@ -206,4 +204,4 @@ class TestCLI(CustomTestCase):
                     self.assertGreater(match.start(), last_stage_pos, msg="The order of stages is messed up")
                     last_stage_pos = match.start()
 
-        self.assertEqual(matches_counter, len(stm32pio.lib.ProjectStage) - 1)
+        self.assertEqual(matches_counter, len(stm32pio.lib.ProjectStage) - 1)  # UNDEFINED stage should not be printed

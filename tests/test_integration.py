@@ -17,7 +17,7 @@ class TestIntegration(CustomTestCase):
     def test_rebase_project(self):
         """
         Test the portability of projects: they should stay totally valid after moving to another path (same as renaming
-        the parent part of the path). If we will not meet any exceptions, we should consider the test passed.
+        the parent part of the path). If we will not meet any exceptions, we should consider the test passed
         """
         project_before = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
         project_before.save_config()
@@ -26,14 +26,14 @@ class TestIntegration(CustomTestCase):
         shutil.move(str(project_before.path), new_path)
 
         project_after = stm32pio.lib.Stm32pio(new_path, parameters={'project': {'board': TEST_PROJECT_BOARD}})
-        project_after.generate_code()
-        project_after.pio_init()
-        project_after.patch()
-        project_after.build()
+        self.assertEqual(project_after.generate_code(), 0)
+        self.assertEqual(project_after.pio_init(), 0)
+        self.assertEqual(project_after.patch(), None)
+        self.assertEqual(project_after.build(), 0)
 
     def test_config_priorities(self):
         """
-        Test the compliance with priorities when reading the parameters
+        Test the compliance with the priorities when reading the parameters
         """
         # Sample user's custom patch value
         config_parameter_user_value = inspect.cleandoc('''
@@ -61,7 +61,7 @@ class TestIntegration(CustomTestCase):
         project.pio_init()
         project.patch()
 
-        # Actually, we can parse platformio.ini via configparser but this is simpler in our case
+        # Actually, we can parse the platformio.ini via the configparser but this is simpler in our case
         after_patch_content = FIXTURE_PATH.joinpath('platformio.ini').read_text()
         self.assertIn(config_parameter_user_value, after_patch_content,
                       msg="User config parameter has not been prioritized over the default one")
@@ -77,9 +77,7 @@ class TestIntegration(CustomTestCase):
         project.pio_init()
         project.patch()
 
-        result = project.build()
-
-        self.assertEqual(result, 0, msg="Build failed")
+        self.assertEqual(project.build(), 0, msg="Build failed")
 
     def test_regenerate_code(self):
         """
@@ -119,28 +117,43 @@ class TestIntegration(CustomTestCase):
         """
         Go through the sequence of states emulating the real-life project lifecycle
         """
+
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
-        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.EMPTY)
 
-        project.save_config()
-        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.INITIALIZED)
+        for method, expected_stage in [(None, stm32pio.lib.ProjectStage.EMPTY),
+                                       ('save_config', stm32pio.lib.ProjectStage.INITIALIZED),
+                                       ('generate_code', stm32pio.lib.ProjectStage.GENERATED),
+                                       ('pio_init', stm32pio.lib.ProjectStage.PIO_INITIALIZED),
+                                       ('patch', stm32pio.lib.ProjectStage.PATCHED),
+                                       ('build', stm32pio.lib.ProjectStage.BUILT),
+                                       ('clean', stm32pio.lib.ProjectStage.EMPTY),
+                                       ('pio_init', stm32pio.lib.ProjectStage.UNDEFINED)]:
+            if method is not None:
+                getattr(project, method)()
+            self.assertEqual(project.state.current_stage, expected_stage)
+            if expected_stage != stm32pio.lib.ProjectStage.UNDEFINED:
+                self.assertTrue(project.state.is_consistent)
+            else:
+                # Should be UNDEFINED when the project is messed up (pio_init() after clean())
+                self.assertFalse(project.state.is_consistent)
 
-        project.generate_code()
-        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.GENERATED)
+    def test_users_files_preservation(self):
+        """
+        Check that custom user's files and folders will remain untouched throughout all the steps of the project
+        """
 
-        project.pio_init()
-        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.PIO_INITIALIZED)
+        users_file = FIXTURE_PATH.joinpath('some_users_file.txt')
+        users_file_content = "Sample content that any human can put into a text file"
+        users_file.write_text(users_file_content)
+        users_dir = FIXTURE_PATH.joinpath('some_users_directory')
+        users_dir.mkdir()
 
-        project.patch()
-        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.PATCHED)
+        def check_preservation():
+            self.assertTrue(all(item in FIXTURE_PATH.iterdir() for item in [users_file, users_dir]))
+            self.assertIn(users_file_content, users_file.read_text())
 
-        project.build()
-        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.BUILT)
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
 
-        project.clean()
-        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.EMPTY)
-
-        # Should be UNDEFINED when the project is messed up
-        project.pio_init()
-        self.assertEqual(project.state.current_stage, stm32pio.lib.ProjectStage.UNDEFINED)
-        self.assertFalse(project.state.is_consistent)
+        for method in ['save_config', 'generate_code', 'pio_init', 'patch', 'build']:
+            getattr(project, method)()
+            check_preservation()

@@ -8,7 +8,7 @@
  - [ ] Create VSCode plugin
  - [ ] UML diagrams (core, logging (logger vs adapter vs handler vs formatter etc), GUI back- and front-ends, thread flows, events, etc.)
  - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker one in Azure Pipelines, basic at Travis CI
- - [ ] We can hide almost all logging setup behind the scene. Think of it as of a default implementation that can be changed though. Also, can make a `setup_logging()` function
+ - [x] We can hide almost all logging setup behind the scene. Think of it as of a default implementation that can be changed though. Also, can make a `setup_logging()` function
 
 ## GUI version
  - [ ] Obtain boards on demand (not at the startup)
@@ -37,35 +37,35 @@
  - [ ] QML logging - pass to Python' `logging` and establish a similar format. Distinguish between `console.log()`, `console.error()` and so on
  - [ ] Lost log box autoscroll when manually scrolling between the actions
  - [ ] Crash on shutdown in Win and Linux (errors such as `[QML] CRITICAL QThread: Destroyed while thread is still running Process finished with exit code 1073741845`)
- - [ ] Start with a folder opened if it was provided on CLI (for example, `stm32pio_gui .`)
+ - [x] Start with a folder opened if it was provided on CLI (for example, `stm32pio_gui .`)
  - [ ] Linux:
       - Not a monospaced font in the log area
  - [ ] Temporarily pin projects with currently running actions to the top (and stay there on scrolling). See QML Package type
 
 ## Core library
  - [x] https://github.com/ussserrr/stm32pio/issues/13
- - [ ] Add more checks, for example when updating the project (`generate` command), check for boards matching and so on...
+ - [ ] when updating the project (`generate` command), check for boards match
  - [x] Remove casts to string where we can use path-like objects (related to Python version as new ones receive path-like objects arguments while old ones aren't)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
- - [ ] Store a folder initial content in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion) in the config file. Mb some integration with `.gitignore`
+ - [ ] Store an initial content of the folder in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion) in the config file. Mb some integration with `.gitignore`
  - [ ] at some point check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI) (global `--check` command (as `--version`), also before execution of the full cycle (no sense to start if some tool doesn't exist))
  - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding). Can be uploaded to the GitHub Wiki
- - [ ] colored logs, maybe (brakes zero-dependency principle)
- - [ ] check logging work when embed stm32pio lib in a third-party stuff (no logging setup at all)
- - [ ] merge subprocess pipes to one where suitable (i.e. `stdout` and `stderr`)
- - [ ] redirect subprocess pipes to `DEVNULL` where suitable to suppress output (tests)
+ - [ ] colored logs, maybe (breaks zero-dependency principle)
+ - [x] check logging work when embed stm32pio lib in a third-party stuff (no logging setup at all)
+ - [x] merge subprocess pipes to one where suitable (i.e. `stdout` and `stderr`)
+ - [x] redirect subprocess pipes to `DEVNULL` where suitable to suppress output (tests)
  - [ ] maybe migrate to async/await approach in the future (return some kind of a "remote controller" to control the running action)
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
  - [x] See https://docs.python.org/3/howto/logging-cookbook.html#context-info to maybe remade current logging schema (current is, perhaps, a cause of the strange error while testing (in the logging thread), also it modifies a global settings (log message factory))
- - [ ] Test preserving user files and folders on regeneration and mb other operations
- - [ ] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
- - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode). And, in general, we should show the error reason right off
- - [ ] 'verbose' and 'non-verbose' tests as `subTest` (also `should_log_error_...`)
+ - [x] Test preserving user files and folders on regeneration and mb other operations
+ - [x] Move special formatters inside the library. It is an implementation detail actually that we use subprocesses and so on
+ - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode and repeat this action). And, in general, we should show the error reason right off
+ - [x] 'verbose' and 'non-verbose' tests as `subTest` (also `should_log_error_...`)
  - [ ] the lib sometimes raising, sometimes returning the code and it is not consistent. While the reasons behind such behavior are clear, would be great to always return a result code and raise the exceptions in the outer scope, if there is need to
  - [ ] check board (no sense to go further on 'new' if the board in config.ini is not correct)
  - [x] check if `platformio.ini` config will be successfully parsed when there are interpolation and/or empty parameters
  - [x] check if `.ioc` file is a text file on project initialization. Let `_find_ioc_file()` method to use explicitly provided file (useful for GUI). Maybe let user specify it via CLI
- - [ ] mb add CLI command for starting the GUI version (for example, `stm32pio --gui`)
+ - [x] mb add CLI command for starting the GUI version (for example, `stm32pio --gui`)
  - [ ] test using virtualenv
  - [ ] test for different `.ioc` files (i.e. F0, F1, F4 and so on) as it is not the same actually
  - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (shell=True or a list of args (split a string))

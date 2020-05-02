@@ -191,9 +191,8 @@ class ProjectListItem(QObject):
         """
         try:
             self.project = stm32pio.lib.Stm32pio(*args, **kwargs)
-        except Exception as e:
+        except Exception:
             stm32pio.util.log_current_exception(self.logger)
-            # self.logger.debug('error')
             if len(args):
                 self._name = args[0]  # use a project path string (as it should be a first argument) as a name
             else:
@@ -438,8 +437,8 @@ class ProjectsList(QAbstractListModel):
 
         # When we add a bunch of projects (or in the general case, too) recently added ones can be not instantiated yet
         # so we need to check
-        duplicate_index = next((idx for idx, list_item in enumerate(self.projects) if list_item.project is not None and
-                                list_item.project.path.samefile(pathlib.Path(path))), -1)
+        duplicate_index = next((idx for idx, list_item in enumerate(self.projects) if (list_item.project is not None and
+                                list_item.project.path.samefile(pathlib.Path(path))) or path == list_item.name), -1)
         if duplicate_index > -1:
             # Just added project is already in the list so abort the addition and jump to the existing one
             module_logger.warning(f"This project is already in the list: {path}")
@@ -753,7 +752,6 @@ def main(sys_argv: List[str] = None) -> int:
     loader = Worker(loading, logger=module_logger)
     loader.finished.connect(loaded)
     QThreadPool.globalInstance().start(loader)
-
 
     return app.exec_()
 

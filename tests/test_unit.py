@@ -1,3 +1,4 @@
+import collections
 import configparser
 import inspect
 import platform
@@ -34,9 +35,9 @@ class TestUnit(CustomTestCase):
 
     def test_pio_init(self):
         """
-        Consider that existence of 'platformio.ini' file showing a successful PlatformIO project initialization. The
-        last one has another traces that can be checked too but we are interested only in a 'platformio.ini' anyway.
-        Also, check that it is a correct configparser file and is not empty
+        Consider that the existence of a 'platformio.ini' file showing a successful PlatformIO project initialization.
+        There are other artifacts that can be checked too but we are interested only in a 'platformio.ini' anyway. Also,
+        check that it is a correct configparser.ConfigParser file and is not empty
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
         result = project.pio_init()
@@ -50,8 +51,8 @@ class TestUnit(CustomTestCase):
 
     def test_patch(self):
         """
-        Check that new parameters were added, modified were updated and existing parameters didn't gone. Also, check for
-        unnecessary folders deletion
+        Check that the new parameters have been added, modified ones have been updated and existing parameters didn't
+        gone. Also, check for unnecessary folders deletion
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH)
 
@@ -111,7 +112,7 @@ class TestUnit(CustomTestCase):
 
         with self.assertLogs(level='ERROR') as logs:
             self.assertNotEqual(project.build(), 0, msg="Build error was not indicated")
-            # next() - Technique to find something in array, string, etc. (or to indicate that there is no)
+            # next() - Technique to find something in array, string, etc. (or to indicate that there is no of such)
             self.assertTrue(next((True for item in logs.output if "PlatformIO build error" in item), False),
                             msg="Error message does not match")
 
@@ -121,7 +122,7 @@ class TestUnit(CustomTestCase):
         """
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH)
 
-        editors = {
+        editors = {  # some edotors to check
             'atom': {
                 'Windows': 'atom.exe',
                 'Darwin': 'Atom',
@@ -168,24 +169,31 @@ class TestUnit(CustomTestCase):
 
     def test_init_path_not_found_should_raise(self):
         """
-        Pass non-existing path and expect the error
+        Pass a non-existing path and expect the error
         """
         path_does_not_exist_name = 'does_not_exist'
 
         path_does_not_exist = FIXTURE_PATH.joinpath(path_does_not_exist_name)
         with self.assertRaisesRegex(FileNotFoundError, path_does_not_exist_name,
-                                    msg="FileNotFoundError was not raised or doesn't contain a description"):
+                                    msg="FileNotFoundError has not been raised or doesn't contain a description"):
             stm32pio.lib.Stm32pio(path_does_not_exist)
 
     def test_save_config(self):
         """
-        Explicitly save the config to file and look did that actually happen and whether all the information was
+        Explicitly save the config to a file and look did that actually happen and whether all the information was
         preserved
         """
         # 'board' is non-default, 'project'-section parameter
         project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
-        project.save_config()
 
+        # Merge additional parameters
+        retcode = project.save_config({
+            'project': {
+                'additional_test_key': 'test_value'
+            }
+        })
+
+        self.assertEqual(retcode, 0, msg="Return code of the method is non-zero")
         self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).is_file(),
                         msg=f"{stm32pio.settings.config_file_name} file hasn't been created")
 
@@ -200,12 +208,18 @@ class TestUnit(CustomTestCase):
 
         self.assertEqual(config.get('project', 'board', fallback="Not found"), TEST_PROJECT_BOARD,
                          msg="'board' has not been set")
+        self.assertEqual(config.get('project', 'additional_test_key', fallback="Not found"), 'test_value',
+                         msg="Merged config is not present in the saved file")
 
     def test_get_platformio_boards(self):
         """
         PlatformIO identifiers of boards are requested using PlatformIO CLI in JSON format
         """
-        self.assertIsInstance(stm32pio.util.get_platformio_boards(platformio_cmd='platformio'), list)
+        boards = stm32pio.util.get_platformio_boards(platformio_cmd='platformio')
+
+        self.assertIsInstance(boards, collections.abc.MutableSequence)
+        self.assertGreater(len(boards), 0, msg="boards list is empty")
+        self.assertTrue(all(isinstance(item, str) for item in boards), msg="some list items are not strings")
 
     def test_ioc_file_provided(self):
         """
@@ -216,8 +230,8 @@ class TestUnit(CustomTestCase):
         shutil.copy(FIXTURE_PATH.joinpath('stm32pio-test-project.ioc'), FIXTURE_PATH.joinpath('42.ioc'))
         shutil.copy(FIXTURE_PATH.joinpath('stm32pio-test-project.ioc'), FIXTURE_PATH.joinpath('Abracadabra.ioc'))
 
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH.joinpath('42.ioc'))
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH.joinpath('42.ioc'))  # pick just one
         self.assertTrue(project.ioc_file.samefile(FIXTURE_PATH.joinpath('42.ioc')),
-                        msg="Provided .ioc file wasn't chosen")
+                        msg="Provided .ioc file hasn't been chosen")
         self.assertEqual(project.config.get('project', 'ioc_file'), '42.ioc',
                          msg="Provided .ioc file is not in the config")

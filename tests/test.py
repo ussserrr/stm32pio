@@ -1,6 +1,6 @@
 """
-Common preparations for all test suites. Use this as a source of constants for test cases. Find the tests themself at
-concrete files
+Common preparations for all test suites. Use this as a source of constants for test cases. Find the tests themselfs at
+the concrete files
 
 NOTE: make sure the test project tree is clean before running the tests!
 
@@ -14,6 +14,7 @@ To get the test coverage install and use 'coverage' package:
 """
 
 import inspect
+import logging
 import pathlib
 import shutil
 import sys
@@ -27,13 +28,14 @@ TEST_PROJECT_PATH = pathlib.Path('stm32pio-test-project').resolve(strict=True)
 if not TEST_PROJECT_PATH.joinpath('stm32pio-test-project.ioc').is_file():
     raise FileNotFoundError("No test project is present")
 
-# Gently ask a user running tests to remove all irrelevant files from the TEST_PROJECT_PATH
+# Gently ask a user running tests to remove all irrelevant files from the TEST_PROJECT_PATH as they can interfere with
+# execution
 if len(list(TEST_PROJECT_PATH.iterdir())) > 1:
     raise Warning(f"There are extrinsic files in the test project directory '{TEST_PROJECT_PATH}'. Please persist only "
-                  "the .ioc file")
+                  "the .ioc file and restart")
 
-# Make sure you have F0 framework installed (try to run code generation from STM32CubeMX manually at least once before
-# proceeding)
+# Make sure you have F0 framework installed (both for PlatformIO and CubeMX) (try to run a code generation and build
+# manually at least once before proceeding)
 TEST_PROJECT_BOARD = 'nucleo_f031k6'
 
 # Instantiate a temporary folder on every test suite run. It is used across all the tests and is deleted on shutdown
@@ -53,9 +55,7 @@ print()
 
 
 class CustomTestCase(unittest.TestCase):
-    """
-    These pre- and post-tasks are common for all test cases
-    """
+    """These pre- and post-tasks are common for all test cases"""
 
     def setUp(self):
         """

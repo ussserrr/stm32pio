@@ -23,7 +23,7 @@ except ModuleNotFoundError:
 
 def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     """
-    Dedicated function to parse the arguments given via CLI
+    Dedicated function to parse the arguments given via CLI.
 
     Args:
         args: list of strings CLI arguments
@@ -77,15 +77,50 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     return root_parser.parse_args(args)
 
 
-def main(sys_argv: List[str] = None) -> int:
+def setup_logging(args_verbose_counter: int = 0, dummy: bool = False) -> logging.Logger:
     """
-    Can be used as a high-level wrapper to do complete tasks
+    Configure some root logger. The corresponding adapters for every project will be dependent on this.
+
+    Args:
+        args_verbose_counter: verbosity level (currently only 2 levels are supported: NORMAL, VERBOSE)
+        dummy: create a NullHandler logger if true
+
+    Returns:
+        logging.Logger instance
+    """
+    if dummy:
+        logger = logging.getLogger(__name__)
+        logger.addHandler(logging.NullHandler())
+    else:
+        logger = logging.getLogger('stm32pio')
+        logger.setLevel(logging.DEBUG if args_verbose_counter else logging.INFO)
+        handler = logging.StreamHandler()
+        formatter = stm32pio.util.DispatchingFormatter(
+            verbosity=stm32pio.util.Verbosity.VERBOSE if args_verbose_counter else stm32pio.util.Verbosity.NORMAL,
+            general={
+                stm32pio.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
+                stm32pio.util.Verbosity.VERBOSE: logging.Formatter(
+                    f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s")
+            })
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.debug("debug logging enabled")
+    return logger
+
+
+def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
+    """
+    Can be used as a high-level wrapper to do complete tasks.
 
     Example:
         ret_code = stm32pio.app.main(sys_argv=['new', '-d', '~/path/to/project', '-b', 'nucleo_f031k6', '--with-build'])
 
     Args:
         sys_argv: list of strings CLI arguments
+        should_setup_logging: if this is true, the preferable default logging schema would be applied, otherwise it is a
+            caller responsibility to provide (or do not) some logging configuration. The latter can be useful when the
+            outer code makes sequential calls to this API so it is unwanted to append the logging handlers every time
+            (e.g. when unit-testing)
 
     Returns:
         0 on success, -1 otherwise
@@ -101,19 +136,7 @@ def main(sys_argv: List[str] = None) -> int:
         gui_args = [arg for arg in sys_argv if arg != 'gui']
         return stm32pio_gui.app.main(sys_argv=gui_args)
     elif args is not None and args.subcommand is not None:
-        logger = logging.getLogger('stm32pio')
-        logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
-        handler = logging.StreamHandler()
-        formatter = stm32pio.util.DispatchingFormatter(
-            verbosity=stm32pio.util.Verbosity.VERBOSE if args.verbose else stm32pio.util.Verbosity.NORMAL,
-            general={
-                stm32pio.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
-                stm32pio.util.Verbosity.VERBOSE: logging.Formatter(
-                    f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s")
-            })
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        logger.debug("debug logging enabled")
+        logger = setup_logging(args_verbose_counter=args.verbose, dummy=not should_setup_logging)
     else:
         print("\nNo arguments were given, exiting...")
         return 0
@@ -121,8 +144,8 @@ def main(sys_argv: List[str] = None) -> int:
     # Main routine
     try:
         if args.subcommand == 'init':
-            project = stm32pio.lib.Stm32pio(args.path, parameters={ 'project': { 'board': args.board } },
-                                            instance_options={ 'save_on_destruction': True })
+            project = stm32pio.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
+                                            instance_options={'save_on_destruction': True})
             if not args.board:
                 logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
                                "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
@@ -132,8 +155,8 @@ def main(sys_argv: List[str] = None) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'new':
-            project = stm32pio.lib.Stm32pio(args.path, parameters={ 'project': { 'board': args.board } },
-                                            instance_options={ 'save_on_destruction': True })
+            project = stm32pio.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
+                                            instance_options={'save_on_destruction': True})
             if project.config.get('project', 'board') == '':
                 raise Exception("PlatformIO board identifier is not specified, it is needed for PlatformIO project "
                                 "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "

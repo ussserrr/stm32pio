@@ -363,7 +363,7 @@ class Stm32pio:
             logger.warning(f"cannot save the config: {e}", exc_info=logger.isEnabledFor(logging.DEBUG))
             return -1
 
-    def save_config(self, parameters: dict = None) -> int:
+    def save_config(self, parameters: Mapping[str, Mapping[str, Any]] = None) -> int:
         """
         Invokes base _save_config function. Preliminarily, updates the config with the given 'parameters' dictionary. It
         should has the following format:

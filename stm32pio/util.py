@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import subprocess
-import sys
 import threading
 import traceback
 import warnings
@@ -26,15 +25,21 @@ logging_levels = {  # for exposing the levels to the GUI
 }
 
 
-def log_current_exception(logger: logging.Logger, show_traceback_threshold_level=logging.DEBUG):
+def log_current_exception(logger: logging.Logger, show_traceback_threshold_level: int = logging.DEBUG):
     """
     Print format is:
 
         ExceptionName: message
         [optional] traceback
+
+    We do not explicitly retrieve an exception info via sys.exc_info() as it immediately stores a reference to the
+    current Python frame and/or variables causing some possible weird errors (objects are not GC'ed) and memory leaks.
+    See https://cosmicpercolator.com/2016/01/13/exception-leaks-in-python-2-and-3/ for more information
     """
-    logger.exception(traceback.format_exception_only(*(sys.exc_info()[:2]))[-1],
-                     exc_info=logger.isEnabledFor(show_traceback_threshold_level))
+    exc_full_str = traceback.format_exc()
+    exc_str = exc_full_str.splitlines()[-1]
+    exc_tb = ''.join(exc_full_str.splitlines(keepends=True)[:-1])
+    logger.error(f'{exc_str}\n{exc_tb}' if logger.isEnabledFor(show_traceback_threshold_level) else exc_str)
 
 
 class ProjectLoggerAdapter(logging.LoggerAdapter):
@@ -157,8 +162,8 @@ class LogPipeRC:
 class LogPipe(threading.Thread):
     """
     The thread combined with a context manager to provide a nice way to temporarily redirect something's stream output
-    into logging module. The most straightforward application is to suppress subprocess STDOUT and/or STDERR streams and
-    wrap them in the logging mechanism as it is now for any other message in your app. Also, store the incoming messages
+    into the logging module. One straightforward application is to suppress subprocess STDOUT and/or STDERR streams and
+    wrap them into the logging mechanism as it is now for any other message in your app. Also, store the incoming messages
     in the string
     """
 

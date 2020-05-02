@@ -146,8 +146,8 @@ to test the app. It uses STM32F0 framework to generate and build a code from the
 
 For the specific test suite or case you can use
 ```shell script
-stm32pio-repo/ $   python -m unittest stm32pio.tests.test.TestIntegration -b -v
-stm32pio-repo/ $   python -m unittest stm32pio.tests.test.TestCLI.test_verbose -b -v
+stm32pio-repo/ $   python -m unittest tests.test_integration.TestIntegration -b -v
+stm32pio-repo/ $   python -m unittest tests.test_cli.TestCLI.test_verbosity -b -v
 ```
 
 
