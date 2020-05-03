@@ -21,6 +21,19 @@
  - [ ] Some visual flaws when the window have got resized (e.g. 'Add' button position doesn't change until the list gets focus, 'Log' area crawls onto the status bar)
  - [x] Gray out "stage" line in all projects except current
  - [ ] Tests (research approaches and patterns)
+ - [ ] Remade the list item to use States, too. Probably, such properties need to be implemented:
+       ```
+       state: {
+           loaded,
+        
+           visitedAfterInstantiating,
+            
+           actionRunning,
+           lastActionStatus,
+           visitedAfterAction,
+           ...
+       }
+       ```
  - [x] Test performance with a large number of projects in the model. First test was made:
       1. Some projects occasionally change `initLoading` by itself (probably Loader unloads the content) (hence cannot click on them, busy indicator appearing)
 
@@ -75,3 +88,5 @@
  - [x] move GUI-related stuff from the `util.py`
  - [x] typing (`Mapping` instead of `dict` and so on)
  - [ ] check imports from 3rd-party code when the stm32pio installed from PyPI
+ - [ ] Update embedding example (and maybe move to the repo itself)
+ - [ ] Project' name (path) can be reused so cannot bu used as a unique identifier but so is id(self)? Probably it is better to use a path (human-readable)
