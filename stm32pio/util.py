@@ -2,6 +2,7 @@
 Some auxiliary entities not falling into other categories
 """
 
+import contextlib
 import enum
 import json
 import logging
@@ -53,6 +54,7 @@ class ProjectLoggerAdapter(logging.LoggerAdapter):
     your log call or not)
     """
     def process(self, msg: Any, kwargs: MutableMapping[str, Any]) -> Tuple[Any, MutableMapping[str, Any]]:
+        """Inject context data (both from the adapter and the log call)"""
         if 'extra' in kwargs:
             kwargs['extra'].update(self.extra)
         else:
@@ -136,7 +138,6 @@ class DispatchingFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         """Overridden method"""
-
         # Allows to specify a verbosity level on the per-record basis, not only globally
         formatter = self.find_formatter_for(record,
                                             record.verbosity if hasattr(record, 'verbosity') else self.verbosity)
@@ -152,19 +153,18 @@ class DispatchingFormatter(logging.Formatter):
 
 class LogPipeRC:
     """Small class suitable for passing to the caller when the LogPipe context manager is invoked"""
-
     value = ''  # string accumulating all incoming messages
 
     def __init__(self, fd: int):
         self.pipe = fd  # writable half of os.pipe
 
 
-class LogPipe(threading.Thread):
+class LogPipe(threading.Thread, contextlib.AbstractContextManager):
     """
     The thread combined with a context manager to provide a nice way to temporarily redirect something's stream output
     into the logging module. One straightforward application is to suppress subprocess STDOUT and/or STDERR streams and
-    wrap them into the logging mechanism as it is now for any other message in your app. Also, store the incoming messages
-    in the string
+    wrap them into the logging mechanism as it is now for any other message in your app. Also, store the incoming
+    messages in the string for using it after an execution
     """
 
     def __init__(self, logger: logging.Logger, level: int, *args, **kwargs):
@@ -207,8 +207,8 @@ def get_platformio_boards(platformio_cmd) -> List[str]:
     """
     Obtain the PlatformIO boards list. As we interested only in STM32 ones, cut off all the others.
 
-    IMPORTANT NOTE: The inner implementation can go to the Internet from time to time when it decides that its cache is
-    out of date. So it can take a long time to execute.
+    IMPORTANT NOTE: PlatformIO can go to the Internet from time to time when it decides that its cache is out of date.
+    So it can take a long time to execute.
     """
 
     # Windows 7, as usual, correctly works only with shell=True...

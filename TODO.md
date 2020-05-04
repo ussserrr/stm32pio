@@ -6,7 +6,7 @@
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Create VSCode plugin
- - [ ] UML diagrams (core, logging (logger vs adapter vs handler vs formatter etc), GUI back- and front-ends, thread flows, events, etc.)
+ - [ ] UML diagrams (core, GUI back- and front-ends, thread flows, events, etc.)
  - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker one in Azure Pipelines, basic at Travis CI
  - [x] We can hide almost all logging setup behind the scene. Think of it as of a default implementation that can be changed though. Also, can make a `setup_logging()` function
 
@@ -88,5 +88,5 @@
  - [x] move GUI-related stuff from the `util.py`
  - [x] typing (`Mapping` instead of `dict` and so on)
  - [ ] check imports from 3rd-party code when the stm32pio installed from PyPI
- - [ ] Update embedding example (and maybe move to the repo itself)
- - [ ] Project' name (path) can be reused so cannot bu used as a unique identifier but so is id(self)? Probably it is better to use a path (human-readable)
+ - [x] Update embedding example (and maybe move to the repo itself)
+ - [ ] Project' name (path) can be reused so cannot be used as a unique identifier but so is id(self)? Probably it is better to use a path (human-readable)

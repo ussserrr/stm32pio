@@ -3,7 +3,6 @@
 
 import argparse
 import collections
-import copy
 import inspect
 import logging
 import pathlib
@@ -444,7 +443,7 @@ class ProjectsList(QAbstractListModel):
         """
 
         if list_item_kwargs is not None:
-            list_item_kwargs = dict(copy.deepcopy(list_item_kwargs))  # dict makes it mutable
+            list_item_kwargs = dict(list_item_kwargs)  # shallow copy, dict makes it mutable
 
         path_qurl = QUrl(path_str)
         if path_qurl.isEmpty():
@@ -631,7 +630,6 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
 
 
 def main(sys_argv: List[str] = None) -> int:
-
     if sys_argv is None:
         sys_argv = sys.argv[1:]
 
@@ -707,7 +705,7 @@ def main(sys_argv: List[str] = None) -> int:
     verbose_setter(settings.get('verbose'))  # set initial verbosity settings based on the saved state
 
     settings.beginGroup('app')
-    restored_projects_paths = []
+    restored_projects_paths: List[str] = []
     for index in range(settings.beginReadArray('projects')):
         settings.setArrayIndex(index)
         restored_projects_paths.append(settings.value('path'))
@@ -736,7 +734,7 @@ def main(sys_argv: List[str] = None) -> int:
 
     # Getting PlatformIO boards can take a long time when the PlatformIO cache is outdated but it is important to have
     # them before the projects list is restored, so we start a dedicated loading thread. We actually can add other
-    # start-up operations here if there will be a need to. Use the same Worker class to spawn the thread at pool.
+    # start-up operations here if there will be a need to. Use the same Worker class to spawn the thread at the pool
     def loading():
         boards = ['None'] + stm32pio.util.get_platformio_boards('platformio')
         boards_model.setStringList(boards)
@@ -745,12 +743,13 @@ def main(sys_argv: List[str] = None) -> int:
         try:
             # Qt objects cannot be parented from the different thread so we restore the projects list in the main thread
             for path in restored_projects_paths:
-                projects_model.addListItem(path, save_in_settings=False, list_item_kwargs={
-                    'from_startup': True,
-                    'parent': projects_model
-                })
+                projects_model.addListItem(path if platform.system() != 'Windows' else 'file:///' + path,
+                                           save_in_settings=False, list_item_kwargs={
+                                               'from_startup': True,
+                                               'parent': projects_model
+                                           })
 
-            # At the end, append a CLI-given project, if there is one
+            # At the end, append a CLI-provided project, if there is one
             if args is not None:
                 list_item_kwargs = {
                     'from_startup': True,
@@ -758,7 +757,7 @@ def main(sys_argv: List[str] = None) -> int:
                 }
                 if args.board:
                     list_item_kwargs['project_kwargs'] = { 'parameters': { 'project': { 'board': args.board } } }  # pizdec konechno...
-                projects_model.addListItem(args.path, save_in_settings=True, go_to_this=True,
+                projects_model.addListItem(args.path if platform.system() != 'Windows' else str(pathlib.Path(args.path)), save_in_settings=True, go_to_this=True,
                                            list_item_kwargs=list_item_kwargs)
         except Exception:
             stm32pio.util.log_current_exception(module_logger)
