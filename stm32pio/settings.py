@@ -3,6 +3,8 @@ import inspect
 import pathlib
 import platform
 
+import stm32pio.lib
+
 
 my_os = platform.system()
 
@@ -21,7 +23,7 @@ config_default = collections.OrderedDict(
             # macOS default: 'Applications' folder
             "/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX" if my_os == 'Darwin' else
             # Linux (Ubuntu) default: home directory
-            pathlib.Path.home().joinpath("STM32CubeMX/STM32CubeMX") if my_os == 'Linux' else
+            str(pathlib.Path.home().joinpath("STM32CubeMX/STM32CubeMX")) if my_os == 'Linux' else
             # Windows default: Program Files
             "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe" if my_os == 'Windows' else None
     },
@@ -48,12 +50,12 @@ config_default = collections.OrderedDict(
 
         # Runtime-determined values
         'board': '',
-        'ioc_file': ''  # required
+        'ioc_file': ''  # required, the file name (not a full path)
     }
 )
 
 config_file_name = 'stm32pio.ini'
 
-# Longest name (not necessarily method so a little bit tricky...)
+# Longest name (not necessarily a method so a little bit tricky...)
 # log_fieldwidth_function = max([len(member) for member in dir(stm32pio.lib.Stm32pio)]) + 1
 log_fieldwidth_function = 25 + 1

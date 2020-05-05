@@ -230,5 +230,45 @@
  - Changed: remove `from __future__ import annotations` statements
 
 ## ver. 1.21 (19.04.20)
- - Fixed: GUI. All paths are now reliably treated both for QML and Python
+ - Fixed: GUI. All resorce paths are now reliably treated both for QML and Python
  - Changed: README installation process actualized
+
+## ver. 1.30 (05.05.20)
+ - New: `examples` folder (currently, only an embedding one (updated and moved from the wiki page))
+ - New: `docs` folder with some useful internal descriptions (currently, only a logging schematic (with sources))
+ - New: issues guide for GitHub (OS, content of the config, project tree, enable verbose, etc.)
+ - New: GUI. Show the app version in "About" dialog
+ - New: GUI. Handle a theoretical app loading error
+ - New: GUI. Notify a user that the "board" parameter is empty
+ - New: GUI. The app can be started from CLI
+ - New: GUI. `ProjectListItem.fromStartup` property
+ - New: GUI. Expose projects' `config` to QML
+ - New: Tests. Preserving user files and folders on regeneration
+ - New: Tests. 'verbose' and 'non-verbose' tests as `subTest` (also `should_log_error_...`)
+ - New: Inform a user that given parameters have overridden the config ones
+ - Fixed: GUI. `TypeError: Cannot read property 'actionRunning' of null` (deconstruction order) (on project deletion only)
+ - Fixed: GUI. The app now can handle as many projects as needed (use QML `DelegateModel` to store state in the `ListView` delegate)
+ - Fixed: #13 (new parsing algo to analyze the CubeMX output)
+ - Changed: improved `typing` annotations
+ - Changed: wrap imports into `try...except`
+ - Changed: new README logo, add sources (draw.io)
+ - Changed: GUI. Icons instead of a text for "Clean", "Open editor"
+ - Changed: GUI. Gray out "stage" line in all projects except current
+ - Changed: GUI. 2 types of logging formatters for 2 verbosity levels
+ - Changed: GUI. More general `goToProject` signal instead of `duplicateFound`
+ - Changed: GUI. Projects list is now saves to `Settings` in a separate thread using `QThreadPool` and `saveInSettings()` method
+ - Changed: GUI. `ProjectsList.each_project_is_duplicate_of` generator
+ - Changed: GUI. Optimized project' `state` handling
+ - Changed: GUI. Insert board ID from config, if there is one, focus on that input field by default
+ - Changed: logging mechanics is remade from scratch:
+    - add `stm32pio.app.setup_logging()`, `should_setup_logging` argument fo `stm32pio.app.setup_main()`. This also fixes annoying logging errors on testing because the loggers interfere with each other
+    - `stm32pio.util.ProjectLoggerAdapter()` subclass as an individual logger for every project
+    - add `stm32pio.util.log_current_exception()`
+    - get rid of `log_record_factory` substitution
+    - add `stm32pio.util.Verbosity` entity (enum). Acts like an additional degree of freedom for the logging setup
+    - rewritten `stm32pio.util.DispatchingFormatter`
+    - GUI. New `BuffersDispatchingHandler()` class
+    - and some others (see block schema)
+ - Changed: better parameters and configs merging
+ - Changed: make `platformio_ini_is_patched` a property instead of function
+ - Changed: improved in-code docs
