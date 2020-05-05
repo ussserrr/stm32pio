@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 import weakref
-from typing import List, Callable, Optional, Any, Mapping, MutableMapping
+from typing import List, Callable, Optional, Any, Mapping, MutableMapping, Iterator
 
 try:
     from PySide2.QtCore import QUrl, Property, QAbstractListModel, QModelIndex, QObject, Qt, Slot, Signal, QThread,\
@@ -459,15 +459,19 @@ class ProjectsList(QAbstractListModel):
         settings.endGroup()
         module_logger.info(f"{len(projects_to_save)} projects have been saved to Settings")  # total amount
 
-    def saveInSettings(self):
+    def saveInSettings(self) -> None:
         """Spawn a thread to wait for all projects and save them in background"""
         w = Worker(self._saveInSettings, logger=module_logger)
         self.workers_pool.start(w)
 
-    def duplicates(self, path: str):
+    def each_project_is_duplicate_of(self, path: str) -> Iterator[bool]:
         """
-        When we add a bunch of projects (or in general case, too) recently added ones can be not instantiated yet so we
-        cannot extract their properties and need to check before. samefile will raise, if the path doesn't exist, though
+        Returns generator yielding an answer to the question "Is current project is a duplicate of one represented by a
+        given path?" for every project in this model, one by one.
+
+        Logic explanation: At a given time some projects (e.g., when we add a bunch of projects, recently added ones)
+        can be not instantiated yet so we cannot extract their project.path property and need to check before comparing.
+        In this case, simply evaluate strings. Also, samefile will even raise, if the given path doesn't exist.
         """
         for list_item in self.projects:
             try:
@@ -476,7 +480,7 @@ class ProjectsList(QAbstractListModel):
             except OSError:
                 yield False
 
-    def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None, go_to_this: bool = False):
+    def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None, go_to_this: bool = False) -> None:
         """
         Create and append to the list tail a new ProjectListItem instance. This doesn't save in QSettings, it's an up to
         the caller task (e.g. if we adding a bunch of projects, it make sense to store them once in the end).
@@ -492,7 +496,8 @@ class ProjectsList(QAbstractListModel):
         else:
             list_item_kwargs = {}
 
-        duplicate_index = next((idx for idx, is_duplicated in enumerate(self.duplicates(path)) if is_duplicated), -1)
+        duplicate_index = next((idx for idx, is_duplicated in enumerate(self.each_project_is_duplicate_of(path))
+                                if is_duplicated), -1)
         if duplicate_index > -1:
             # Just added project is already in the list so abort the addition
             module_logger.warning(f"This project is already in the list: {path}")
@@ -506,7 +511,8 @@ class ProjectsList(QAbstractListModel):
             self.goToProject.emit(duplicate_index)  # jump to the existing one
             return
 
-        # Insert given path into the constructor args (do not use dict.update() as we have list value)
+        # Insert given path into the constructor args (do not use dict.update() as we have list value that we also want
+        # to "merge")
         if len(list_item_kwargs) == 0:
             list_item_kwargs = { 'project_args': [path] }
         elif 'project_args' not in list_item_kwargs or len(list_item_kwargs['project_args']) == 0:
@@ -642,7 +648,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     parser.add_argument('--version', action='version', version=f"stm32pio v{stm32pio.app.__version__}")
 
     parser.add_argument('-d', '--directory', dest='path', default=str(pathlib.Path.cwd()),
-                        help="path to the project (current directory, if not given)")
+        help="path to the project (current directory, if not given, but any other option should be specified then)")
     parser.add_argument('-b', '--board', dest='board', default='', help="PlatformIO name of the board")
 
     return parser.parse_args(args) if len(args) else None

@@ -48,8 +48,8 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
                                         help="create config .ini file to check and tweak parameters before proceeding")
     parser_new = subparsers.add_parser('new',
                                        help="generate CubeMX code, create PlatformIO project, glue them together")
-    parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. "
-                                                   "All arguments will be passed forward")
+    parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. All arguments will "
+                                                   "be passed forward, see its --help for more information")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
     parser_status = subparsers.add_parser('status', help="get the description of the current project state")
     parser_clean = subparsers.add_parser('clean',

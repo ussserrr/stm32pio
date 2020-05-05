@@ -13,6 +13,7 @@ The [GUI version](/stm32pio_gui) is available, too.
 > - [Requirements](#requirements)
 > - [Installation](#installation)
 > - [Usage](#usage)
+>   - [GUI from CLI](#gui-from-cli)
 >   - [Project patching](#project-patching)
 >   - [Embedding](#embedding)
 > - [Example](#example)
@@ -94,6 +95,12 @@ $ python app.py --help
 ```
 to see help on available commands. Find the copy of its output on the [project wiki](https://github.com/ussserrr/stm32pio/wiki/stm32pio-help) page, also.
 
+### GUI from CLI
+You can start the [GUI version](/stm32pio_gui) using `gui` subcommand and pass some of the arguments to it:
+```shell script
+$ stm32pio gui -d ./sample-project -b discovery_f4
+```
+
 ### Project patching
 
 Note, that the patch operation (which takes the CubeMX code and PlatformIO project to the compliance) erases all the comments (lines starting with `;`) inside the `platformio.ini` file. They are not required anyway, in general, but if you need them for some reason please consider to save the information somewhere else.
@@ -102,7 +109,7 @@ For those who want to modify the patch (default one is at [`settings.py`](/stm32
 
 ### Embedding
 
-You can also use stm32pio as an ordinary Python package and embed it in your own application. Find the minimal example at the [project wiki](https://github.com/ussserrr/stm32pio/wiki/Embedding-example) page to see some possible ways of implementing this. Basically, you need to import `stm32pio.lib` module (where the main `Stm32pio` class resides), (optionally) set up a logger and you are good to go. If you prefer higher-level API similar to the CLI version, use `main()` function in `app.py` passing the same CLI arguments to it (except the actual script name). Also, take a look at the CLI ([`app.py`](/stm32pio/app.py)) or GUI versions.
+You can also use stm32pio as an ordinary Python package and embed it in your own application. Find the minimal example at the [examples](/examples) to see some possible ways of implementing this. Basically, you need to import `stm32pio.lib` module (where the main `Stm32pio` class resides), (optionally) set up a logger and you are good to go. If you prefer higher-level API similar to the CLI version, use `main()` function in `app.py` passing the same CLI arguments to it (except the actual script name). Also, take a look at the CLI ([`app.py`](/stm32pio/app.py)) or GUI versions.
 
 
 ## Example
@@ -137,10 +144,6 @@ You can also use stm32pio as an ordinary Python package and embed it in your own
 There are some tests in file [`test.py`](/stm32pio/tests/test.py) (based on the unittest module). Run
 ```shell script
 stm32pio-repo/ $   python -m unittest -b -v
-```
-or
-```shell script
-stm32pio-repo/ $   python -m stm32pio.tests.test -b -v
 ```
 to test the app. It uses STM32F0 framework to generate and build a code from the test [`stm32pio-test-project.ioc`](/stm32pio-test-project/stm32pio-test-project.ioc) project file. Please make sure that the test project folder is clean (i.e. contains only an .ioc file) before running the test otherwise it can lead to some cases failing. Tests automatically create temporary directory (using `tempfile` Python standard module) where all actions are performed.
 
