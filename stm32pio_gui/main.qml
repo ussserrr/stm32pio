@@ -536,6 +536,7 @@ ApplicationWindow {
                             // Currently, this event is equivalent to the complete initialization of the backend side of the project
                             onNameChanged: {
                                 const state = project.state;
+                                stateCached = state;
                                 const completedStages = Object.keys(state).filter(stateName => state[stateName]);
                                 if (completedStages.length === 1 && completedStages[0] === 'EMPTY') {
                                     setupScreenLoader.active = true;
@@ -722,18 +723,21 @@ ApplicationWindow {
                                         ListElement {
                                             name: 'Clean'
                                             action: 'clean'
+                                            icon: './icons/trash-bin.svg'
                                             tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder \
                                                       except the current .ioc file and clear all logs"
                                         }
                                         ListElement {
                                             name: 'Open editor'
                                             action: 'start_editor'
+                                            icon: './icons/edit.svg'
                                             margin: 15  // margin to visually separate first 2 actions as they don't represent any stage
                                         }
                                         ListElement {
                                             name: 'Initialize'
                                             stageRepresented: 'INITIALIZED'  // the project stage this button is representing
                                             action: 'save_config'
+                                            tooltip: "Saves the current configuration to the config file <b>stm32pio.ini</b>"
                                         }
                                         ListElement {
                                             name: 'Generate'
@@ -766,12 +770,19 @@ ApplicationWindow {
                                             buttonIndex = index;
                                             background.border.color = 'dimgray';
                                         }
+                                        display: model.icon ? AbstractButton.IconOnly : AbstractButton.TextOnly
+                                        icon.source: model.icon || ''
                                         ToolTip {
                                             visible: mouseArea.containsMouse
                                             Component.onCompleted: {
+                                                text = '';
+                                                if (model.icon) {
+                                                    text += model.name;
+                                                }
                                                 if (model.tooltip) {
-                                                    text = model.tooltip;
-                                                } else {
+                                                    text += text ? `<br>${model.tooltip}` : model.tooltip;
+                                                }
+                                                if (!model.icon && !model.tooltip) {
                                                     this.destroy();
                                                 }
                                             }

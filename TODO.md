@@ -54,6 +54,7 @@
  - [ ] Linux:
       - Not a monospaced font in the log area
  - [ ] Temporarily pin projects with currently running actions to the top (and stay there on scrolling). See QML Package type
+ - [x] Icons instead of text for "Clean", "Open editor"
 
 ## Core library
  - [x] https://github.com/ussserrr/stm32pio/issues/13
@@ -90,3 +91,5 @@
  - [ ] check imports from 3rd-party code when the stm32pio installed from PyPI
  - [x] Update embedding example (and maybe move to the repo itself)
  - [ ] Project' name (path) can be reused so cannot be used as a unique identifier but so is id(self)? Probably it is better to use a path (human-readable)
+ - [x] Inform user that given parameters have overridden the config
+ - [ ] Analyze `.ioc` file for the wrong framework/parameters

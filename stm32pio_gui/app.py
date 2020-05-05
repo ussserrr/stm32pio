@@ -412,7 +412,12 @@ class ProjectsList(QAbstractListModel):
             parent: QObject to be parented to
         """
         super().__init__(parent=parent)
+
         self.projects = projects if projects is not None else []
+
+        self.workers_pool = QThreadPool(parent=self)
+        self.workers_pool.setMaxThreadCount(1)  # only 1 active worker at a time
+        self.workers_pool.setExpiryTimeout(-1)  # tasks wait forever for the available spot
 
     @Slot(int, result=ProjectListItem)
     def get(self, index: int):
@@ -430,47 +435,79 @@ class ProjectsList(QAbstractListModel):
         if role == Qt.DisplayRole or role is None:
             return self.projects[index.row()]
 
-    def addListItem(self, path_str: str, list_item_kwargs: Mapping[str, Any] = None, save_in_settings: bool = True,
-                    go_to_this: bool = False):
+    def _saveInSettings(self) -> None:
         """
-        Create, append to the end and save in QSettings a new ProjectListItem instance with a given path.
+        Get correct projects and save them to Settings. Intended to be run in a thread
+        """
+
+        # Wait for all projects to be loaded (project.init_project is finished), whether successful or not
+        while not all(project.name != 'Loading...' for project in self.projects):
+            pass
+
+        settings.beginGroup('app')
+        settings.remove('projects')  # clear the current saved list
+
+        settings.beginWriteArray('projects')
+        # Only correct ones (inner Stm32pio instance has been successfully constructed)
+        projects_to_save = [project for project in self.projects if project.project is not None]
+        for idx, project in enumerate(projects_to_save):
+            settings.setArrayIndex(idx)
+            # This ensures that we always save paths in pathlib form
+            settings.setValue('path', str(project.project.path))
+        settings.endArray()
+
+        settings.endGroup()
+        module_logger.info(f"{len(projects_to_save)} projects have been saved to Settings")  # total amount
+
+    def saveInSettings(self):
+        """Spawn a thread to wait for all projects and save them in background"""
+        w = Worker(self._saveInSettings, logger=module_logger)
+        self.workers_pool.start(w)
+
+    def duplicates(self, path: str):
+        """
+        When we add a bunch of projects (or in general case, too) recently added ones can be not instantiated yet so we
+        cannot extract their properties and need to check before. samefile will raise, if the path doesn't exist, though
+        """
+        for list_item in self.projects:
+            try:
+                yield (list_item.project is not None and list_item.project.path.samefile(pathlib.Path(path))) or \
+                      path == list_item.name  # simply check strings if a path isn't available
+            except OSError:
+                yield False
+
+    def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None, go_to_this: bool = False):
+        """
+        Create and append to the list tail a new ProjectListItem instance. This doesn't save in QSettings, it's an up to
+        the caller task (e.g. if we adding a bunch of projects, it make sense to store them once in the end).
 
         Args:
-            path_str: path as string
+            path: path as string
             list_item_kwargs: keyword arguments passed to the ProjectListItem constructor
-            save_in_settings: whether to save added project to the Settings
             go_to_this: should we jump to the new project in GUI
         """
 
         if list_item_kwargs is not None:
             list_item_kwargs = dict(list_item_kwargs)  # shallow copy, dict makes it mutable
-
-        path_qurl = QUrl(path_str)
-        if path_qurl.isEmpty():
-            module_logger.warning(f"Given path is empty: {path_str}")
-            return
-        elif path_qurl.isLocalFile():  # file://...
-            path = path_qurl.toLocalFile()
-        elif path_qurl.isRelative():  # this means that the path string is not starting with 'file://' prefix
-            path = path_str  # just use a source string
         else:
-            module_logger.error(f"Incorrect path: {path_str}")
-            return
+            list_item_kwargs = {}
 
-        # When we add a bunch of projects (or in the general case, too) recently added ones can be not instantiated yet
-        # so we cannot extract their properties and need to check before
-        duplicate_index = next((idx for idx, list_item in enumerate(self.projects) if
-            (list_item.project is not None and list_item.project.path.samefile(pathlib.Path(path))) or
-            path == list_item.name  # simply check strings if paths aren't available
-        ), -1)
+        duplicate_index = next((idx for idx, is_duplicated in enumerate(self.duplicates(path)) if is_duplicated), -1)
         if duplicate_index > -1:
-            # Just added project is already in the list so abort the addition and jump to the existing one
+            # Just added project is already in the list so abort the addition
             module_logger.warning(f"This project is already in the list: {path}")
-            self.goToProject.emit(duplicate_index)
+
+            # If some parameters were provided, merge them
+            proj_params = list_item_kwargs.get('project_kwargs', {}).get('parameters', {})
+            if len(proj_params):
+                self.projects[duplicate_index].logger.info(f"updating parameters from the CLI... {proj_params}")
+                self.projects[duplicate_index].run('save_config', [proj_params])
+
+            self.goToProject.emit(duplicate_index)  # jump to the existing one
             return
 
-        # Insert given path into the constructor args
-        if list_item_kwargs is None:
+        # Insert given path into the constructor args (do not use dict.update() as we have list value)
+        if len(list_item_kwargs) == 0:
             list_item_kwargs = { 'project_args': [path] }
         elif 'project_args' not in list_item_kwargs or len(list_item_kwargs['project_args']) == 0:
             list_item_kwargs['project_args'] = [path]
@@ -483,20 +520,11 @@ class ProjectsList(QAbstractListModel):
         # underlying Stm32pio class will be initialized soon later in the dedicated thread
         project = ProjectListItem(**list_item_kwargs)
         self.projects.append(project)
-        index_of_added = len(self.projects) - 1
 
         self.endInsertRows()
 
         if go_to_this:
-            self.goToProject.emit(index_of_added)
-
-        if save_in_settings:
-            settings.beginGroup('app')
-            settings.beginWriteArray('projects')
-            settings.setArrayIndex(index_of_added)
-            settings.setValue('path', path)
-            settings.endArray()
-            settings.endGroup()
+            self.goToProject.emit(len(self.projects) - 1)
 
 
     @Slot('QStringList')
@@ -506,8 +534,20 @@ class ProjectsList(QAbstractListModel):
             module_logger.warning("No paths were given")
             return
         else:
-            for path in paths:
-                self.addListItem(path, save_in_settings=True, list_item_kwargs={ 'parent': self })
+            for path_str in paths:  # convert to strings
+                path_qurl = QUrl(path_str)
+                if path_qurl.isEmpty():
+                    module_logger.warning(f"Given path is empty: {path_str}")
+                    continue
+                elif path_qurl.isLocalFile():  # file://...
+                    path: str = path_qurl.toLocalFile()
+                elif path_qurl.isRelative():  # this means that the path string is not starting with 'file://' prefix
+                    path: str = path_str  # just use a source string
+                else:
+                    module_logger.error(f"Incorrect path: {path_str}")
+                    continue
+                self.addListItem(path, list_item_kwargs={ 'parent': self })
+            self.saveInSettings()
 
 
     @Slot(int)
@@ -515,40 +555,19 @@ class ProjectsList(QAbstractListModel):
         """
         Remove the project residing on the index both from the runtime list and QSettings
         """
-
         if index not in range(len(self.projects)):
             return
 
         self.beginRemoveRows(QModelIndex(), index, index)
-
         project = self.projects.pop(index)
-        # It allows the project to be deconstructed (i.e. GC'ed) very soon, not at the app shutdown time
-        project.deleteLater()
-
         self.endRemoveRows()
 
-        settings.beginGroup('app')
+        if project.project is not None:
+            # Re-save the settings only if this project was correct and therefore is saved in the settings
+            self.saveInSettings()
 
-        # Get current settings ...
-        settings_projects_list = []
-        for idx in range(settings.beginReadArray('projects')):
-            settings.setArrayIndex(idx)
-            settings_projects_list.append(settings.value('path'))
-        settings.endArray()
-
-        # ... drop the index ...
-        settings_projects_list.pop(index)
-
-        # ... and overwrite the list. We don't use self.projects[i].project.path as there is a chance that 'path'
-        # doesn't exist (e.g. not initialized for some reason project) but reuse the current values
-        settings.remove('projects')
-        settings.beginWriteArray('projects')
-        for idx, path in enumerate(settings_projects_list):
-            settings.setArrayIndex(idx)
-            settings.setValue('path', path)
-        settings.endArray()
-
-        settings.endGroup()
+        # It allows the project to be deconstructed (i.e. GC'ed) very soon, not at the app shutdown time
+        project.deleteLater()
 
 
 
@@ -743,13 +762,12 @@ def main(sys_argv: List[str] = None) -> int:
         try:
             # Qt objects cannot be parented from the different thread so we restore the projects list in the main thread
             for path in restored_projects_paths:
-                projects_model.addListItem(path if platform.system() != 'Windows' else 'file:///' + path,
-                                           save_in_settings=False, list_item_kwargs={
-                                               'from_startup': True,
-                                               'parent': projects_model
-                                           })
+                projects_model.addListItem(path, go_to_this=False, list_item_kwargs={
+                   'from_startup': True,
+                   'parent': projects_model
+                })
 
-            # At the end, append a CLI-provided project, if there is one
+            # At the end, append (or jump to) a CLI-provided project, if there is one
             if args is not None:
                 list_item_kwargs = {
                     'from_startup': True,
@@ -757,8 +775,9 @@ def main(sys_argv: List[str] = None) -> int:
                 }
                 if args.board:
                     list_item_kwargs['project_kwargs'] = { 'parameters': { 'project': { 'board': args.board } } }  # pizdec konechno...
-                projects_model.addListItem(args.path if platform.system() != 'Windows' else str(pathlib.Path(args.path)), save_in_settings=True, go_to_this=True,
+                projects_model.addListItem(str(pathlib.Path(args.path)), go_to_this=True,
                                            list_item_kwargs=list_item_kwargs)
+                projects_model.saveInSettings()
         except Exception:
             stm32pio.util.log_current_exception(module_logger)
             success = False

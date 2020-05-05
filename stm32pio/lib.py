@@ -15,7 +15,7 @@ import string
 import subprocess
 import tempfile
 import weakref
-from typing import Mapping, Any
+from typing import Mapping, Any, Union
 
 import stm32pio.settings
 import stm32pio.util
@@ -144,7 +144,7 @@ class Stm32pio:
         'logger': None
     }
 
-    def __init__(self, dirty_path: str, parameters: Mapping[str, Any] = None,
+    def __init__(self, dirty_path: Union[str, pathlib.Path], parameters: Mapping[str, Any] = None,
                  instance_options: Mapping[str, Any] = None):
         """
         Args:
@@ -323,7 +323,21 @@ class Stm32pio:
 
         # ... then merge with user's config file values (if exist) ...
         self.logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
-        if len(config.read(self.path.joinpath(stm32pio.settings.config_file_name))) == 0:
+        config.read(self.path.joinpath(stm32pio.settings.config_file_name))
+
+        ini_config = configparser.ConfigParser(interpolation=None)
+        ini_config.read(self.path.joinpath(stm32pio.settings.config_file_name))
+        runtime_config = configparser.ConfigParser(interpolation=None)
+        runtime_config.read_dict(runtime_parameters)
+
+        if len(ini_config.sections()):
+            if len(runtime_config.sections()):
+                for ini_sect in ini_config.sections():
+                    if runtime_config.has_section(ini_sect):
+                        for ini_key, ini_value in ini_config.items(ini_sect):
+                            if runtime_config.get(ini_sect, ini_key, fallback=None) not in [None, ini_value]:
+                                self.logger.info(f"given '{ini_key}' has taken a precedence over the .ini one")
+        else:
             self.logger.debug(f"no or empty {stm32pio.settings.config_file_name} config file, will use the default one")
 
         # ... finally merge with the given in this session CLI parameters
