@@ -3,14 +3,13 @@ import inspect
 import pathlib
 import platform
 
-import stm32pio.lib
-
 
 my_os = platform.system()
 
 config_default = collections.OrderedDict(
     app={
-        # (default is OK) How do you start Java from the command line? (edit if Java not in PATH)
+        # (default is OK) How do you start Java from the command line? (edit if Java not in PATH). Set to 'None'
+        # (string) if in your setup the CubeMX can be invoked straightforwardly
         'java_cmd': 'java',
 
         # (default is OK) How do you start PlatformIO from the command line? (edit if not in PATH, if you use PlatformIO
@@ -55,6 +54,11 @@ config_default = collections.OrderedDict(
 )
 
 config_file_name = 'stm32pio.ini'
+
+# CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel'
+# was chosen, or CubeMX_version < ioc_file_version, etc.), we should analyze the actual output (STDOUT)
+cubemx_str_indicating_success = 'Code succesfully generated'
+cubemx_str_indicating_error = '[ERROR]'
 
 # Longest name (not necessarily a method so a little bit tricky...)
 # log_fieldwidth_function = max([len(member) for member in dir(stm32pio.lib.Stm32pio)]) + 1

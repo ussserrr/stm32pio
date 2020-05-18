@@ -1,4 +1,5 @@
 import configparser
+import gc
 import inspect
 import shutil
 
@@ -43,7 +44,7 @@ class TestIntegration(CustomTestCase):
         ''')
         cli_parameter_user_value = 'nucleo_f429zi'
 
-        # Create test config
+        # Create test config, ...
         config = configparser.ConfigParser(interpolation=None)
         config.read_dict({
             'project': {
@@ -56,17 +57,30 @@ class TestIntegration(CustomTestCase):
             config.write(config_file)
 
         # On project creation we should interpret the CLI-provided values as superseding to the saved ones and
-        # saved ones, in turn, as superseding to the default ones
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': cli_parameter_user_value}})
-        project.pio_init()
-        project.patch()
+        # saved ones, in turn, as superseding to the default ones (BUT only non-empty values)
+        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, instance_options={'save_on_destruction': True}, parameters={
+            'app': {
+                'cubemx_cmd': ''
+            },
+            'project': {
+                'board': cli_parameter_user_value
+            }
+        })
+        # Side-effect "test": the project should be destroyed immediately and its config should be saved during this
+        del project
+        gc.collect()
 
-        # Actually, we can parse the platformio.ini via the configparser but this is simpler in our case
-        after_patch_content = FIXTURE_PATH.joinpath('platformio.ini').read_text()
-        self.assertIn(config_parameter_user_value, after_patch_content,
-                      msg="User config parameter has not been prioritized over the default one")
-        self.assertIn(cli_parameter_user_value, after_patch_content,
-                      msg="User CLI parameter has not been prioritized over the saved one")
+        # Parse the resulting stm32pio.ini via the configparser to see
+        saved_config = configparser.ConfigParser(interpolation=None)
+        saved_config.read(str(FIXTURE_PATH.joinpath('stm32pio.ini')))
+
+        with self.subTest(msg="User's .INI parameter has not been prioritized over the default one"):
+            self.assertEqual(config_parameter_user_value,
+                             saved_config.get('project', 'platformio_ini_patch_content'))
+        with self.subTest(msg="User's CLI parameter has not been prioritized over the .INI one"):
+            self.assertEqual(cli_parameter_user_value, saved_config.get('project', 'board'))
+        with self.subTest(msg="Empty parameter has overwrite the non-empty one"):
+            self.assertNotEqual('', saved_config.get('app', 'cubemx_cmd'))
 
     def test_build(self):
         """

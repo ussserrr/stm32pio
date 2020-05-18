@@ -163,7 +163,9 @@ class ProjectListItem(QObject):
         self.workers_pool = QThreadPool(parent=self)
         self.workers_pool.setMaxThreadCount(1)
         self.workers_pool.setExpiryTimeout(-1)  # tasks wait forever for the available spot
+
         self._current_action = ''
+        self._last_action_succeed = True
 
         # These values are valid only until the Stm32pio project initialize itself (or failed to) (see init_project)
         self.project = None
@@ -295,6 +297,11 @@ class ProjectListItem(QObject):
         """
         return self._current_action
 
+    @Property(bool)
+    def lastActionSucceed(self) -> bool:
+        """Have the last action ended with a success?"""
+        return self._last_action_succeed
+
     @Slot(str)
     def actionStartedSlot(self, action: str):
         """Pass the corresponding signal from the worker, perform related tasks"""
@@ -307,6 +314,7 @@ class ProjectListItem(QObject):
     @Slot(str, bool)
     def actionFinishedSlot(self, action: str, success: bool):
         """Pass the corresponding signal from the worker, perform related tasks"""
+        self._last_action_succeed = success
         if not success:
             # Clear the queue - stop further execution (cancel planned tasks if an error had happened)
             self.workers_pool.clear()
@@ -506,6 +514,7 @@ class ProjectsList(QAbstractListModel):
             proj_params = list_item_kwargs.get('project_kwargs', {}).get('parameters', {})
             if len(proj_params):
                 self.projects[duplicate_index].logger.info(f"updating parameters from the CLI... {proj_params}")
+                # Note: will save stm32pio.ini even if there was not one
                 self.projects[duplicate_index].run('save_config', [proj_params])
 
             self.goToProject.emit(duplicate_index)  # jump to the existing one
@@ -568,8 +577,8 @@ class ProjectsList(QAbstractListModel):
         project = self.projects.pop(index)
         self.endRemoveRows()
 
-        if project.project is not None:
-            # Re-save the settings only if this project was correct and therefore is saved in the settings
+        # Re-save the settings only if this project is saved in the settings
+        if project.project is not None or project.fromStartup:
             self.saveInSettings()
 
         # It allows the project to be deconstructed (i.e. GC'ed) very soon, not at the app shutdown time

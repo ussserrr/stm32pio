@@ -91,7 +91,7 @@ It may be useful to tweak some parameters before proceeding. The structure of th
 
 You can always run
 ```shell script
-$ python app.py --help
+$ stm32pio --help
 ```
 to see help on available commands. Find the copy of its output on the [project wiki](https://github.com/ussserrr/stm32pio/wiki/stm32pio-help) page, also.
 
@@ -118,7 +118,7 @@ You can also use stm32pio as an ordinary Python package and embed it in your own
 
 ![Code Generator tab](/screenshots/tab_CodeGenerator.png)
 
-3. Back in the first tab (Project) copy the "Toolchain Folder Location" string (you maybe not be able to copy it in modern CubeMX versions so use terminal or file manager to do this). Save the project, close CubeMX
+3. Back in the first tab (Project) copy the "Toolchain Folder Location" string (you may not be able to copy it in modern CubeMX versions so use a terminal or a file manager to do this). Save the project, close CubeMX
 
 ![Project tab](/screenshots/tab_Project.png)
 

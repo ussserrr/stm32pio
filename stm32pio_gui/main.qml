@@ -872,11 +872,11 @@ ApplicationWindow {
                                                     }
                                                 }
                                                 onExited: {
-                                                    // Erase highlighting if this action is last in the series or at all
-                                                    if (project.currentAction === model.action &&
+                                                    // Erase highlighting if this action is the last in the series (or an error occurred)
+                                                    if ((project.currentAction === model.action || !project.lastActionSucceed) &&
                                                         shouldBeHighlightedWhileRunning &&
                                                         (buttonIndex === (projActionsModel.count - 1) ||
-                                                         projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
+                                                         !projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning)
                                                     ) {
                                                         for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                             projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;

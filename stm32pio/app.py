@@ -146,7 +146,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
         if args.subcommand == 'init':
             project = stm32pio.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
                                             instance_options={'save_on_destruction': True})
-            if not args.board:
+            if project.config.get('project', 'board') == '':
                 logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
                                "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
                                "identifier")
@@ -158,6 +158,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
             project = stm32pio.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
                                             instance_options={'save_on_destruction': True})
             if project.config.get('project', 'board') == '':
+                logger.info("project has been initialized. You can now edit stm32pio.ini config file")
                 raise Exception("PlatformIO board identifier is not specified, it is needed for PlatformIO project "
                                 "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
                                 "identifier")

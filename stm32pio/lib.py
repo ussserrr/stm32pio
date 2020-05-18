@@ -194,18 +194,6 @@ class Stm32pio:
         self.ioc_file = self._find_ioc_file(explicit_file=ioc_file)
         self.config.set('project', 'ioc_file', self.ioc_file.name)  # save only the name of file to the config
 
-        # Notify the caller about the board presence
-        if 'board' in parameters and parameters['board'] is not None:
-            try:
-                boards = stm32pio.util.get_platformio_boards(self.config.get('app', 'platformio_cmd'))
-            except Exception as e:
-                self.logger.warning(f"There was an error while obtaining possible PlatformIO boards: {e}",
-                                    exc_info=self.logger.isEnabledFor(logging.DEBUG))
-                boards = []
-            if parameters['board'] not in boards:
-                self.logger.warning(f"'{parameters['board']}' was not found in PlatformIO. "
-                                    "Run 'platformio boards' for possible names")
-
         # Save the config on an instance destruction
         if instance_options['save_on_destruction']:
             self._finalizer = weakref.finalize(self, self._save_config, self.config, self.path, self.logger)
@@ -304,7 +292,8 @@ class Stm32pio:
 
     def _load_config(self, runtime_parameters: Mapping[str, Any] = None) -> configparser.ConfigParser:
         """
-        Prepare ConfigParser config for the project. Order of getting values (masking) (higher levels overwrites lower):
+        Prepare ConfigParser config for the project. Order of getting values (masking) (higher levels overwrites lower,
+        but only if a value is non-empty):
 
             default dict (settings module)  =>  config file stm32pio.ini  =>  user-given (runtime) values
                                                                               (via CLI or another way)
@@ -316,32 +305,24 @@ class Stm32pio:
         if runtime_parameters is None:
             runtime_parameters = {}
 
-        config = configparser.ConfigParser(interpolation=None)
-
         # Fill with default values ...
+        config = configparser.ConfigParser(interpolation=None)
         config.read_dict(copy.deepcopy(stm32pio.settings.config_default))
 
-        # ... then merge with user's config file values (if exist) ...
+        # ... then merge with user's config file (if exist) values ...
         self.logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
-        config.read(self.path.joinpath(stm32pio.settings.config_file_name))
-
         ini_config = configparser.ConfigParser(interpolation=None)
         ini_config.read(self.path.joinpath(stm32pio.settings.config_file_name))
-        runtime_config = configparser.ConfigParser(interpolation=None)
-        runtime_config.read_dict(runtime_parameters)
-
-        if len(ini_config.sections()):
-            if len(runtime_config.sections()):
-                for ini_sect in ini_config.sections():
-                    if runtime_config.has_section(ini_sect):
-                        for ini_key, ini_value in ini_config.items(ini_sect):
-                            if runtime_config.get(ini_sect, ini_key, fallback=None) not in [None, ini_value]:
-                                self.logger.info(f"given '{ini_key}' has taken a precedence over the .ini one")
-        else:
-            self.logger.debug(f"no or empty {stm32pio.settings.config_file_name} config file, will use the default one")
+        ini_config_dict = stm32pio.util.configparser_to_dict(ini_config)
+        ini_config_dict_cleaned = stm32pio.util.cleanup_dict(ini_config_dict)
+        config.read_dict(ini_config_dict_cleaned)
 
         # ... finally merge with the given in this session CLI parameters
-        config.read_dict(runtime_parameters)
+        runtime_config = configparser.ConfigParser(interpolation=None)
+        runtime_config.read_dict(runtime_parameters)
+        runtime_config_dict = stm32pio.util.configparser_to_dict(runtime_config)
+        runtime_config_dict_cleaned = stm32pio.util.cleanup_dict(runtime_config_dict)
+        config.read_dict(runtime_config_dict_cleaned)
 
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow a
         # propagation of this message
@@ -424,8 +405,13 @@ class Stm32pio:
                                                                           project_dir_absolute_path=self.path)
                 cubemx_script.write(cubemx_script_content.encode())  # should encode, since mode='w+b'
 
-                command_arr = [self.config.get('app', 'java_cmd'), '-jar', self.config.get('app', 'cubemx_cmd'), '-q',
-                               cubemx_script_name, '-s']  # -q: read the commands from the file, -s: silent performance
+                command_arr = []
+                java_cmd = self.config.get('app', 'java_cmd')
+                # CubeMX can be invoked straightforwardly, without a need in Java command
+                if java_cmd and java_cmd not in ['None', 'none', 'NONE', 'No', 'no', 'NO', '0']:
+                    command_arr += [self.config.get('app', 'java_cmd'), '-jar']
+                # -q: read the commands from the file, -s: silent performance
+                command_arr += [self.config.get('app', 'cubemx_cmd'), '-q', cubemx_script_name, '-s']
                 # Redirect the output of the subprocess into the logging module (with DEBUG level)
                 with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log:
                     result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
@@ -438,14 +424,13 @@ class Stm32pio:
 
         error_msg = "code generation error"
         if result.returncode == 0:
-            # CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared
-            # and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), should analyze the output
-            if 'Code succesfully generated' in result_output:
+            if stm32pio.settings.cubemx_str_indicating_success in result_output:
                 self.logger.info("successful code generation")
                 return result.returncode
             else:
                 # GUESSING
-                error_lines = [line for line in result_output.splitlines(keepends=True) if '[ERROR]' in line]
+                error_lines = [line for line in result_output.splitlines(keepends=True)
+                               if stm32pio.settings.cubemx_str_indicating_error in line]
                 if len(error_lines):
                     self.logger.error(error_lines, extra={ 'from_subprocess': True })
                     raise Exception(error_msg)

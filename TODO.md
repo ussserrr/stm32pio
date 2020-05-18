@@ -22,7 +22,7 @@
            visitedAfterInstantiating,
 
            actionRunning,
-           lastActionStatus,
+           [+] lastActionStatus,
            visitedAfterAction,
            ...
        }
@@ -36,6 +36,9 @@
  - [ ] Crash on shutdown in Win and Linux (errors such as `[QML] CRITICAL QThread: Destroyed while thread is still running Process finished with exit code 1073741845`)
  - [ ] Linux: Not a monospaced font in the log area
  - [ ] Temporarily pin projects with currently running actions to the top (and stay there on scrolling). See QML Package type
+ - [ ] "Pressed" effect for action buttons
+ - [x] Fix: bold borders remains after an error
+ - [ ] Maybe do not save the stm32pio.ini if there wasn't one (after starting from CLI)
 
 ## Core library
  - [ ] when updating the project (`generate` command), check for boards match
@@ -53,7 +56,12 @@
  - [ ] test using virtualenv
  - [ ] test for different `.ioc` files (i.e. F0, F1, F4 and so on) as it is not the same actually
  - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (shell=True or a list of args (split a string))
- - [ ] cache boards for a small interval of time
+ - [x] cache boards for a small interval of time
  - [ ] count another '-v' as '-v' for PlatformIO calls (slider in GUI settings window)
  - [ ] Project' name (path) can be reused so cannot be used as a unique identifier but so is id(self)? Probably it is better to use a path (human-readable)
- - [ ] Analyze `.ioc` file for the wrong framework/parameters
+ - [x] Analyze `.ioc` file for the wrong framework/parameters
+ - [x] Take out to settings "[ERROR]", "Successful code generation" etc.
+ - [ ] Kill subprocesses if there is no output have appeared for some timeout (i.e. hung)
+ - [x] Fix when '' board string overwrites existing
+ - [x] Allow to not specify a board for `new` when it is already specified in the config
+ - [ ] Maybe logging notifications about which parameters has superseded which

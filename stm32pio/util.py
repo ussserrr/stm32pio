@@ -2,13 +2,17 @@
 Some auxiliary entities not falling into other categories
 """
 
+import collections
+import configparser
 import contextlib
+import copy
 import enum
 import json
 import logging
 import os
 import subprocess
 import threading
+import time
 import traceback
 import warnings
 from typing import Any, List, Mapping, MutableMapping, Tuple, Optional
@@ -176,7 +180,7 @@ class LogPipe(threading.Thread, contextlib.AbstractContextManager):
         self.fd_read, self.fd_write = os.pipe()  # create 2 ends of the pipe and setup the reading one
         self.pipe_reader = os.fdopen(self.fd_read)
 
-        self.rc = LogPipeRC(self.fd_write)  # "remote control"
+        self.rc = LogPipeRC(self.fd_write)  # RC stands for "remote control"
 
     def __enter__(self) -> LogPipeRC:
         """
@@ -203,17 +207,44 @@ class LogPipe(threading.Thread, contextlib.AbstractContextManager):
         os.close(self.fd_write)
 
 
-def get_platformio_boards(platformio_cmd) -> List[str]:
+_pio_boards_cache: List[str] = []
+_pio_boards_fetched_at: float = 0
+
+def get_platformio_boards(platformio_cmd: str) -> List[str]:
     """
-    Obtain the PlatformIO boards list. As we interested only in STM32 ones, cut off all the others.
+    Obtain the PlatformIO boards list. As we interested only in STM32 ones, cut off all the others. In parallel,
+    establish a short-time "cache" time to prevent the overflooding of requests to subprocess.
 
     IMPORTANT NOTE: PlatformIO can go to the Internet from time to time when it decides that its cache is out of date.
-    So it can take a long time to execute.
+    So it MAY take a long time to execute.
     """
 
-    # Windows 7, as usual, correctly works only with shell=True...
-    result = subprocess.run(f"{platformio_cmd} boards --json-output stm32cube",
-                            encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
+    global _pio_boards_fetched_at, _pio_boards_cache
 
-    boards = json.loads(result.stdout)
-    return [board['id'] for board in boards]
+    current_time = time.time()
+    if len(_pio_boards_cache) == 0 or current_time - _pio_boards_fetched_at > 5.0:
+        # Windows 7, as usual, correctly works only with shell=True...
+        result = subprocess.run(f"{platformio_cmd} boards --json-output stm32cube", encoding='utf-8',
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True, check=True)
+        _pio_boards_cache = [board['id'] for board in json.loads(result.stdout)]
+        _pio_boards_fetched_at = current_time
+
+    return copy.copy(_pio_boards_cache)
+
+
+def cleanup_dict(mapping: Mapping[str, Any]) -> dict:
+    """Copy non-empty values to the new dictionary. Return this new dict"""
+    cleaned = {}
+
+    for key, value in mapping.items():
+        if isinstance(value, collections.abc.Mapping):
+            cleaned[key] = cleanup_dict(value)
+        elif value is not None and value != '':
+            cleaned[key] = value
+
+    return cleaned
+
+
+def configparser_to_dict(config: configparser.ConfigParser) -> dict:
+    """Convert configparser.ConfigParser instance to a dictionary"""
+    return {section: {key: value for key, value in config.items(section)} for section in config.sections()}
