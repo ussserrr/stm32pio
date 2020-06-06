@@ -11,10 +11,7 @@ config_default = collections.OrderedDict(
     app={
         'java_cmd': 'java',
         'platformio_cmd': 'platformio',
-        'cubemx_cmd':
-            str(pathlib.Path.home().joinpath("cubemx/STM32CubeMX.exe")) if my_os in ['Linux', 'Darwin'] else
-            # Windows default: Program Files
-            "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe" if my_os == 'Windows' else None
+        'cubemx_cmd': str(pathlib.Path.home().joinpath("cubemx/STM32CubeMX.exe"))
     } if os.environ.get('CONTINUOUS_INTEGRATION') else {
         # (default is OK) How do you start Java from the command line? (edit if Java not in PATH). Set to 'None'
         # (string) if in your setup the CubeMX can be invoked straightforwardly
