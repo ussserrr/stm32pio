@@ -1,44 +1,43 @@
+language: python
 install:
   - pip3 install platformio
   - wget https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
   - unzip -q stm32cube_mx_v561.zip -d ~/cubemx
 jobs:
   include:
-    - name: "Ubuntu Python 3.6"
-      language: python
-      python: "3.6"
-      services:
-        - xvfb
-      script:
-        - xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
-    - name: "Ubuntu Python 3.7"
-      language: python
-      python: "3.7"
-      services:
-        - xvfb
-      script:
-        - xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
-    - name: "Ubuntu Python 3.8"
-      language: python
-      python: "3.8"
-      services:
-        - xvfb
-      script:
-        - xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
-
-    - name: "macOS"
-      os: osx
-      osx_image: xcode11.3
-      language: shell
-      script:
-        - python3 -m unittest -b -v
-
-#    - name: "Windows"
-#      os: windows
-#      language: shell
-#      before_install:
-#        - choco install python
-#        - python -m pip install --upgrade pip
-#      env: PATH=/c/Python38:/c/Python38/Scripts:$PATH
+#    - name: "Ubuntu Python 3.6"
+#      python: "3.6"
+#      services:
+#        - xvfb
 #      script:
-#        - python -m unittest -b -v
+#        - xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
+#    - name: "Ubuntu Python 3.7"
+#      python: "3.7"
+#      services:
+#        - xvfb
+#      script:
+#        - xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
+#    - name: "Ubuntu Python 3.8"
+#      python: "3.8"
+#      services:
+#        - xvfb
+#      script:
+#        - xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
+#
+#    - name: "macOS"
+#      os: osx
+#      osx_image: xcode11.3
+#      language: shell
+#      script:
+#        - python3 -m unittest -b -v
+
+    - name: "Windows"
+      os: windows
+      language: shell
+      install:
+        - choco install python javaruntime
+        - pip install platformio
+        - wget https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
+        - 7z x -oC:\Users\travis\cubemx C:\Users\travis\Downloads\stm32cube_mx_v561.zip
+      script:
+        - python -m unittest -b -v
