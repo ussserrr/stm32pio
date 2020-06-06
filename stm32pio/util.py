@@ -224,8 +224,8 @@ def get_platformio_boards(platformio_cmd: str) -> List[str]:
     current_time = time.time()
     if len(_pio_boards_cache) == 0 or current_time - _pio_boards_fetched_at > 5.0:
         # Windows 7, as usual, correctly works only with shell=True...
-        result = subprocess.run(f"{platformio_cmd} boards --json-output stm32cube", encoding='utf-8',
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True, check=True)
+        result = subprocess.run(f"{platformio_cmd} boards --json-output stm32cube", encoding='utf-8', shell=True,
+                                stdout=subprocess.PIPE, check=True)
         _pio_boards_cache = [board['id'] for board in json.loads(result.stdout)]
         _pio_boards_fetched_at = current_time
 
