@@ -1,0 +1,11 @@
+language: python
+python:
+  - "3.6"
+  - "3.7"
+  - "3.8"
+install:
+  - pip install platformio
+  - wget https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
+  - unzip -q stm32cube_mx_v561.zip -d ~/cubemx
+script:
+  - python -m unittest -b -v
