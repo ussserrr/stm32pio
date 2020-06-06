@@ -34,8 +34,11 @@ jobs:
     - name: "Windows"
       os: windows
       language: shell
+      before_install:
+        - choco install python --version 3.8.3
+        - python -m pip install --upgrade pip
+      env: PATH=/c/Python38:/c/Python38/Scripts:$PATH
       install:
-        - choco install python
         - python -m pip install platformio
         - wget https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
         - 7z x -oC:\Users\travis\cubemx C:\Users\travis\Downloads\stm32cube_mx_v561.zip
