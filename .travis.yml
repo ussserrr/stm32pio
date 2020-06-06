@@ -1,13 +1,32 @@
-language: python
-python:
-  - "3.6"
-  - "3.7"
-  - "3.8"
-services:
-  - xvfb
 install:
-  - pip install platformio
+  - pip3 install platformio
   - wget https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
   - unzip -q stm32cube_mx_v561.zip -d ~/cubemx
-script:
-  - xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
+jobs:
+  include:
+    - name: "Ubuntu"
+      python:
+        - "3.6"
+        - "3.7"
+        - "3.8"
+      services:
+        - xvfb
+      script:
+        - xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
+
+    - name: "macOS"
+      os: osx
+      osx_image: xcode11.3
+      language: shell
+      script:
+        - python3 -m unittest -b -v
+
+#    - name: "Windows"
+#      os: windows
+#      language: shell
+#      before_install:
+#        - choco install python
+#        - python -m pip install --upgrade pip
+#      env: PATH=/c/Python38:/c/Python38/Scripts:$PATH
+#      script:
+#        - python -m unittest -b -v

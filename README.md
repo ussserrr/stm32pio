@@ -1,4 +1,7 @@
 # stm32pio
+
+[![Build Status](https://travis-ci.org/ussserrr/stm32pio.svg?branch=master)](https://travis-ci.org/ussserrr/stm32pio)
+
 Small cross-platform Python app that can create and update [PlatformIO](https://platformio.org) projects from [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html) `.ioc` files.
 
 It uses STM32CubeMX to generate a HAL-framework-based code and alongside creates PlatformIO project with compatible parameters to stick them both together.
