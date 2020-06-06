@@ -4,12 +4,23 @@ install:
   - unzip -q stm32cube_mx_v561.zip -d ~/cubemx
 jobs:
   include:
-    - name: "Ubuntu"
+    - name: "Ubuntu Python 3.6"
       language: python
-      python:
-        - "3.6"
-        - "3.7"
-        - "3.8"
+      python: "3.6"
+      services:
+        - xvfb
+      script:
+        - xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
+    - name: "Ubuntu Python 3.7"
+      language: python
+      python: "3.7"
+      services:
+        - xvfb
+      script:
+        - xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
+    - name: "Ubuntu Python 3.8"
+      language: python
+      python: "3.8"
       services:
         - xvfb
       script:
