@@ -41,6 +41,6 @@ jobs:
       install:
         - python -m pip install platformio
         - wget https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
-        - 7z x -o/c/Users/travis/cubemx /c/Users/travis/Downloads/stm32cube_mx_v561.zip
+        - 7z x -o/c/Users/travis/cubemx stm32cube_mx_v561.zip
       script:
         - python -m unittest -b -v
