@@ -9,37 +9,66 @@ trigger:
 variables:
   CONTINUOUS_INTEGRATION: true
 
-pool:
-  vmImage: 'ubuntu-latest'
-strategy:
-  matrix:
-    Python36:
-      python.version: '3.6'
-    Python37:
-      python.version: '3.7'
-    Python38:
-      python.version: '3.8'
+jobs:
+  - job: 'Ubuntu'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      matrix:
+        Python36:
+          python.version: '3.6'
+        Python37:
+          python.version: '3.7'
+        Python38:
+          python.version: '3.8'
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '$(python.version)'
+      displayName: 'Use Python $(python.version)'
 
-steps:
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '$(python.version)'
-  displayName: 'Use Python $(python.version)'
+    - script: |
+        sudo apt update
+        sudo apt install xvfb
+        sudo systemctl start xvfb
+        export DISPLAY=:99.0
+      displayName: 'Set up virtual frame buffer'
 
-- script: |
-    sudo apt update
-    sudo apt install xvfb
-    sudo systemctl start xvfb
-    export DISPLAY=:99.0
-  displayName: 'Set up virtual frame buffer'
+    - script: |
+        python -m pip install --upgrade pip
+        pip install platformio
+        wget https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
+        unzip -q stm32cube_mx_v561.zip -d ~/cubemx
+      displayName: 'Install tools'
 
-- script: |
-    python -m pip install --upgrade pip
-    pip install platformio
-    wget https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
-    unzip -q stm32cube_mx_v561.zip -d ~/cubemx
-  displayName: 'Install tools'
+    - script: |
+        xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
+      displayName: 'Test (unittest)'
 
-- script: |
-    xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
-  displayName: 'Test (unittest)'
+  - job: 'Windows'
+    pool:
+      vmImage: 'windows-latest'
+    strategy:
+      matrix:
+        Python36:
+          python.version: '3.6'
+        Python37:
+          python.version: '3.7'
+        Python38:
+          python.version: '3.8'
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '$(python.version)'
+      displayName: 'Use Python $(python.version)'
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install platformio
+        Invoke-WebRequest https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip -OutFile stm32cube_mx_v561.zip
+        7z x -ocubemx stm32cube_mx_v561.zip
+      displayName: 'Install tools'
+
+    - script: |
+        python -m unittest -b -v
+      displayName: 'Test (unittest)'
