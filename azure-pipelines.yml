@@ -6,6 +6,9 @@
 trigger:
 - dev
 
+variables:
+  CONTINUOUS_INTEGRATION: true
+
 pool:
   vmImage: 'ubuntu-latest'
 strategy:
@@ -26,8 +29,10 @@ steps:
 - script: |
     python -m pip install --upgrade pip
     pip install platformio
+    wget https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
+    unzip -q stm32cube_mx_v561.zip -d ~/cubemx
   displayName: 'Install tools'
 
 - script: |
     python -m unittest -b -v
-  displayName: 'pytest'
+  displayName: 'Test (unittest)'
