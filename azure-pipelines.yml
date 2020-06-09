@@ -7,10 +7,10 @@ trigger:
 - dev
 
 variables:
-- name: cubemx_link
-  value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
-- name: cubemx_archive_filename
-  value: stm32cube_mx_v561.zip
+  - name: cubemx_link
+    value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
+  - name: cubemx_archive_filename
+    value: stm32cube_mx_v561.zip
 
 jobs:
   - job: 'Ubuntu'
@@ -55,10 +55,10 @@ jobs:
       matrix:
         Python36:
           python.version: '3.6'
-         Python37:
-           python.version: '3.7'
-         Python38:
-           python.version: '3.8'
+        Python37:
+          python.version: '3.7'
+        Python38:
+          python.version: '3.8'
     steps:
     - task: UsePythonVersion@0
       inputs:
