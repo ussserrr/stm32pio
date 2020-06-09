@@ -62,11 +62,11 @@ jobs:
         versionSpec: '$(python.version)'
       displayName: 'Use Python $(python.version)'
 
-    - script: |
+    - powershell: |
+        Invoke-WebRequest https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip -OutFile $(Agent.HomeDirectory)\stm32cube_mx_v561.zip
+        7z x -o$(Agent.HomeDirectory)\cubemx stm32cube_mx_v561.zip
         python -m pip install --upgrade pip
         pip install platformio
-        Invoke-WebRequest https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip -OutFile stm32cube_mx_v561.zip
-        7z x -ocubemx stm32cube_mx_v561.zip
       displayName: 'Install tools'
 
     - script: |
