@@ -12,7 +12,7 @@ config_default = collections.OrderedDict(
         'java_cmd': 'java',
         'platformio_cmd': 'platformio',
         'cubemx_cmd': str(pathlib.Path(os.getenv('AGENT_TOOLSDIRECTORY', '~')).joinpath("cubemx/STM32CubeMX.exe"))
-    } if os.environ.get('CONTINUOUS_INTEGRATION') else {
+    } if os.environ.get('AGENT_TOOLSDIRECTORY') is not None else {
         # (default is OK) How do you start Java from the command line? (edit if Java not in PATH). Set to 'None'
         # (string) if in your setup the CubeMX can be invoked straightforwardly
         'java_cmd': 'java',
