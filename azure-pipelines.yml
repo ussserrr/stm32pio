@@ -7,12 +7,14 @@ trigger:
 - dev  # TODO
 
 variables:
+  - name: cubemx_version
+    value: 561
   - name: cubemx_cache_folder
     value: $(Pipeline.Workspace)/cubemx  # cross-platform location
-  - name: cubemx_zip_filename
-    value: stm32cube_mx_v561.zip  # TODO set version for CubeMX cache
+#  - name: cubemx_zip_filename
+#    value: stm32cube_mx_v$(cubemx_version).zip  # TODO set version for CubeMX cache
   - name: cubemx_link
-    value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
+    value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v$(cubemx_version).zip
 
 stages:
   - stage: Test
@@ -42,15 +44,15 @@ stages:
 
         - task: Cache@1
           inputs:
-            key: cubemx
-            restoreKeys: cubemx
+            key: 'cubemx | "$(CUBEMX_VERSION)"'
+            restoreKeys: 'cubemx | "$(CUBEMX_VERSION)"'  # we want an exact match
             path: ${{ variables.cubemx_cache_folder }}
             cacheHitVar: CUBEMX_CACHE_RESTORED
           displayName: 'Restore CubeMX cache'
 
         - script: |
-            wget ${{ variables.cubemx_link }}
-            unzip -q ${{ variables.cubemx_zip_filename }} -d ${{ variables.cubemx_cache_folder }}
+            wget -O cubemx_${{ variables.cubemx_version }}.zip ${{ variables.cubemx_link }}
+            unzip -q cubemx_${{ variables.cubemx_version }}.zip -d ${{ variables.cubemx_cache_folder }}
           condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
           displayName: 'Download & unzip CubeMX'
 
