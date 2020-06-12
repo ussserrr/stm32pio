@@ -1,6 +1,6 @@
 # stm32pio
 
-[![Build Status](https://travis-ci.org/ussserrr/stm32pio.svg?branch=master)](https://travis-ci.org/ussserrr/stm32pio)
+[![Build Status](https://dev.azure.com/andrei42008/stm32pio/_apis/build/status/ussserrr.stm32pio?branchName=dev)](https://dev.azure.com/andrei42008/stm32pio/_build/latest?definitionId=1&branchName=dev)
 
 Small cross-platform Python app that can create and update [PlatformIO](https://platformio.org) projects from [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html) `.ioc` files.
 
@@ -31,7 +31,7 @@ The [GUI version](/stm32pio_gui) is available, too.
   - Get the status information
   - *[optional]* Automatically run your favorite editor in the end
   - *[optional]* Automatically make an initial build of the project
-  - *[optional]* GUI version (beta) (see stm32pio-gui sub-folder for the dedicated README)
+  - *[optional]* GUI version (see stm32pio-gui sub-folder for the dedicated README)
 
 
 ## Requirements:

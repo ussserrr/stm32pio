@@ -47,7 +47,7 @@ $ stm32pio_gui -d ./sample-project -b discovery_f4
 
 ## Usage
 
-Add a folder with the `.ioc` file to begin with. You can either use an "Add" button or drag-and-drop it into the main window, in the latter case you can also have an ability to add multiple projects simultaneously. If the project is empty the initialization screen will be shown to help in setup:
+Add a folder with the `.ioc` file to begin with. You can either use an "Add" button or drag-and-drop it into the main window, in the latter case you also have an ability to add multiple projects simultaneously. If the project is empty the initialization screen will be shown to help in setup:
 
 ![Init](screenshots/init_screen.png)
 
