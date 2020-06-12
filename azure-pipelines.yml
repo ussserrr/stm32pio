@@ -7,15 +7,15 @@ trigger:
 - dev  # TODO
 
 variables:
-  - name: cubemx_link
-    value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
   - name: cubemx_zip_filename
     value: stm32cube_mx_v561.zip
+  - name: cubemx_link
+    value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v561.zip
 
 jobs:
   - job: 'Ubuntu'
     variables:
-      CUBEMX_ZIP_CACHE: $(Agent.ToolsDirectory)/stm32cube_mx_v561.zip
+      CUBEMX_ZIP_CACHE: $(Agent.ToolsDirectory)/${{ variables.cubemx_zip_filename }}
     pool:
       vmImage: 'ubuntu-latest'
     strategy:
@@ -44,19 +44,20 @@ jobs:
         restoreKeys: cubemx
         path: $(CUBEMX_ZIP_CACHE)
         cacheHitVar: CUBEMX_CACHE_RESTORED
-      displayName: Cache CubeMX archive
+      displayName: Restore CubeMX cache
 
     - script: wget -O $(CUBEMX_ZIP_CACHE) ${{ variables.cubemx_link }}
       condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
+      displayName: Cache CubeMX
 
     - script: |
         pip install platformio
-        unzip -q ${{ variables.cubemx_zip_filename }} -d $(Agent.ToolsDirectory)/cubemx
+        unzip -q $(CUBEMX_ZIP_CACHE) -d $(Agent.ToolsDirectory)/cubemx
       displayName: 'Install tools'
 
     - script: |
         xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
-      displayName: 'Test (unittest)'
+      displayName: 'Test'
 
 
 #  - job: 'Windows'
