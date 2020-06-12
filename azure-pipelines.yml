@@ -4,15 +4,14 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
 trigger:
-- dev  # TODO
+- master
+- dev
 
 variables:
   - name: cubemx_version
-    value: 561
+    value: 560
   - name: cubemx_cache_folder
     value: $(Pipeline.Workspace)/cubemx  # cross-platform location
-#  - name: cubemx_zip_filename
-#    value: stm32cube_mx_v$(cubemx_version).zip  # TODO set version for CubeMX cache
   - name: cubemx_link
     value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v$(cubemx_version).zip
 
@@ -61,7 +60,7 @@ stages:
           displayName: 'Install tools'
 
         - script: |
-            xvfb-run --auto-servernum --server-num=1 python -m unittest -b -v
+            xvfb-run --auto-servernum --server-num=1 python -m unittest
           displayName: 'Test'
 
 
@@ -101,8 +100,8 @@ stages:
           displayName: 'Install tools'
 
         - script: |
-            python -m unittest -b -v
-          displayName: 'Test (unittest)'
+            python -m unittest
+          displayName: 'Test'
 
 
       - job: 'macOS'
@@ -141,11 +140,17 @@ stages:
           displayName: 'Install tools'
 
         - script: |
-            python -m unittest -b -v
-          displayName: 'Test (unittest)'
+            python -m unittest
+          displayName: 'Test'
 
 
 #  - stage: Build
+#    jobs:
+#      - job: 'Wheel'
+#        steps:
+#        - script: |
+#            pip install wheel
+#            python setup.py sdist bdist_wheel
 
 
 #  - stage: Deploy
