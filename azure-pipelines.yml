@@ -15,7 +15,7 @@ variables:
 jobs:
   - job: 'Ubuntu'
     variables:
-      CUBEMX_ZIP_CACHE: $(Agent.ToolsDirectory)/${{ variables.cubemx_zip_filename }}
+      CUBEMX_CACHE: $(Agent.ToolsDirectory)/cubemx
     pool:
       vmImage: 'ubuntu-latest'
     strategy:
@@ -40,19 +40,20 @@ jobs:
 
     - task: Cache@1
       inputs:
-        key: 'cubemx'
+        key: cubemx
         restoreKeys: cubemx
-        path: $(CUBEMX_ZIP_CACHE)
+        path: $(CUBEMX_CACHE)
         cacheHitVar: CUBEMX_CACHE_RESTORED
-      displayName: Restore CubeMX cache
+      displayName: 'Restore CubeMX cache'
 
-    - script: wget -O $(CUBEMX_ZIP_CACHE) ${{ variables.cubemx_link }}
+    - script: |
+        wget ${{ variables.cubemx_link }}
+        unzip -q ${{ variables.cubemx_zip_filename }} -d $(CUBEMX_CACHE)
       condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
-      displayName: Cache CubeMX
+      displayName: 'Download $ unzip CubeMX'
 
     - script: |
         pip install platformio
-        unzip -q $(CUBEMX_ZIP_CACHE) -d $(Agent.ToolsDirectory)/cubemx
       displayName: 'Install tools'
 
     - script: |
