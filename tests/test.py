@@ -9,7 +9,9 @@ https://github.com/pyenv/pyenv
 https://www.tecmint.com/pyenv-install-and-manage-multiple-python-versions-in-linux/
 
 To get the test coverage install and use 'coverage' package:
-    $  coverage run -m stm32pio.tests.test -b
+    $  coverage run -m tests.test -b
+    $  # or
+    $  coverage run -m unittest -b
     $  coverage html
 """
 
