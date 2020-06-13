@@ -163,7 +163,13 @@ stages:
   - stage: Build
     jobs:
       - job: 'Pack'
+        pool:
+          vmImage: 'ubuntu-latest'
         steps:
+        - task: UsePythonVersion@0
+          inputs:
+            versionSpec: '3.8'
+
         - script: |
             pip install wheel
             python setup.py sdist bdist_wheel
@@ -177,6 +183,10 @@ stages:
           inputs:
             pathToPublish: $(Build.ArtifactStagingDirectory)
             artifactName: dist
+
+        - script: |
+            ls $(Build.ArtifactStagingDirectory)
+            ls $(Build.ArtifactStagingDirectory)/dist
 
 #  - stage: Deploy
 #    jobs:
