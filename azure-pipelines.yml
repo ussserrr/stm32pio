@@ -62,23 +62,23 @@ stages:
             pip install platformio pytest pytest-cov
           displayName: 'Install tools'
 
-        - script: |
-            printf "[pytest]\njunit_family = xunit2\n" > pytest.ini
-            xvfb-run pytest tests --junitxml=junit/test-results.xml --cov=stm32pio --cov-branch --cov-report=xml
-            coverage report
-          displayName: 'Test & coverage'
+#        # Use temp pytest config file to specify correct output format
+#        - script: |
+#            printf "[pytest]\njunit_family = xunit2\n" > pytest.ini
+#            xvfb-run pytest tests --junitxml=junit/test-results.xml --cov=stm32pio --cov-branch --cov-report=xml
+#          displayName: 'Test & coverage'
+#
+#        - task: PublishTestResults@2
+#          condition: succeededOrFailed()
+#          inputs:
+#            testResultsFiles: '**/test-*.xml'
+#            testRunTitle: 'Publish test results for Python $(python.version) (Ubuntu)'
+#
+#        - task: PublishCodeCoverageResults@1
+#          inputs:
+#            codeCoverageTool: Cobertura
+#            summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
 
-        - task: PublishTestResults@2
-          condition: succeededOrFailed()
-          inputs:
-            testResultsFiles: '**/test-*.xml'
-            testRunTitle: 'Publish test results for Python $(python.version) (Ubuntu)'
-
-        - task: PublishCodeCoverageResults@1
-          inputs:
-            codeCoverageTool: Cobertura
-            summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
-#            reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
 
 #      - job: 'Windows'
 #        pool:
@@ -160,14 +160,23 @@ stages:
 #          displayName: 'Test'
 
 
-#  - stage: Build
-#    jobs:
-#      - job: 'Wheel'
-#        steps:
-#        - script: |
-#            pip install wheel
-#            python setup.py sdist bdist_wheel
+  - stage: Build
+    jobs:
+      - job: 'Pack'
+        steps:
+        - script: |
+            pip install wheel
+            python setup.py sdist bdist_wheel
 
+        - task: CopyFiles@2
+          inputs:
+            contents: dist/**
+            targetFolder: $(Build.ArtifactStagingDirectory)
+
+        - task: PublishBuildArtifacts@1
+          inputs:
+            pathToPublish: $(Build.ArtifactStagingDirectory)
+            artifactName: dist
 
 #  - stage: Deploy
 #    jobs:

@@ -9,10 +9,12 @@ https://github.com/pyenv/pyenv
 https://www.tecmint.com/pyenv-install-and-manage-multiple-python-versions-in-linux/
 
 To get the test coverage install and use 'coverage' package:
-    $  coverage run -m tests.test -b
-    $  # or
     $  coverage run -m unittest -b
     $  coverage html
+
+This will not cover subprocess calls, though. To get them covered too, use pytest and its pytest-cov plugin
+    $  pip install pytest pytest-cov
+    $  pytest --cov=stm32pio --cov-branch --cov-report=html
 """
 
 import inspect
