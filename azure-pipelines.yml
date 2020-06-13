@@ -63,8 +63,8 @@ stages:
           displayName: 'Install tools'
 
         - script: |
-            xvfb-run pytest tests --junitxml=junit/test-results.xml --cov=stm32pio --cov-branch
-            coverage report
+            printf "[pytest]\njunit_family = xunit2\n" > pytest.ini
+            xvfb-run pytest tests --junitxml=junit/test-results.xml --cov=stm32pio --cov-branch --cov-report=xml
           displayName: 'Test & coverage'
 
         - task: PublishTestResults@2
