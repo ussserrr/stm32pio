@@ -63,7 +63,7 @@ stages:
           displayName: 'Install tools'
 
         - script: |
-            xvfb-run --auto-servernum --server-num=1 pytest --doctest-modules --junitxml=junit/test-results.xml --cov=stm32pio --cov-report=xml --cov-report=html
+            xvfb-run --auto-servernum --server-num=1 pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=stm32pio --cov-branch --cov-report=xml
             coverage report
           displayName: 'Test & coverage'
 
