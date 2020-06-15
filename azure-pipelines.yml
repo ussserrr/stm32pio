@@ -169,7 +169,7 @@ stages:
         - task: UsePythonVersion@0
           inputs:
             versionSpec: '3.8'
-          displayName: 'Use Python $(python.version)'
+          displayName: 'Use Ubuntu Python38'
 
         - script: |
             pip install wheel

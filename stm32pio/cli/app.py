@@ -4,6 +4,7 @@
 __version__ = '1.30'
 
 import argparse
+import contextlib
 import inspect
 import logging
 import pathlib
@@ -11,14 +12,19 @@ import sys
 from typing import Optional, List
 
 try:
-    import stm32pio.settings
-    import stm32pio.lib
-    import stm32pio.util
+    import stm32pio.core.settings
+    import stm32pio.core.lib
+    import stm32pio.core.util
 except ModuleNotFoundError:
-    sys.path.append(str(pathlib.Path(sys.path[0]).parent))  # hack to be able to run the app as 'python app.py'
-    import stm32pio.settings
-    import stm32pio.lib
-    import stm32pio.util
+    sys.path.append(str(pathlib.Path(sys.path[0]).parent.parent))  # hack to be able to run the app as 'python app.py'
+    import stm32pio.core.settings
+    import stm32pio.core.lib
+    import stm32pio.core.util
+
+# CLI version is not responsible for the GUI one. And though they are normally shipped together we're silently ignore
+# errors here (also see the actual invocation below)
+with contextlib.suppress(ImportError):
+    import stm32pio.gui.app
 
 
 def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
@@ -95,12 +101,12 @@ def setup_logging(args_verbose_counter: int = 0, dummy: bool = False) -> logging
         logger = logging.getLogger('stm32pio')
         logger.setLevel(logging.DEBUG if args_verbose_counter else logging.INFO)
         handler = logging.StreamHandler()
-        formatter = stm32pio.util.DispatchingFormatter(
-            verbosity=stm32pio.util.Verbosity.VERBOSE if args_verbose_counter else stm32pio.util.Verbosity.NORMAL,
+        formatter = stm32pio.core.util.DispatchingFormatter(
+            verbosity=stm32pio.core.util.Verbosity.VERBOSE if args_verbose_counter else stm32pio.core.util.Verbosity.NORMAL,
             general={
-                stm32pio.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
-                stm32pio.util.Verbosity.VERBOSE: logging.Formatter(
-                    f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s")
+                stm32pio.core.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
+                stm32pio.core.util.Verbosity.VERBOSE: logging.Formatter(
+                    f"%(levelname)-8s %(funcName)-{stm32pio.core.settings.log_fieldwidth_function}s %(message)s")
             })
         handler.setFormatter(formatter)
         logger.addHandler(handler)
@@ -132,9 +138,13 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
     args = parse_args(sys_argv)
 
     if args is not None and args.subcommand == 'gui':
-        import stm32pio_gui.app
         gui_args = [arg for arg in sys_argv if arg != 'gui']
-        return stm32pio_gui.app.main(sys_argv=gui_args)
+        if hasattr(stm32pio, 'gui') and hasattr(stm32pio.gui, 'app') and hasattr(stm32pio.gui.app, 'main'):
+            return stm32pio.gui.app.main(sys_argv=gui_args)
+        else:
+            print("GUI version is not present. Probably your installation is corrupted. Try to re-install the stm32pio "
+                  "as: pip install stm32pio[GUI]")
+            return -1
     elif args is not None and args.subcommand is not None:
         logger = setup_logging(args_verbose_counter=args.verbose, dummy=not should_setup_logging)
     else:
@@ -144,8 +154,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
     # Main routine
     try:
         if args.subcommand == 'init':
-            project = stm32pio.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
-                                            instance_options={'save_on_destruction': True})
+            project = stm32pio.core.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
+                                                 instance_options={'save_on_destruction': True})
             if project.config.get('project', 'board') == '':
                 logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
                                "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
@@ -155,8 +165,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'new':
-            project = stm32pio.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
-                                            instance_options={'save_on_destruction': True})
+            project = stm32pio.core.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
+                                                 instance_options={'save_on_destruction': True})
             if project.config.get('project', 'board') == '':
                 logger.info("project has been initialized. You can now edit stm32pio.ini config file")
                 raise Exception("PlatformIO board identifier is not specified, it is needed for PlatformIO project "
@@ -171,7 +181,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'generate':
-            project = stm32pio.lib.Stm32pio(args.path)
+            project = stm32pio.core.lib.Stm32pio(args.path)
             project.generate_code()
             if args.with_build:
                 project.build()
@@ -179,11 +189,11 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'status':
-            project = stm32pio.lib.Stm32pio(args.path)
+            project = stm32pio.core.lib.Stm32pio(args.path)
             print(project.state)
 
         elif args.subcommand == 'clean':
-            project = stm32pio.lib.Stm32pio(args.path)
+            project = stm32pio.core.lib.Stm32pio(args.path)
             if args.quiet:
                 project.clean()
             else:
@@ -199,7 +209,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
 
     # Library is designed to throw the exception in bad cases so we catch here globally
     except Exception:
-        stm32pio.util.log_current_exception(logger)
+        stm32pio.core.util.log_current_exception(logger)
         return -1
 
     return 0

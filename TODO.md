@@ -7,6 +7,8 @@
  - [ ] Create VSCode plugin
  - [ ] UML diagrams (core, GUI back- and front-ends, thread flows, events, etc.)
  - [ ] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker one in Azure Pipelines, basic at Travis CI
+ - [ ] In the future, probably use https://setuptools.readthedocs.io/en/latest/setuptools.html#accessing-data-files-at-runtime `importlib.resources` as a standard API to access non-Python files inside Python packages (such as `.qml`)
+ - [ ] Use some features of newer Pythons after dropping the support for 3.6 (and so on)
 
 ## GUI version
  - [ ] Obtain boards on demand (not at the startup)

@@ -34,19 +34,19 @@ except ImportError as e:
 ROOT_PATH = pathlib.Path(sys.path[0]).parent  # repo's or the site-package's root
 MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. stm32pio-repo/stm32pio_gui/
 try:
-    import stm32pio.settings
-    import stm32pio.lib
-    import stm32pio.util
-    import stm32pio.app
+    import stm32pio.core.settings
+    import stm32pio.core.lib
+    import stm32pio.core.util
+    import stm32pio.cli.app
 except ModuleNotFoundError:
     sys.path.insert(0, str(ROOT_PATH))
-    import stm32pio.settings
-    import stm32pio.lib
-    import stm32pio.util
-    import stm32pio.app
+    import stm32pio.core.settings
+    import stm32pio.core.lib
+    import stm32pio.core.util
+    import stm32pio.cli.app
 
 
-ProjectID = int
+ProjectID = type(id(object))
 
 
 class BuffersDispatchingHandler(logging.Handler):
@@ -76,7 +76,7 @@ class LoggingWorker(QObject):
     """
     QObject living in a separate QThread, logging everything it receiving. Intended to be an attached
     ProjectListItem property. Stringifies log records using global BuffersDispatchingHandler instance (its
-    stm32pio.util.DispatchingFormatter, to be precise) and passes them via Qt Signal interface so they can be
+    stm32pio.core.util.DispatchingFormatter, to be precise) and passes them via Qt Signal interface so they can be
     conveniently received by any Qt entity. Also, the level of the message is attaching so the reader can
     interpret them differently.
 
@@ -155,7 +155,7 @@ class ProjectListItem(QObject):
         self._from_startup = from_startup
 
         underlying_logger = logging.getLogger('stm32pio_gui.projects')
-        self.logger = stm32pio.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
+        self.logger = stm32pio.core.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
         self.logging_worker = LoggingWorker(project_id=id(self))
         self.logging_worker.sendLog.connect(self.logAdded)
 
@@ -198,9 +198,9 @@ class ProjectListItem(QObject):
             **kwargs: keyword arguments of the Stm32pio constructor
         """
         try:
-            self.project = stm32pio.lib.Stm32pio(*args, **kwargs)
+            self.project = stm32pio.core.lib.Stm32pio(*args, **kwargs)
         except Exception:
-            stm32pio.util.log_current_exception(self.logger)
+            stm32pio.core.util.log_current_exception(self.logger)
             if len(args):
                 self._name = args[0]  # use a project path string (as it should be a first argument) as a name
             else:
@@ -274,7 +274,7 @@ class ProjectListItem(QObject):
             # to necessarily keeps them separated
             self._current_stage = str(state.current_stage)
 
-            state.pop(stm32pio.lib.ProjectStage.UNDEFINED)  # exclude UNDEFINED key
+            state.pop(stm32pio.core.lib.ProjectStage.UNDEFINED)  # exclude UNDEFINED key
             # Convert to {string: boolean} dict (will be translated into the JavaScript object)
             return { stage.name: value for stage, value in state.items() }
         else:
@@ -386,7 +386,7 @@ class Worker(QObject, QRunnable):
             result = self.func(*self.args)
         except Exception:
             if self.logger is not None:
-                stm32pio.util.log_current_exception(self.logger)
+                stm32pio.core.util.log_current_exception(self.logger)
             result = -1
 
         if result is None or (type(result) == int and result == 0):
@@ -654,7 +654,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     parser = argparse.ArgumentParser(description=inspect.cleandoc('''lala'''))
 
     # Global arguments (there is also an automatically added '-h, --help' option)
-    parser.add_argument('--version', action='version', version=f"stm32pio v{stm32pio.app.__version__}")
+    parser.add_argument('--version', action='version', version=f"stm32pio v{stm32pio.cli.app.__version__}")
 
     parser.add_argument('-d', '--directory', dest='path', default=str(pathlib.Path.cwd()),
         help="path to the project (current directory, if not given, but any other option should be specified then)")
@@ -719,7 +719,7 @@ def main(sys_argv: List[str] = None) -> int:
         module_logger.setLevel(logging.DEBUG if value else logging.INFO)
         qml_logger.setLevel(logging.DEBUG if value else logging.INFO)
         projects_logger.setLevel(logging.DEBUG if value else logging.INFO)
-        formatter.verbosity = stm32pio.util.Verbosity.VERBOSE if value else stm32pio.util.Verbosity.NORMAL
+        formatter.verbosity = stm32pio.core.util.Verbosity.VERBOSE if value else stm32pio.core.util.Verbosity.NORMAL
 
     settings = Settings(prefix='app/settings/', qs_kwargs={ 'parent': app },
                         external_triggers={ 'verbose': verbose_setter })
@@ -727,11 +727,11 @@ def main(sys_argv: List[str] = None) -> int:
     # Use "singleton" real logger for all projects just wrapping it into the LoggingAdapter for every project
     projects_logger = logging.getLogger('stm32pio_gui.projects')
     projects_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
-    formatter = stm32pio.util.DispatchingFormatter(
+    formatter = stm32pio.core.util.DispatchingFormatter(
         general={
-            stm32pio.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
-            stm32pio.util.Verbosity.VERBOSE: logging.Formatter(
-                f"%(levelname)-8s %(funcName)-{stm32pio.settings.log_fieldwidth_function}s %(message)s")
+            stm32pio.core.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
+            stm32pio.core.util.Verbosity.VERBOSE: logging.Formatter(
+                f"%(levelname)-8s %(funcName)-{stm32pio.core.settings.log_fieldwidth_function}s %(message)s")
         })
     projects_logger_handler.setFormatter(formatter)
     projects_logger.addHandler(projects_logger_handler)
@@ -755,8 +755,8 @@ def main(sys_argv: List[str] = None) -> int:
     projects_model = ProjectsList(parent=engine)
     boards_model = QStringListModel(parent=engine)
 
-    engine.rootContext().setContextProperty('appVersion', stm32pio.app.__version__)
-    engine.rootContext().setContextProperty('Logging', stm32pio.util.logging_levels)
+    engine.rootContext().setContextProperty('appVersion', stm32pio.cli.app.__version__)
+    engine.rootContext().setContextProperty('Logging', stm32pio.core.util.logging_levels)
     engine.rootContext().setContextProperty('projectsModel', projects_model)
     engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.rootContext().setContextProperty('appSettings', settings)
@@ -770,7 +770,7 @@ def main(sys_argv: List[str] = None) -> int:
     # them before the projects list is restored, so we start a dedicated loading thread. We actually can add other
     # start-up operations here if there will be a need to. Use the same Worker class to spawn the thread at the pool
     def loading():
-        boards = ['None'] + stm32pio.util.get_platformio_boards('platformio')
+        boards = ['None'] + stm32pio.core.util.get_platformio_boards('platformio')
         boards_model.setStringList(boards)
 
     def loaded(_: str, success: bool):
@@ -794,7 +794,7 @@ def main(sys_argv: List[str] = None) -> int:
                                            list_item_kwargs=list_item_kwargs)
                 projects_model.saveInSettings()
         except Exception:
-            stm32pio.util.log_current_exception(module_logger)
+            stm32pio.core.util.log_current_exception(module_logger)
             success = False
 
         main_window.backendLoaded.emit(success)  # inform the GUI

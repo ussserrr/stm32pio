@@ -17,8 +17,8 @@ import tempfile
 import weakref
 from typing import Mapping, Any, Union
 
-import stm32pio.settings
-import stm32pio.util
+import stm32pio.core.settings
+import stm32pio.core.util
 
 
 _stages_string_representations = {
@@ -176,7 +176,7 @@ class Stm32pio:
             self.logger = instance_options['logger']
         else:
             underlying_logger = logging.getLogger('stm32pio.projects')
-            self.logger = stm32pio.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
+            self.logger = stm32pio.core.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
 
         # The path is a primary entity of the project so we process it first and foremost. Handle 'path/to/proj',
         # 'path/to/proj/', '.', '../proj', etc., make the path absolute and check for existence. Also, the .ioc file can
@@ -222,7 +222,7 @@ class Stm32pio:
         stages_conditions = collections.OrderedDict()
         stages_conditions[ProjectStage.UNDEFINED] = [True]
         stages_conditions[ProjectStage.EMPTY] = [self.ioc_file.is_file()]
-        stages_conditions[ProjectStage.INITIALIZED] = [self.path.joinpath(stm32pio.settings.config_file_name).is_file()]
+        stages_conditions[ProjectStage.INITIALIZED] = [self.path.joinpath(stm32pio.core.settings.config_file_name).is_file()]
         stages_conditions[ProjectStage.GENERATED] = [self.path.joinpath('Inc').is_dir() and
                                                      len(list(self.path.joinpath('Inc').iterdir())) > 0,
                                                      self.path.joinpath('Src').is_dir() and
@@ -307,21 +307,21 @@ class Stm32pio:
 
         # Fill with default values ...
         config = configparser.ConfigParser(interpolation=None)
-        config.read_dict(copy.deepcopy(stm32pio.settings.config_default))
+        config.read_dict(copy.deepcopy(stm32pio.core.settings.config_default))
 
         # ... then merge with user's config file (if exist) values ...
-        self.logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
+        self.logger.debug(f"searching for {stm32pio.core.settings.config_file_name}...")
         ini_config = configparser.ConfigParser(interpolation=None)
-        ini_config.read(self.path.joinpath(stm32pio.settings.config_file_name))
-        ini_config_dict = stm32pio.util.configparser_to_dict(ini_config)
-        ini_config_dict_cleaned = stm32pio.util.cleanup_dict(ini_config_dict)
+        ini_config.read(self.path.joinpath(stm32pio.core.settings.config_file_name))
+        ini_config_dict = stm32pio.core.util.configparser_to_dict(ini_config)
+        ini_config_dict_cleaned = stm32pio.core.util.cleanup_dict(ini_config_dict)
         config.read_dict(ini_config_dict_cleaned)
 
         # ... finally merge with the given in this session CLI parameters
         runtime_config = configparser.ConfigParser(interpolation=None)
         runtime_config.read_dict(runtime_parameters)
-        runtime_config_dict = stm32pio.util.configparser_to_dict(runtime_config)
-        runtime_config_dict_cleaned = stm32pio.util.cleanup_dict(runtime_config_dict)
+        runtime_config_dict = stm32pio.core.util.configparser_to_dict(runtime_config)
+        runtime_config_dict_cleaned = stm32pio.core.util.cleanup_dict(runtime_config_dict)
         config.read_dict(runtime_config_dict_cleaned)
 
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow a
@@ -350,9 +350,9 @@ class Stm32pio:
             0 on success, -1 otherwise
         """
         try:
-            with path.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
+            with path.joinpath(stm32pio.core.settings.config_file_name).open(mode='w') as config_file:
                 config.write(config_file)
-            logger.debug(f"{stm32pio.settings.config_file_name} config file has been saved")
+            logger.debug(f"{stm32pio.core.settings.config_file_name} config file has been saved")
             return 0
         except Exception as e:
             logger.warning(f"cannot save the config: {e}", exc_info=logger.isEnabledFor(logging.DEBUG))
@@ -413,7 +413,7 @@ class Stm32pio:
                 # -q: read the commands from the file, -s: silent performance
                 command_arr += [self.config.get('app', 'cubemx_cmd'), '-q', cubemx_script_name, '-s']
                 # Redirect the output of the subprocess into the logging module (with DEBUG level)
-                with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log:
+                with stm32pio.core.util.LogPipe(self.logger, logging.DEBUG) as log:
                     result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
                     result_output = log.value
 
@@ -424,13 +424,13 @@ class Stm32pio:
 
         error_msg = "code generation error"
         if result.returncode == 0:
-            if stm32pio.settings.cubemx_str_indicating_success in result_output:
+            if stm32pio.core.settings.cubemx_str_indicating_success in result_output:
                 self.logger.info("successful code generation")
                 return result.returncode
             else:
                 # GUESSING
                 error_lines = [line for line in result_output.splitlines(keepends=True)
-                               if stm32pio.settings.cubemx_str_indicating_error in line]
+                               if stm32pio.core.settings.cubemx_str_indicating_error in line]
                 if len(error_lines):
                     self.logger.error(error_lines, extra={ 'from_subprocess': True })
                     raise Exception(error_msg)
@@ -614,7 +614,7 @@ class Stm32pio:
         # In the non-verbose mode (logging.INFO) there would be a '--silent' option so if the PlatformIO will decide to
         # output something then it's really important and we use logging.WARNING as a level
         log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
-        with stm32pio.util.LogPipe(self.logger, log_level) as log:
+        with stm32pio.core.util.LogPipe(self.logger, log_level) as log:
             result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
 
         if result.returncode == 0:

@@ -3,10 +3,10 @@ import gc
 import inspect
 import shutil
 
-import stm32pio.lib
-import stm32pio.settings
+import stm32pio.core.lib
+import stm32pio.core.settings
 
-# Provides test constants
+# Provides test constants and definitions
 from tests.test import *
 
 
@@ -20,13 +20,13 @@ class TestIntegration(CustomTestCase):
         Test the portability of projects: they should stay totally valid after moving to another path (same as renaming
         the parent part of the path). If we will not meet any exceptions, we should consider the test passed
         """
-        project_before = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
+        project_before = stm32pio.core.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
         project_before.save_config()
 
         new_path = f'{project_before.path}-moved'
         shutil.move(str(project_before.path), new_path)
 
-        project_after = stm32pio.lib.Stm32pio(new_path, parameters={'project': {'board': TEST_PROJECT_BOARD}})
+        project_after = stm32pio.core.lib.Stm32pio(new_path, parameters={'project': {'board': TEST_PROJECT_BOARD}})
         self.assertEqual(project_after.generate_code(), 0)
         self.assertEqual(project_after.pio_init(), 0)
         self.assertEqual(project_after.patch(), None)
@@ -53,12 +53,12 @@ class TestIntegration(CustomTestCase):
             }
         })
         # ... save it
-        with FIXTURE_PATH.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
+        with FIXTURE_PATH.joinpath(stm32pio.core.settings.config_file_name).open(mode='w') as config_file:
             config.write(config_file)
 
         # On project creation we should interpret the CLI-provided values as superseding to the saved ones and
         # saved ones, in turn, as superseding to the default ones (BUT only non-empty values)
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, instance_options={'save_on_destruction': True}, parameters={
+        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH, instance_options={'save_on_destruction': True}, parameters={
             'app': {
                 'cubemx_cmd': ''
             },
@@ -86,7 +86,7 @@ class TestIntegration(CustomTestCase):
         """
         Initialize a new project and try to build it
         """
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
+        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
         project.generate_code()
         project.pio_init()
         project.patch()
@@ -98,7 +98,7 @@ class TestIntegration(CustomTestCase):
         Simulate a new project creation, its changing and CubeMX code re-generation (for example, after adding new
         hardware features and some new files by a user)
         """
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
+        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
 
         # Generate a new project ...
         project.generate_code()
@@ -132,20 +132,20 @@ class TestIntegration(CustomTestCase):
         Go through the sequence of states emulating the real-life project lifecycle
         """
 
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
+        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
 
-        for method, expected_stage in [(None, stm32pio.lib.ProjectStage.EMPTY),
-                                       ('save_config', stm32pio.lib.ProjectStage.INITIALIZED),
-                                       ('generate_code', stm32pio.lib.ProjectStage.GENERATED),
-                                       ('pio_init', stm32pio.lib.ProjectStage.PIO_INITIALIZED),
-                                       ('patch', stm32pio.lib.ProjectStage.PATCHED),
-                                       ('build', stm32pio.lib.ProjectStage.BUILT),
-                                       ('clean', stm32pio.lib.ProjectStage.EMPTY),
-                                       ('pio_init', stm32pio.lib.ProjectStage.UNDEFINED)]:
+        for method, expected_stage in [(None, stm32pio.core.lib.ProjectStage.EMPTY),
+                                       ('save_config', stm32pio.core.lib.ProjectStage.INITIALIZED),
+                                       ('generate_code', stm32pio.core.lib.ProjectStage.GENERATED),
+                                       ('pio_init', stm32pio.core.lib.ProjectStage.PIO_INITIALIZED),
+                                       ('patch', stm32pio.core.lib.ProjectStage.PATCHED),
+                                       ('build', stm32pio.core.lib.ProjectStage.BUILT),
+                                       ('clean', stm32pio.core.lib.ProjectStage.EMPTY),
+                                       ('pio_init', stm32pio.core.lib.ProjectStage.UNDEFINED)]:
             if method is not None:
                 getattr(project, method)()
             self.assertEqual(project.state.current_stage, expected_stage)
-            if expected_stage != stm32pio.lib.ProjectStage.UNDEFINED:
+            if expected_stage != stm32pio.core.lib.ProjectStage.UNDEFINED:
                 self.assertTrue(project.state.is_consistent)
             else:
                 # Should be UNDEFINED when the project is messed up (pio_init() after clean())
@@ -166,7 +166,7 @@ class TestIntegration(CustomTestCase):
             self.assertTrue(all(item in FIXTURE_PATH.iterdir() for item in [users_file, users_dir]))
             self.assertIn(users_file_content, users_file.read_text())
 
-        project = stm32pio.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
+        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
 
         for method in ['save_config', 'generate_code', 'pio_init', 'patch', 'build']:
             getattr(project, method)()

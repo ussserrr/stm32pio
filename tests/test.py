@@ -25,7 +25,7 @@ import sys
 import tempfile
 import unittest
 
-import stm32pio.app
+import stm32pio.cli.app
 
 
 TEST_PROJECT_PATH = pathlib.Path('stm32pio-test-project').resolve(strict=True)
@@ -47,8 +47,8 @@ TEST_PROJECT_BOARD = 'nucleo_f031k6'
 TEMP_DIR = tempfile.TemporaryDirectory()
 FIXTURE_PATH = pathlib.Path(TEMP_DIR.name).joinpath(TEST_PROJECT_PATH.name)
 
-# Absolute path to the main stm32pio script (make sure what repo we are testing)
-STM32PIO_MAIN_SCRIPT: str = inspect.getfile(stm32pio.app)
+# Absolute path to the main stm32pio script (make sure what we are testing)
+STM32PIO_MAIN_SCRIPT: str = inspect.getfile(stm32pio.cli.app.main)
 # Absolute path to the Python executable (no need to guess whether it's 'python' or 'python3' and so on)
 PYTHON_EXEC: str = sys.executable
 
