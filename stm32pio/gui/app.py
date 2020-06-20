@@ -31,8 +31,8 @@ except ImportError as e:
           "or manually install its dependencies by yourself")
     sys.exit(-1)
 
-ROOT_PATH = pathlib.Path(sys.path[0]).parent  # repo's or the site-package's root
 MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. stm32pio-repo/stm32pio_gui/
+ROOT_PATH = MODULE_PATH.parent  # repo's or the site-package's entry root
 try:
     import stm32pio.core.settings
     import stm32pio.core.lib
@@ -154,7 +154,7 @@ class ProjectListItem(QObject):
 
         self._from_startup = from_startup
 
-        underlying_logger = logging.getLogger('stm32pio_gui.projects')
+        underlying_logger = logging.getLogger('stm32pio.gui.projects')
         self.logger = stm32pio.core.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
         self.logging_worker = LoggingWorker(project_id=id(self))
         self.logging_worker.sendLog.connect(self.logAdded)
@@ -694,7 +694,7 @@ def main(sys_argv: List[str] = None) -> int:
 
     # Apparently Windows version of PySide2 doesn't have QML logging feature turn on so we fill this gap
     # TODO: set up for other platforms too (separate console.debug, console.warn, etc.)
-    qml_logger = logging.getLogger('stm32pio_gui.qml')
+    qml_logger = logging.getLogger('stm32pio.gui.qml')
     if platform.system() == 'Windows':
         qml_log_handler = logging.StreamHandler()
         qml_log_handler.setFormatter(logging.Formatter("[QML] %(levelname)s %(message)s"))
@@ -725,7 +725,7 @@ def main(sys_argv: List[str] = None) -> int:
                         external_triggers={ 'verbose': verbose_setter })
 
     # Use "singleton" real logger for all projects just wrapping it into the LoggingAdapter for every project
-    projects_logger = logging.getLogger('stm32pio_gui.projects')
+    projects_logger = logging.getLogger('stm32pio.gui.projects')
     projects_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
     formatter = stm32pio.core.util.DispatchingFormatter(
         general={
@@ -755,7 +755,7 @@ def main(sys_argv: List[str] = None) -> int:
     projects_model = ProjectsList(parent=engine)
     boards_model = QStringListModel(parent=engine)
 
-    engine.rootContext().setContextProperty('appVersion', stm32pio.cli.app.__version__)
+    engine.rootContext().setContextProperty('appVersion', stm32pio.core.util.get_version())
     engine.rootContext().setContextProperty('Logging', stm32pio.core.util.logging_levels)
     engine.rootContext().setContextProperty('projectsModel', projects_model)
     engine.rootContext().setContextProperty('boardsModel', boards_model)
@@ -808,8 +808,8 @@ def main(sys_argv: List[str] = None) -> int:
 
 
 # [necessary] globals
-module_logger = logging.getLogger(f'stm32pio_gui.{__name__}')  # use it as a console logger for whatever you want to,
-                                                               # typically not related to the concrete project
+module_logger = logging.getLogger('stm32pio.gui.app')  # use it as a console logger for whatever you want to, typically
+                                                       # not related to the concrete project
 projects_logger_handler = BuffersDispatchingHandler()  # a storage of the buffers for the logging messages of all
                                                        # current projects (see its docs for more info)
 settings = QSettings()  # placeholder, will be replaced in main()

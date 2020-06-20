@@ -1,0 +1,6 @@
+# Azure Pipelines CI lockfile
+# Locks versions of all tools have been used to run the pipeline for the particular commit
+
+variables:
+  - name: cubemx_version
+    value: 561

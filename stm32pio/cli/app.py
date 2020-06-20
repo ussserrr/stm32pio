@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__version__ = '1.30'
-
 import argparse
-import contextlib
 import inspect
 import logging
 import pathlib
@@ -20,11 +17,6 @@ except ModuleNotFoundError:
     import stm32pio.core.settings
     import stm32pio.core.lib
     import stm32pio.core.util
-
-# CLI version is not responsible for the GUI one. And though they are normally shipped together we're silently ignore
-# errors here (also see the actual invocation below)
-with contextlib.suppress(ImportError):
-    import stm32pio.gui.app
 
 
 def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
@@ -44,7 +36,7 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
         take a glimpse on the available functionality'''))
 
     # Global arguments (there is also an automatically added '-h, --help' option)
-    root_parser.add_argument('--version', action='version', version=f"stm32pio v{__version__}")
+    root_parser.add_argument('--version', action='version', version=f"stm32pio {stm32pio.core.util.get_version()}")
     root_parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', default=0)
 
     subparsers = root_parser.add_subparsers(dest='subcommand', title='subcommands', description="valid subcommands",
@@ -102,7 +94,8 @@ def setup_logging(args_verbose_counter: int = 0, dummy: bool = False) -> logging
         logger.setLevel(logging.DEBUG if args_verbose_counter else logging.INFO)
         handler = logging.StreamHandler()
         formatter = stm32pio.core.util.DispatchingFormatter(
-            verbosity=stm32pio.core.util.Verbosity.VERBOSE if args_verbose_counter else stm32pio.core.util.Verbosity.NORMAL,
+            verbosity=stm32pio.core.util.Verbosity.VERBOSE if args_verbose_counter else
+                stm32pio.core.util.Verbosity.NORMAL,
             general={
                 stm32pio.core.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
                 stm32pio.core.util.Verbosity.VERBOSE: logging.Formatter(
@@ -139,12 +132,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
 
     if args is not None and args.subcommand == 'gui':
         gui_args = [arg for arg in sys_argv if arg != 'gui']
-        if hasattr(stm32pio, 'gui') and hasattr(stm32pio.gui, 'app') and hasattr(stm32pio.gui.app, 'main'):
-            return stm32pio.gui.app.main(sys_argv=gui_args)
-        else:
-            print("GUI version is not present. Probably your installation is corrupted. Try to re-install the stm32pio "
-                  "as: pip install stm32pio[GUI]")
-            return -1
+        import stm32pio.gui.app as gui_app
+        return gui_app.main(sys_argv=gui_args)
     elif args is not None and args.subcommand is not None:
         logger = setup_logging(args_verbose_counter=args.verbose, dummy=not should_setup_logging)
     else:

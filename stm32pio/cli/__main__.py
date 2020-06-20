@@ -4,7 +4,7 @@ try:
     import stm32pio.cli.app
 except ModuleNotFoundError:
     import pathlib
-    sys.path.append(str(pathlib.Path(sys.path[0]).parent.parent))  # hack to run the app as 'python __main__.py'
+    sys.path.append(str(pathlib.Path(__file__).parent.parent))  # hack to run the app as 'python __main__.py'
     import stm32pio.cli.app
 
 
