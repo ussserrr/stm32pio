@@ -5,6 +5,12 @@ import pathlib
 import platform
 
 
+# Environment variable indicating we are running on a CI server and should tweak some parameters
+CI_ENV_VARIABLE = os.environ.get('AGENT_TOOLSDIRECTORY')
+if CI_ENV_VARIABLE is not None:
+    import yaml
+    lockfile = yaml.safe_load(open(pathlib.Path(__file__).parent / '../../CI/lockfile.yml'))['variables']
+
 my_os = platform.system()
 
 config_default = collections.OrderedDict(
@@ -12,7 +18,7 @@ config_default = collections.OrderedDict(
         'java_cmd': 'java',
         'platformio_cmd': 'platformio',
         'cubemx_cmd': str(pathlib.Path(os.getenv('CUBEMX_CACHE_FOLDER')).joinpath('STM32CubeMX.exe'))
-    } if os.environ.get('AGENT_TOOLSDIRECTORY') is not None else {
+    } if CI_ENV_VARIABLE is not None else {
         # (default is OK) How do you start Java from the command line? (edit if Java not in PATH). Set to 'None'
         # (string) if in your setup the CubeMX can be invoked straightforwardly
         'java_cmd': 'java',
