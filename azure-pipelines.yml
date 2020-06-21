@@ -14,11 +14,13 @@ variables:
   - template: 'CI/lockfile.yml'
   - name: cubemx_cache_folder
     value: $(Pipeline.Workspace)/cubemx  # cross-platform location
+  - name: platformio_cache_folder
+    value: $(Pipeline.Workspace)/.platformio  # cross-platform location
   - name: cubemx_link
     value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v$(cubemx_version).zip
 
 stages:
-  - stage: Test
+  - stage: Test & coverage
     jobs:
 #      - job: 'Ubuntu'
 #        pool:
@@ -185,6 +187,7 @@ stages:
 #            pathToPublish: $(Build.ArtifactStagingDirectory)
 #            artifactName: dist
 
-#  - stage: Deploy
+
+#  - stage: Publish
 #    jobs:
 #      - deployment: PyPI

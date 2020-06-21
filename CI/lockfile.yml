@@ -1,6 +1,16 @@
 # Azure Pipelines CI lockfile
-# Locks versions of all tools have been used to run the pipeline for the particular commit
+# Locks versions of all tools have been used to run the pipeline for the particular commit.
+# These can be spread across different sources (platformio.ini, requirements.txt, pipenv' lockfile, etc.) but we decided
+# to have them all in one place (especially because they are all make sense mostly for the testing/CI purposes)
 
 variables:
-  - name: cubemx_version
-    value: 561
+  cubemx_version: 561  # 5.6.1
+  cubemx_packages:
+    f0: 1.11.0
+  platformio_version: 4.3.4
+  platformio_test_project_config:
+    platform: 'ststm32 @ 6.1.0'
+    platform_packages:
+      - 'toolchain-gccarmnoneeabi @ 1.70201.0'
+      - 'framework-stm32cube @ 2.0.181130'
+      - 'tool-scons @ 3.30102.0'

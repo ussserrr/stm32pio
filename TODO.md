@@ -42,7 +42,7 @@
  - [x] Fix: bold borders remains after an error
  - [ ] Maybe do not save the stm32pio.ini if there wasn't one (after starting from CLI)
 
-## Core library
+## Core library and CLI
  - [ ] when updating the project (`generate` command), check for boards match
  - [ ] Remove casts to string where we can use path-like objects (related to a Python version as new ones receives path-like objects arguments while old ones aren't)
  - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
@@ -67,3 +67,5 @@
  - [x] Fix when '' board string overwrites existing
  - [x] Allow to not specify a board for `new` when it is already specified in the config
  - [ ] Maybe logging notifications about which parameters has superseded which
+ - [ ] Add `patch` command (all other are already present in some way (through `stm32pio` or `pio`))
+ - [ ] Use CubeMX options such as `project couplefilesbyip <0|1>` and `project toolchain <toolchain>`
