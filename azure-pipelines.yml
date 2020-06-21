@@ -20,7 +20,7 @@ variables:
     value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v$(cubemx_version).zip
 
 stages:
-  - stage: Test & coverage
+  - stage: Test and coverage
     jobs:
 #      - job: 'Ubuntu'
 #        pool:
