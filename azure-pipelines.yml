@@ -71,7 +71,7 @@ stages:
 
         - script: |
             pip install pyyaml
-            python CI/setup_test_env.py
+            xvfb-run python CI/setup_test_env.py
           condition: ne(variables.CUBEMX_PACKAGES_CACHE_RESTORED, 'true')
           displayName: 'Download CubeMX packages'
 
