@@ -12,6 +12,12 @@ TEST_FIXTURES_PATH = Path(os.environ.get('STM32PIO_TEST_FIXTURES',
                                          default=Path(__file__).parent.joinpath('../../tests/fixtures')))
 TEST_CASE = os.environ.get('STM32PIO_TEST_CASE')
 
+patch_mixin = ''
+if TEST_FIXTURES_PATH is not None and TEST_CASE is not None:
+    platformio_ini_lockfile = TEST_FIXTURES_PATH / TEST_CASE / 'platformio.ini.lockfile'
+    if platformio_ini_lockfile.exists():
+        patch_mixin = '\n' + platformio_ini_lockfile.read_text()
+
 
 my_os = platform.system()
 
@@ -58,8 +64,7 @@ config_default = collections.OrderedDict(
             [platformio]
             include_dir = Inc
             src_dir = Src
-        ''') + '\n' + (f"\n{(TEST_FIXTURES_PATH / TEST_CASE / 'platformio.ini.lockfile').read_text()}" if
-                       (TEST_FIXTURES_PATH is not None and TEST_CASE is not None) else ''),
+        ''') + '\n' + patch_mixin,
 
         # Runtime-determined values
         'board': '',
