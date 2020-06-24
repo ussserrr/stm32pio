@@ -6,7 +6,7 @@ import platform
 
 
 # Environment variable indicating we are running on a CI server and should tweak some parameters
-CI_ENV_VARIABLE = None
+CI_ENV_VARIABLE = os.environ.get('PIPELINE_WORKSPACE')
 
 TEST_FIXTURES_PATH = Path(os.environ.get('STM32PIO_TEST_FIXTURES',
                                          default=Path(__file__).parent.joinpath('../../tests/fixtures')))

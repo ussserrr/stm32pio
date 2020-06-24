@@ -76,6 +76,7 @@ stages:
           displayName: 'Download CubeMX packages'
 
         - script: |
+            ls $(STM32PIO_CUBEMX_PACKAGES_CACHE_FOLDER)
             pip install platformio pytest pytest-cov
           displayName: 'Install tools'
 
