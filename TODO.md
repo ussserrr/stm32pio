@@ -41,6 +41,7 @@
  - [ ] "Pressed" effect for action buttons
  - [x] Fix: bold borders remains after an error
  - [ ] Maybe do not save the stm32pio.ini if there wasn't one (after starting from CLI)
+ - [ ] Specify board without reloading the app. Warn that board is not specified after cleanup
 
 ## Core library and CLI
  - [ ] when updating the project (`generate` command), check for boards match
@@ -69,3 +70,4 @@
  - [ ] Maybe logging notifications about which parameters has superseded which
  - [ ] Add `patch` command (all other are already present in some way (through `stm32pio` or `pio`))
  - [ ] Use CubeMX options such as `project couplefilesbyip <0|1>` and `project toolchain <toolchain>`
+ - [ ] Expand CLI keys and options everywhere (e.g. `--project-option` instead of `-O`)

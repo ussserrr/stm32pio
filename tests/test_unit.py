@@ -5,12 +5,12 @@ import platform
 import subprocess
 import time
 
+# Provides test constants and definitions
+from tests.common import *
+
 import stm32pio.core.lib
 import stm32pio.core.settings
 import stm32pio.core.util
-
-# Provides test constants and definitions
-from tests.test import *
 
 
 class TestUnit(CustomTestCase):
@@ -24,14 +24,14 @@ class TestUnit(CustomTestCase):
         """
         Check whether files and folders have been created (by STM32CubeMX)
         """
-        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
+        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         project.generate_code()
 
         # Assuming that the presence of these files indicating a success
         files_should_be_present = ['Src/main.c', 'Inc/main.h']
         for file in files_should_be_present:
             with self.subTest(msg=f"{file} hasn't been created"):
-                self.assertEqual(FIXTURE_PATH.joinpath(file).is_file(), True)
+                self.assertEqual(STAGE_PATH.joinpath(file).is_file(), True)
 
     def test_pio_init(self):
         """
@@ -39,14 +39,14 @@ class TestUnit(CustomTestCase):
         There are other artifacts that can be checked too but we are interested only in a 'platformio.ini' anyway. Also,
         check that it is a correct configparser.ConfigParser file and is not empty
         """
-        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
+        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         result = project.pio_init()
 
         self.assertEqual(result, 0, msg="Non-zero return code")
-        self.assertTrue(FIXTURE_PATH.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
+        self.assertTrue(STAGE_PATH.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
 
         platformio_ini = configparser.ConfigParser(interpolation=None)
-        self.assertGreater(len(platformio_ini.read(str(FIXTURE_PATH.joinpath('platformio.ini')))), 0,
+        self.assertGreater(len(platformio_ini.read(str(STAGE_PATH.joinpath('platformio.ini')))), 0,
                            msg='platformio.ini is empty')
 
     def test_patch(self):
@@ -54,7 +54,7 @@ class TestUnit(CustomTestCase):
         Check that the new parameters have been added, modified ones have been updated and existing parameters didn't
         gone. Also, check for unnecessary folders deletion
         """
-        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH)
+        project = stm32pio.core.lib.Stm32pio(STAGE_PATH)
 
         test_content = inspect.cleandoc('''
             ; This is a test config .ini file
@@ -70,13 +70,13 @@ class TestUnit(CustomTestCase):
             test_key1 = test_value1
             test_key2 = 123
         ''') + '\n'
-        FIXTURE_PATH.joinpath('platformio.ini').write_text(test_content)
-        FIXTURE_PATH.joinpath('include').mkdir()
+        STAGE_PATH.joinpath('platformio.ini').write_text(test_content)
+        STAGE_PATH.joinpath('include').mkdir()
 
         project.patch()
 
         with self.subTest():
-            self.assertFalse(FIXTURE_PATH.joinpath('include').is_dir(), msg="'include' has not been deleted")
+            self.assertFalse(STAGE_PATH.joinpath('include').is_dir(), msg="'include' has not been deleted")
 
         original_test_config = configparser.ConfigParser(interpolation=None)
         original_test_config.read_string(test_content)
@@ -85,7 +85,7 @@ class TestUnit(CustomTestCase):
         patch_config = configparser.ConfigParser(interpolation=None)
         patch_config.read_string(project.config.get('project', 'platformio_ini_patch_content'))
 
-        self.assertGreater(len(patched_config.read(FIXTURE_PATH.joinpath('platformio.ini'))), 0)
+        self.assertGreater(len(patched_config.read(STAGE_PATH.joinpath('platformio.ini'))), 0)
 
         for patch_section in patch_config.sections():
             self.assertTrue(patched_config.has_section(patch_section), msg=f"{patch_section} is missing")
@@ -107,7 +107,7 @@ class TestUnit(CustomTestCase):
         """
         Build an empty project so PlatformIO should return an error
         """
-        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
+        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         project.pio_init()
 
         with self.assertLogs(level='ERROR') as logs:
@@ -120,7 +120,7 @@ class TestUnit(CustomTestCase):
         """
         Call the editors. Use subprocess shell=True as it works on all OSes
         """
-        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH)
+        project = stm32pio.core.lib.Stm32pio(STAGE_PATH)
 
         editors = {  # some edotors to check
             'atom': {
@@ -173,7 +173,7 @@ class TestUnit(CustomTestCase):
         """
         path_does_not_exist_name = 'does_not_exist'
 
-        path_does_not_exist = FIXTURE_PATH.joinpath(path_does_not_exist_name)
+        path_does_not_exist = STAGE_PATH.joinpath(path_does_not_exist_name)
         with self.assertRaisesRegex(FileNotFoundError, path_does_not_exist_name,
                                     msg="FileNotFoundError has not been raised or doesn't contain a description"):
             stm32pio.core.lib.Stm32pio(path_does_not_exist)
@@ -184,7 +184,7 @@ class TestUnit(CustomTestCase):
         preserved
         """
         # 'board' is non-default, 'project'-section parameter
-        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH, parameters={'project': {'board': TEST_PROJECT_BOARD}})
+        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
 
         # Merge additional parameters
         retcode = project.save_config({
@@ -194,11 +194,11 @@ class TestUnit(CustomTestCase):
         })
 
         self.assertEqual(retcode, 0, msg="Return code of the method is non-zero")
-        self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.core.settings.config_file_name).is_file(),
+        self.assertTrue(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name).is_file(),
                         msg=f"{stm32pio.core.settings.config_file_name} file hasn't been created")
 
         config = configparser.ConfigParser(interpolation=None)
-        self.assertGreater(len(config.read(str(FIXTURE_PATH.joinpath(stm32pio.core.settings.config_file_name)))), 0,
+        self.assertGreater(len(config.read(str(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name)))), 0,
                            msg="Config is empty")
         for section, parameters in stm32pio.core.settings.config_default.items():
             for option, value in parameters.items():
@@ -206,7 +206,7 @@ class TestUnit(CustomTestCase):
                                   msg="Section/key is not found in the saved config file"):
                     self.assertNotEqual(config.get(section, option, fallback="Not found"), "Not found")
 
-        self.assertEqual(config.get('project', 'board', fallback="Not found"), TEST_PROJECT_BOARD,
+        self.assertEqual(config.get('project', 'board', fallback="Not found"), PROJECT_BOARD,
                          msg="'board' has not been set")
         self.assertEqual(config.get('project', 'additional_test_key', fallback="Not found"), 'test_value',
                          msg="Merged config is not present in the saved file")
@@ -227,11 +227,11 @@ class TestUnit(CustomTestCase):
         """
 
         # Create multiple .ioc files
-        shutil.copy(FIXTURE_PATH.joinpath('stm32pio-test-project.ioc'), FIXTURE_PATH.joinpath('42.ioc'))
-        shutil.copy(FIXTURE_PATH.joinpath('stm32pio-test-project.ioc'), FIXTURE_PATH.joinpath('Abracadabra.ioc'))
+        shutil.copy(STAGE_PATH.joinpath(PROJECT_IOC_FILENAME), STAGE_PATH.joinpath('42.ioc'))
+        shutil.copy(STAGE_PATH.joinpath(PROJECT_IOC_FILENAME), STAGE_PATH.joinpath('Abracadabra.ioc'))
 
-        project = stm32pio.core.lib.Stm32pio(FIXTURE_PATH.joinpath('42.ioc'))  # pick just one
-        self.assertTrue(project.ioc_file.samefile(FIXTURE_PATH.joinpath('42.ioc')),
+        project = stm32pio.core.lib.Stm32pio(STAGE_PATH.joinpath('42.ioc'))  # pick just one
+        self.assertTrue(project.ioc_file.samefile(STAGE_PATH.joinpath('42.ioc')),
                         msg="Provided .ioc file hasn't been chosen")
         self.assertEqual(project.config.get('project', 'ioc_file'), '42.ioc',
                          msg="Provided .ioc file is not in the config")

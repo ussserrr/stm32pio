@@ -194,6 +194,16 @@ class Stm32pio:
         self.ioc_file = self._find_ioc_file(explicit_file=ioc_file)
         self.config.set('project', 'ioc_file', self.ioc_file.name)  # save only the name of file to the config
 
+        # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow a
+        # propagation of this message
+        if self.logger.isEnabledFor(logging.DEBUG):
+            debug_str = 'resolved config:'
+            for section in self.config.sections():
+                debug_str += f"\n========== {section} ==========\n"
+                for value in self.config.items(section):
+                    debug_str += f"{value}\n"
+            self.logger.debug(debug_str)
+
         # Save the config on an instance destruction
         if instance_options['save_on_destruction']:
             self._finalizer = weakref.finalize(self, self._save_config, self.config, self.path, self.logger)
@@ -323,16 +333,6 @@ class Stm32pio:
         runtime_config_dict = stm32pio.core.util.configparser_to_dict(runtime_config)
         runtime_config_dict_cleaned = stm32pio.core.util.cleanup_dict(runtime_config_dict)
         config.read_dict(runtime_config_dict_cleaned)
-
-        # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow a
-        # propagation of this message
-        if self.logger.isEnabledFor(logging.DEBUG):
-            debug_str = 'resolved config:'
-            for section in config.sections():
-                debug_str += f"\n========== {section} ==========\n"
-                for value in config.items(section):
-                    debug_str += f"{value}\n"
-            self.logger.debug(debug_str)
 
         return config
 
@@ -465,8 +465,8 @@ class Stm32pio:
         except Exception:
             self.logger.warning("'platformio.ini' file is already exist and incorrect")
 
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', str(self.path), '-b',
-                       self.config.get('project', 'board'), '-O', 'framework=stm32cube']
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'project', 'init', '--project-dir', str(self.path),
+                       '--board', self.config.get('project', 'board'), '--project-option', 'framework=stm32cube']
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 

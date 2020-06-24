@@ -654,7 +654,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     parser = argparse.ArgumentParser(description=inspect.cleandoc('''lala'''))
 
     # Global arguments (there is also an automatically added '-h, --help' option)
-    parser.add_argument('--version', action='version', version=f"stm32pio v{stm32pio.cli.app.__version__}")
+    parser.add_argument('--version', action='version', version=f"stm32pio v{stm32pio.core.util.get_version()}")
 
     parser.add_argument('-d', '--directory', dest='path', default=str(pathlib.Path.cwd()),
         help="path to the project (current directory, if not given, but any other option should be specified then)")

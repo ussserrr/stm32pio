@@ -1,15 +1,17 @@
 import collections
 import inspect
 import os
-import pathlib
+from pathlib import Path
 import platform
 
 
 # Environment variable indicating we are running on a CI server and should tweak some parameters
-CI_ENV_VARIABLE = os.environ.get('AGENT_TOOLSDIRECTORY')
-if CI_ENV_VARIABLE is not None:
-    import yaml
-    lockfile = yaml.safe_load(open(pathlib.Path(__file__).parent / '../../CI/lockfile.yml'))['variables']
+CI_ENV_VARIABLE = None
+
+TEST_FIXTURES_PATH = Path(os.environ.get('STM32PIO_TEST_FIXTURES',
+                                         default=Path(__file__).parent.joinpath('../../tests/fixtures')))
+TEST_CASE = os.environ.get('STM32PIO_TEST_CASE')
+
 
 my_os = platform.system()
 
@@ -17,7 +19,7 @@ config_default = collections.OrderedDict(
     app={
         'java_cmd': 'java',
         'platformio_cmd': 'platformio',
-        'cubemx_cmd': str(pathlib.Path(os.getenv('CUBEMX_CACHE_FOLDER')).joinpath('STM32CubeMX.exe'))
+        'cubemx_cmd': str(Path(os.getenv('STM32PIO_CUBEMX_CACHE_FOLDER')).joinpath('STM32CubeMX.exe'))
     } if CI_ENV_VARIABLE is not None else {
         # (default is OK) How do you start Java from the command line? (edit if Java not in PATH). Set to 'None'
         # (string) if in your setup the CubeMX can be invoked straightforwardly
@@ -31,9 +33,9 @@ config_default = collections.OrderedDict(
         # several times already. Note that STM32CubeMX will be invoked as 'java -jar CUBEMX'
         'cubemx_cmd':
             # macOS default: 'Applications' folder
-            "/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX" if my_os == 'Darwin' else
+            "/Users/chufyrev/cubemx/STM32CubeMX.exe" if my_os == 'Darwin' else  # TODO
             # Linux (Ubuntu) default: home directory
-            str(pathlib.Path.home().joinpath("cubemx/STM32CubeMX.exe")) if my_os == 'Linux' else
+            str(Path.home().joinpath("cubemx/STM32CubeMX.exe")) if my_os == 'Linux' else
             # Windows default: Program Files
             "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe" if my_os == 'Windows' else None
     },
@@ -56,7 +58,8 @@ config_default = collections.OrderedDict(
             [platformio]
             include_dir = Inc
             src_dir = Src
-        ''') + '\n',
+        ''') + '\n' + (f"\n{(TEST_FIXTURES_PATH / TEST_CASE / 'platformio.ini.lockfile').read_text()}" if
+                       (TEST_FIXTURES_PATH is not None and TEST_CASE is not None) else ''),
 
         # Runtime-determined values
         'board': '',

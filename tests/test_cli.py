@@ -6,13 +6,13 @@ import re
 import subprocess
 import unittest.mock
 
+# Provides test constants and definitions
+from tests.common import *
+
 import stm32pio.cli.app
 import stm32pio.core.lib
 import stm32pio.core.settings
 import stm32pio.core.util
-
-# Provides test constants and definitions
-from tests.test import *
 
 
 class TestCLI(CustomTestCase):
@@ -25,18 +25,18 @@ class TestCLI(CustomTestCase):
         for case in ['--quiet', 'yes', 'no']:
             with self.subTest(case=case):
                 # Create files and folders
-                test_file = FIXTURE_PATH.joinpath('test.file')
-                test_dir = FIXTURE_PATH.joinpath('test.dir')
+                test_file = STAGE_PATH.joinpath('test.file')
+                test_dir = STAGE_PATH.joinpath('test.dir')
                 test_file.touch(exist_ok=False)
                 test_dir.mkdir(exist_ok=False)
 
                 # Clean ...
                 if case == '--quiet':
-                    return_code = stm32pio.cli.app.main(sys_argv=['clean', case, '-d', str(FIXTURE_PATH)],
+                    return_code = stm32pio.cli.app.main(sys_argv=['clean', case, '-d', str(STAGE_PATH)],
                                                         should_setup_logging=False)
                 else:
                     with unittest.mock.patch('builtins.input', return_value=case):
-                        return_code = stm32pio.cli.app.main(sys_argv=['clean', '-d', str(FIXTURE_PATH)],
+                        return_code = stm32pio.cli.app.main(sys_argv=['clean', '-d', str(STAGE_PATH)],
                                                             should_setup_logging=False)
 
                 self.assertEqual(return_code, 0, msg="Non-zero return code")
@@ -55,7 +55,7 @@ class TestCLI(CustomTestCase):
 
                 # ... and .ioc file should be preserved in any case
                 with self.subTest():
-                    self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(),
+                    self.assertTrue(STAGE_PATH.joinpath(f"{STAGE_PATH.name}.ioc").is_file(),
                                     msg="Missing .ioc file")
 
     def test_new(self):
@@ -63,25 +63,25 @@ class TestCLI(CustomTestCase):
         Successful build is the best indicator that all went right so we use '--with-build' option here
         """
         return_code = stm32pio.cli.app.main(
-            sys_argv=['new', '-d', str(FIXTURE_PATH), '-b', TEST_PROJECT_BOARD, '--with-build'],
+            sys_argv=['new', '-d', str(STAGE_PATH), '-b', PROJECT_BOARD, '--with-build'],
             should_setup_logging=False)
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         # .ioc file should be preserved
-        self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
+        self.assertTrue(STAGE_PATH.joinpath(f"{STAGE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
 
     def test_generate(self):
-        return_code = stm32pio.cli.app.main(sys_argv=['generate', '-d', str(FIXTURE_PATH)], should_setup_logging=False)
+        return_code = stm32pio.cli.app.main(sys_argv=['generate', '-d', str(STAGE_PATH)], should_setup_logging=False)
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         for directory in ['Inc', 'Src']:
             with self.subTest():
-                self.assertTrue(FIXTURE_PATH.joinpath(directory).is_dir(), msg=f"Missing '{directory}'")
-                self.assertNotEqual(len(list(FIXTURE_PATH.joinpath(directory).iterdir())), 0,
+                self.assertTrue(STAGE_PATH.joinpath(directory).is_dir(), msg=f"Missing '{directory}'")
+                self.assertNotEqual(len(list(STAGE_PATH.joinpath(directory).iterdir())), 0,
                                     msg=f"'{directory}' is empty")
 
         # .ioc file should be preserved
-        self.assertTrue(FIXTURE_PATH.joinpath(f"{FIXTURE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
+        self.assertTrue(STAGE_PATH.joinpath(f"{STAGE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
 
     def test_should_log_error(self):
         """
@@ -98,7 +98,7 @@ class TestCLI(CustomTestCase):
                                 msg="'ERROR' logging message hasn't been printed")
 
         with self.subTest(error="No .ioc file"):
-            dir_with_no_ioc_file = FIXTURE_PATH.joinpath('dir.with.no.ioc.file')
+            dir_with_no_ioc_file = STAGE_PATH.joinpath('dir.with.no.ioc.file')
             dir_with_no_ioc_file.mkdir(exist_ok=False)
             with self.assertLogs(level='ERROR') as logs:
                 return_code = stm32pio.cli.app.main(sys_argv=['init', '-d', str(dir_with_no_ioc_file)],
@@ -124,7 +124,7 @@ class TestCLI(CustomTestCase):
         methods = dir(stm32pio.core.lib.Stm32pio) + ['main']
 
         with self.subTest(verbosity_level=stm32pio.core.util.Verbosity.NORMAL):
-            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(FIXTURE_PATH)],
+            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(STAGE_PATH)],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
 
             self.assertEqual(result.returncode, 0, msg="Non-zero return code")
@@ -141,8 +141,8 @@ class TestCLI(CustomTestCase):
             self.assertNotIn('Starting STM32CubeMX', result.stderr, msg="STM32CubeMX has printed its logs")
 
         with self.subTest(verbosity_level=stm32pio.core.util.Verbosity.VERBOSE):
-            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new', '-d', str(FIXTURE_PATH),
-                                     '-b', TEST_PROJECT_BOARD], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new', '-d', str(STAGE_PATH),
+                                     '-b', PROJECT_BOARD], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     encoding='utf-8')
 
             self.assertEqual(result.returncode, 0, msg="Non-zero return code")
@@ -165,21 +165,21 @@ class TestCLI(CustomTestCase):
         """
         Check for the config creation and parameters presence
         """
-        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(FIXTURE_PATH),
-                                 '-b', TEST_PROJECT_BOARD], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(STAGE_PATH),
+                                 '-b', PROJECT_BOARD], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
 
-        self.assertTrue(FIXTURE_PATH.joinpath(stm32pio.core.settings.config_file_name).is_file(),
+        self.assertTrue(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name).is_file(),
                         msg=f"{stm32pio.core.settings.config_file_name} file hasn't been created")
 
         config = configparser.ConfigParser(interpolation=None)
-        config.read(str(FIXTURE_PATH.joinpath(stm32pio.core.settings.config_file_name)))
+        config.read(str(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name)))
         for section, parameters in stm32pio.core.settings.config_default.items():
             for option, value in parameters.items():
                 with self.subTest(section=section, option=option,
                                   msg="Section/key is not found in the saved config file"):
                     self.assertIsNotNone(config.get(section, option, fallback=None))
-        self.assertEqual(config.get('project', 'board', fallback="Not found"), TEST_PROJECT_BOARD,
+        self.assertEqual(config.get('project', 'board', fallback="Not found"), PROJECT_BOARD,
                          msg="'board' has not been set")
 
     def test_status(self):
@@ -189,7 +189,7 @@ class TestCLI(CustomTestCase):
 
         buffer_stdout = io.StringIO()
         with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(None):
-            return_code = stm32pio.cli.app.main(sys_argv=['status', '-d', str(FIXTURE_PATH)], should_setup_logging=False)
+            return_code = stm32pio.cli.app.main(sys_argv=['status', '-d', str(STAGE_PATH)], should_setup_logging=False)
 
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 

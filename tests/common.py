@@ -18,43 +18,61 @@ This will not cover subprocess calls, though. To get them covered too, use pytes
 """
 
 import inspect
-import logging
-import pathlib
+import os
+from pathlib import Path
 import shutil
 import sys
 import tempfile
 import unittest
 
+
+CASES_ROOT = Path(os.environ.get('STM32PIO_TEST_FIXTURES',
+                                 default=Path(__file__).parent.joinpath('fixtures'))).resolve(strict=True)
+os.environ['STM32PIO_TEST_FIXTURES'] = str(CASES_ROOT)
+
+CASE = os.environ.get('STM32PIO_TEST_CASE', default='nucleo_f031k6')
+PROJECT_PATH = CASES_ROOT.joinpath(CASE).resolve(strict=True)
+PROJECT_BOARD = CASE  # currently (board == folder_name)
+os.environ['STM32PIO_TEST_CASE'] = CASE
+
+
 import stm32pio.cli.app
 
 
-TEST_PROJECT_PATH = pathlib.Path('stm32pio-test-project').resolve(strict=True)
-if not TEST_PROJECT_PATH.joinpath('stm32pio-test-project.ioc').is_file():
-    raise FileNotFoundError("No test project is present")
+if not next(PROJECT_PATH.glob('*.ioc'), False):
+    raise FileNotFoundError(f"No .ioc file is present for '{PROJECT_PATH.name}' test case")
+else:
+    PROJECT_IOC_FILENAME = next(PROJECT_PATH.glob('*.ioc')).name
+print(PROJECT_IOC_FILENAME)
 
-# Gently ask a user running tests to remove all irrelevant files from the TEST_PROJECT_PATH as they can interfere with
+# PROJECT_PATH = pathlib.Path('stm32pio-test-project').resolve(strict=True)
+# if not PROJECT_PATH.joinpath('stm32pio-test-project.ioc').is_file():
+#     raise FileNotFoundError("No test project is present")
+
+# Gently ask a user running tests to remove all irrelevant files from the PROJECT_PATH as they can interfere with
 # execution
-if len(list(TEST_PROJECT_PATH.iterdir())) > 1:
-    raise Warning(f"There are extrinsic files in the test project directory '{TEST_PROJECT_PATH}'. Please persist only "
-                  "the .ioc file and restart")
+# if len(list(PROJECT_PATH.iterdir())) > 1:
+#     raise Warning(f"There are extrinsic files in the test project directory '{PROJECT_PATH}'. Please persist only "
+#                   "the .ioc file and restart")
 
 # Make sure you have F0 framework installed (both for PlatformIO and CubeMX) (try to run a code generation and build
 # manually at least once before proceeding)
-TEST_PROJECT_BOARD = 'nucleo_f031k6'
+# PROJECT_BOARD = 'nucleo_f031k6'
 
 # Instantiate a temporary folder on every test suite run. It is used across all the tests and is deleted on shutdown
 # automatically
 TEMP_DIR = tempfile.TemporaryDirectory()
-FIXTURE_PATH = pathlib.Path(TEMP_DIR.name).joinpath(TEST_PROJECT_PATH.name)
+STAGE_PATH = Path(TEMP_DIR.name).joinpath(PROJECT_PATH.name)
 
 # Absolute path to the main stm32pio script (make sure what we are testing)
 STM32PIO_MAIN_SCRIPT: str = inspect.getfile(stm32pio.cli.app.main)
 # Absolute path to the Python executable (no need to guess whether it's 'python' or 'python3' and so on)
 PYTHON_EXEC: str = sys.executable
 
+print(f"Test case: {PROJECT_BOARD}")
 print(f"The file of 'stm32pio.app' module: {STM32PIO_MAIN_SCRIPT}")
 print(f"Python executable: {PYTHON_EXEC} {sys.version}")
-print(f"Temp test fixture path: {FIXTURE_PATH}")
+print(f"Temp test stage path: {STAGE_PATH}")
 print()
 
 
@@ -66,14 +84,16 @@ class CustomTestCase(unittest.TestCase):
         Copy the test project from the repo to our temp directory. WARNING: make sure the test project folder (one from
         this repo, not a temporarily created one) is clean (i.e. contains only an .ioc file) before running the test
         """
-        shutil.rmtree(FIXTURE_PATH, ignore_errors=True)
-        shutil.copytree(TEST_PROJECT_PATH, FIXTURE_PATH)
+        shutil.rmtree(STAGE_PATH, ignore_errors=True)
+        # ignore: copy only an .ioc files (there should be only 1)
+        shutil.copytree(PROJECT_PATH, STAGE_PATH,
+                        ignore=lambda folder, files: [folder] + list(filter(lambda name: '.ioc' not in name, files)))
 
     def tearDown(self):
         """
         Clean up the temp directory
         """
-        shutil.rmtree(FIXTURE_PATH, ignore_errors=True)
+        shutil.rmtree(STAGE_PATH, ignore_errors=True)
 
 
 if __name__ == '__main__':

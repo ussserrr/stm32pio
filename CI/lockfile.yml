@@ -8,11 +8,3 @@ variables:
   cubemx_packages: |
     f0: 1.11.0
   platformio_version: 4.3.4
-  platformio_test_project_config: |
-    nucleo_f031k6: |
-      [env:nucleo_f031k6]
-      platform = ststm32 @ 6.1.0
-      platform_packages =
-        toolchain-gccarmnoneeabi @ 1.70201.0
-        framework-stm32cube @ 2.0.181130
-        tool-scons @ 3.30102.0
