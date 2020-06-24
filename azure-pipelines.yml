@@ -55,21 +55,23 @@ stages:
             cacheHitVar: CUBEMX_CACHE_RESTORED
           displayName: 'Restore CubeMX cache'
 
-        - task: Cache@2
-          inputs:
-            key: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'
-            restoreKeys: 'cubemx | "$(CUBEMX_PACKAGES)"'  # we want an exact match
-            path: ${{ variables.stm32pio_cubemx_packages_cache_folder }}
-            cacheHitVar: CUBEMX_PACKAGES_CACHE_RESTORED
-          displayName: 'Restore CubeMX packages cache'
-
         - script: |
             wget -O cubemx_${{ variables.cubemx_version }}.zip ${{ variables.cubemx_link }}
             unzip -q cubemx_${{ variables.cubemx_version }}.zip -d ${{ variables.stm32pio_cubemx_cache_folder }}
           condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
           displayName: 'Download & unzip CubeMX'
 
-        - script: python CI/setup_test_env.py
+        - task: Cache@2
+          inputs:
+            key: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'
+            restoreKeys: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'  # we want an exact match
+            path: ${{ variables.stm32pio_cubemx_packages_cache_folder }}
+            cacheHitVar: CUBEMX_PACKAGES_CACHE_RESTORED
+          displayName: 'Restore CubeMX packages cache'
+
+        - script: |
+            pip install yaml
+            python CI/setup_test_env.py
           condition: ne(variables.CUBEMX_PACKAGES_CACHE_RESTORED, 'true')
           displayName: 'Download CubeMX packages'
 

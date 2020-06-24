@@ -5,6 +5,5 @@
 
 variables:
   cubemx_version: 561  # 5.6.1
-  cubemx_packages: |
-    f0: 1.11.0
+  cubemx_packages: "f0: 1.11.0"
   platformio_version: 4.3.4
