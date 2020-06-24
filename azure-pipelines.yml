@@ -13,11 +13,11 @@ trigger:
 variables:
   - template: 'CI/lockfile.yml'
   - name: stm32pio_cubemx_cache_folder
-    value: $HOME/cubemx  # cross-platform location
+    value: $(Pipeline.Workspace)/cubemx  # cross-platform location
   - name: stm32pio_cubemx_packages_cache_folder
-    value: $HOME/STM32Cube  # cross-platform location
+    value: $(Agent.HomeDirectory)/STM32Cube  # cross-platform location
   - name: stm32pio_platformio_cache_folder
-    value: $HOME/.platformio  # cross-platform location
+    value: $(Agent.HomeDirectory)/.platformio  # cross-platform location
   - name: stm32pio_cubemx_link
     value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v$(cubemx_version).zip
 
@@ -92,7 +92,7 @@ stages:
         # Use temp pytest config file to specify correct output format
         - script: |
             printf "[pytest]\njunit_family = xunit2\n" > pytest.ini
-            STM32PIO_TEST_CASE=nucleo_f031k6 xvfb-run pytest tests --junitxml=junit/test-results.xml --cov=stm32pio --cov-branch --cov-report=xml
+            STM32PIO_TEST_CASE=nucleo_f031k6 xvfb-run pytest tests --junitxml=junit/test-results.xml --cov=stm32pio/core --cov=stm32pio/cli --cov-branch --cov-report=xml
           displayName: 'Test & coverage'
 
         - task: PublishTestResults@2
