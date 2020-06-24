@@ -13,11 +13,11 @@ trigger:
 variables:
   - template: 'CI/lockfile.yml'
   - name: stm32pio_cubemx_cache_folder
-    value: $(Pipeline.Workspace)/cubemx  # cross-platform location
+    value: $HOME/cubemx  # cross-platform location
   - name: stm32pio_cubemx_packages_cache_folder
-    value: $(Pipeline.Workspace)/STM32Cube  # cross-platform location
+    value: $HOME/STM32Cube  # cross-platform location
   - name: stm32pio_platformio_cache_folder
-    value: $(Pipeline.Workspace)/.platformio  # cross-platform location
+    value: $HOME/.platformio  # cross-platform location
   - name: stm32pio_cubemx_link
     value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v$(cubemx_version).zip
 
@@ -70,14 +70,15 @@ stages:
           displayName: 'Restore CubeMX packages cache'
 
         - script: |
+            pip install wheel
             pip install pyyaml
             xvfb-run python CI/setup_test_env.py
           condition: ne(variables.CUBEMX_PACKAGES_CACHE_RESTORED, 'true')
           displayName: 'Download CubeMX packages'
 
         - script: |
-            ls $(STM32PIO_CUBEMX_PACKAGES_CACHE_FOLDER)
-            pip install platformio pytest pytest-cov
+            pip install platformio==$(PLATFORMIO_VERSION)
+            pip install pytest pytest-cov
           displayName: 'Install tools'
 
         - task: Cache@2
