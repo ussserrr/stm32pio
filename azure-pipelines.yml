@@ -13,11 +13,11 @@ trigger:
 variables:
   - template: 'CI/lockfile.yml'
   - name: stm32pio_cubemx_cache_folder
-    value: $(HOME)/cubemx  # cross-platform location
+    value: ${{ HOME }}/cubemx  # cross-platform location
   - name: stm32pio_cubemx_packages_cache_folder
-    value: $(HOME)/STM32Cube  # cross-platform location
+    value: ${{ HOME }}/STM32Cube  # cross-platform location
   - name: stm32pio_platformio_cache_folder
-    value: $(HOME)/.platformio  # cross-platform location
+    value: ${{ HOME }}/.platformio  # cross-platform location
   - name: stm32pio_cubemx_link
     value: https://sw-center.st.com/packs/resource/library/stm32cube_mx_v$(cubemx_version).zip
 
