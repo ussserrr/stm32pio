@@ -91,8 +91,6 @@ stages:
 
         # Use temp pytest config file to specify correct output format
         - script: |
-#            printf "[pytest]\njunit_family = xunit2\n" > pytest.ini
-#            STM32PIO_TEST_CASE=nucleo_f031k6 xvfb-run pytest tests --junitxml=junit/test-results.xml --cov=stm32pio/core --cov=stm32pio/cli --cov-branch --cov-report=xml
             xvfb-run python CI/tests_runner.py
           displayName: 'Test & coverage'
 
