@@ -65,7 +65,7 @@ stages:
           inputs:
             key: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'
             restoreKeys: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'  # we want an exact match
-            path: ${{ variables.stm32pio_cubemx_packages_cache_folder }}
+            path: $(variables.stm32pio_cubemx_packages_cache_folder)
             cacheHitVar: CUBEMX_PACKAGES_CACHE_RESTORED
           displayName: 'Restore CubeMX packages cache'
 
@@ -85,14 +85,15 @@ stages:
           inputs:
             key: 'platformio | "$(PLATFORMIO_VERSION)"'
             restoreKeys: 'platformio | "$(PLATFORMIO_VERSION)"'  # we want an exact match
-            path: ${{ variables.stm32pio_platformio_cache_folder }}
+            path: $(variables.stm32pio_platformio_cache_folder)
             cacheHitVar: PLATFORMIO_CACHE_RESTORED
           displayName: 'Restore PlatformIO packages cache'
 
         # Use temp pytest config file to specify correct output format
         - script: |
-            printf "[pytest]\njunit_family = xunit2\n" > pytest.ini
-            STM32PIO_TEST_CASE=nucleo_f031k6 xvfb-run pytest tests --junitxml=junit/test-results.xml --cov=stm32pio/core --cov=stm32pio/cli --cov-branch --cov-report=xml
+#            printf "[pytest]\njunit_family = xunit2\n" > pytest.ini
+#            STM32PIO_TEST_CASE=nucleo_f031k6 xvfb-run pytest tests --junitxml=junit/test-results.xml --cov=stm32pio/core --cov=stm32pio/cli --cov-branch --cov-report=xml
+            xvfb-run python CI/tests_runner.py
           displayName: 'Test & coverage'
 
         - task: PublishTestResults@2

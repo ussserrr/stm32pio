@@ -75,6 +75,8 @@ def log_current_exception(logger: logging.Logger, show_traceback_threshold_level
     """
     exc_full_str = traceback.format_exc()
     exc_str = exc_full_str.splitlines()[-1]
+    if exc_str.startswith('Exception') and not logger.isEnabledFor(show_traceback_threshold_level):
+        exc_str = exc_str[len('Exception: '):]  # meaningless information
     exc_tb = ''.join(exc_full_str.splitlines(keepends=True)[:-1])
     logger.error(f'{exc_str}\n{exc_tb}' if logger.isEnabledFor(show_traceback_threshold_level) else exc_str)
 

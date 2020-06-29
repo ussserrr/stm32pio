@@ -555,11 +555,11 @@ class Stm32pio:
         violated. In the end, removes an old empty folders.
         """
 
-        self.logger.debug("patching 'platformio.ini' file...")
-
         if self.platformio_ini_is_patched:
             self.logger.info("'platformio.ini' has been already patched")
         else:
+            self.logger.debug("patching 'platformio.ini' file...")
+
             platformio_ini_config = self.platformio_ini_config  # existing .ini file
 
             patch_config = configparser.ConfigParser(interpolation=None)  # our patch has the INI config format, too
@@ -574,7 +574,7 @@ class Stm32pio:
                     self.logger.debug(f"set [{patch_section}]{patch_key} = {patch_value}")
                     platformio_ini_config.set(patch_section, patch_key, patch_value)
 
-            # Save, overwriting (node='w') the original file (deletes all comments!)
+            # Save, overwriting (mode='w') the original file (deletes all comments!)
             with self.path.joinpath('platformio.ini').open(mode='w') as platformio_ini_file:
                 platformio_ini_config.write(platformio_ini_file)
                 self.logger.debug("'platformio.ini' has been patched")

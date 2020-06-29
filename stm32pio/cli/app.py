@@ -44,25 +44,27 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
 
     parser_init = subparsers.add_parser('init',
                                         help="create config .ini file to check and tweak parameters before proceeding")
+    parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
+    parser_patch = subparsers.add_parser('patch',
+                                         help="tweak the project so the CubeMX and PlatformIO could work together")
     parser_new = subparsers.add_parser('new',
                                        help="generate CubeMX code, create PlatformIO project, glue them together")
-    parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. All arguments will "
-                                                   "be passed forward, see its --help for more information")
-    parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
     parser_status = subparsers.add_parser('status', help="get the description of the current project state")
     parser_clean = subparsers.add_parser('clean',
                                          help="clean-up the project (delete ALL content of 'path' except an .ioc file)")
+    parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. All arguments will "
+                                                   "be passed forward, see its own --help for more information")
 
     # Common subparsers options
-    for parser in [parser_init, parser_new, parser_gui, parser_generate, parser_status, parser_clean]:
+    for parser in [parser_init, parser_generate, parser_patch, parser_new, parser_status, parser_clean, parser_gui]:
         parser.add_argument('-d', '--directory', dest='path', default=pathlib.Path.cwd(),
                             help="path to the project (current directory, if not given)")
     for parser in [parser_init, parser_new, parser_gui]:
         parser.add_argument('-b', '--board', dest='board', default='', help="PlatformIO name of the board")
-    for parser in [parser_init, parser_new, parser_generate]:
+    for parser in [parser_init, parser_generate, parser_new]:
         parser.add_argument('--start-editor', dest='editor',
                             help="use specified editor to open the PlatformIO project (e.g. subl, code, atom, etc.)")
-    for parser in [parser_new, parser_generate]:
+    for parser in [parser_generate, parser_new]:
         parser.add_argument('--with-build', action='store_true', help="build the project after generation")
 
     parser_clean.add_argument('-q', '--quiet', action='store_true',
@@ -153,6 +155,18 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
             if args.editor:
                 project.start_editor(args.editor)
 
+        elif args.subcommand == 'generate':
+            project = stm32pio.core.lib.Stm32pio(args.path)
+            project.generate_code()
+            if args.with_build:
+                project.build()
+            if args.editor:
+                project.start_editor(args.editor)
+
+        elif args.subcommand == 'patch':
+            project = stm32pio.core.lib.Stm32pio(args.path)
+            project.patch()
+
         elif args.subcommand == 'new':
             project = stm32pio.core.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
                                                  instance_options={'save_on_destruction': True})
@@ -164,14 +178,6 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
             project.generate_code()
             project.pio_init()
             project.patch()
-            if args.with_build:
-                project.build()
-            if args.editor:
-                project.start_editor(args.editor)
-
-        elif args.subcommand == 'generate':
-            project = stm32pio.core.lib.Stm32pio(args.path)
-            project.generate_code()
             if args.with_build:
                 project.build()
             if args.editor:
