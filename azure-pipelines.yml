@@ -70,15 +70,14 @@ stages:
           displayName: 'Restore CubeMX packages cache'
 
         - script: |
-            pip install wheel
-            pip install pyyaml
+            pip install wheel pyyaml
             xvfb-run python CI/setup_test_env.py
           condition: ne(variables.CUBEMX_PACKAGES_CACHE_RESTORED, 'true')
           displayName: 'Download CubeMX packages'
 
         - script: |
             pip install platformio==$(PLATFORMIO_VERSION)
-            pip install pytest pytest-cov
+            pip install wheel pyyaml pytest pytest-cov
           displayName: 'Install tools'
 
         - task: Cache@2
