@@ -24,85 +24,85 @@ variables:
 stages:
   - stage: Test
     jobs:
-#      - job: 'Ubuntu'
-#        pool:
-#          vmImage: 'ubuntu-latest'
-#        strategy:
-#          matrix:
-#            Python36:
-#              python.version: '3.6'
-#            Python37:
-#              python.version: '3.7'
-#            Python38:
-#              python.version: '3.8'
-#        steps:
-#        - task: UsePythonVersion@0
-#          inputs:
-#            versionSpec: '$(python.version)'
-#          displayName: 'Use Python $(python.version)'
-#
-#        - script: |
-#            sudo apt install xvfb
-#            sudo systemctl start xvfb
-#            export DISPLAY=:99.0
-#          displayName: 'Set up X virtual frame buffer'
-#
-#        - task: Cache@2
-#          inputs:
-#            key: 'cubemx | "$(CUBEMX_VERSION)"'
-#            restoreKeys: 'cubemx | "$(CUBEMX_VERSION)"'  # we want an exact match
-#            path: ${{ variables.stm32pio_cubemx_cache_folder }}
-#            cacheHitVar: CUBEMX_CACHE_RESTORED
-#          displayName: 'Restore CubeMX cache'
-#
-#        - script: |
-#            wget -O cubemx_${{ variables.cubemx_version }}.zip ${{ variables.cubemx_link }}
-#            unzip -q cubemx_${{ variables.cubemx_version }}.zip -d ${{ variables.stm32pio_cubemx_cache_folder }}
-#          condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
-#          displayName: 'Download & unzip CubeMX'
-#
-#        - task: Cache@2
-#          inputs:
-#            key: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'
-#            restoreKeys: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'  # we want an exact match
-#            path: $(variables.stm32pio_cubemx_packages_cache_folder)
-#            cacheHitVar: CUBEMX_PACKAGES_CACHE_RESTORED
-#          displayName: 'Restore CubeMX packages cache'
-#
-#        - script: |
-#            pip install wheel pyyaml
-#            xvfb-run python CI/setup_test_env.py
-#          condition: ne(variables.CUBEMX_PACKAGES_CACHE_RESTORED, 'true')
-#          displayName: 'Download CubeMX packages'
-#
-#        - script: |
-#            pip install platformio==$(PLATFORMIO_VERSION)
-#            pip install wheel pyyaml pytest pytest-cov
-#          displayName: 'Install tools'
-#
-#        - task: Cache@2
-#          inputs:
-#            key: 'platformio | "$(PLATFORMIO_VERSION)"'
-#            restoreKeys: 'platformio | "$(PLATFORMIO_VERSION)"'  # we want an exact match
-#            path: $(variables.stm32pio_platformio_cache_folder)
-#            cacheHitVar: PLATFORMIO_CACHE_RESTORED
-#          displayName: 'Restore PlatformIO packages cache'
-#
-#        # Use temp pytest config file to specify correct output format
-#        - script: |
-#            xvfb-run python CI/tests_runner.py
-#          displayName: 'Test & coverage'
-#
-#        - task: PublishTestResults@2
-#          condition: succeededOrFailed()
-#          inputs:
-#            testResultsFiles: '**/test-*.xml'
-#            testRunTitle: 'Publish test results for Python $(python.version) (Ubuntu)'
-#
-#        - task: PublishCodeCoverageResults@1
-#          inputs:
-#            codeCoverageTool: Cobertura
-#            summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+      - job: 'Ubuntu'
+        pool:
+          vmImage: 'ubuntu-latest'
+        strategy:
+          matrix:
+            Python36:
+              python.version: '3.6'
+            Python37:
+              python.version: '3.7'
+            Python38:
+              python.version: '3.8'
+        steps:
+        - task: UsePythonVersion@0
+          inputs:
+            versionSpec: '$(python.version)'
+          displayName: 'Use Python $(python.version)'
+
+        - script: |
+            sudo apt install xvfb
+            sudo systemctl start xvfb
+            export DISPLAY=:99.0
+          displayName: 'Set up X virtual frame buffer'
+
+        - script: |
+            pip install wheel
+            pip install platformio==$(PLATFORMIO_VERSION)
+            pip install pyyaml pytest pytest-cov
+          displayName: 'Install tools'
+
+        - task: Cache@2
+          inputs:
+            key: 'cubemx | "$(CUBEMX_VERSION)"'
+            restoreKeys: 'cubemx | "$(CUBEMX_VERSION)"'  # we want an exact match
+            path: ${{ variables.stm32pio_cubemx_cache_folder }}
+            cacheHitVar: CUBEMX_CACHE_RESTORED
+          displayName: 'Restore CubeMX cache'
+
+        - script: |
+            wget -O cubemx_${{ variables.cubemx_version }}.zip ${{ variables.cubemx_link }}
+            unzip -q cubemx_${{ variables.cubemx_version }}.zip -d ${{ variables.stm32pio_cubemx_cache_folder }}
+          condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
+          displayName: 'Download & unzip CubeMX'
+
+        - task: Cache@2
+          inputs:
+            key: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'
+            restoreKeys: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'  # we want an exact match
+            path: $(variables.stm32pio_cubemx_packages_cache_folder)
+            cacheHitVar: CUBEMX_PACKAGES_CACHE_RESTORED
+          displayName: 'Restore CubeMX packages cache'
+
+        - script: |
+            xvfb-run python CI/setup_test_env.py
+          condition: ne(variables.CUBEMX_PACKAGES_CACHE_RESTORED, 'true')
+          displayName: 'Download CubeMX packages'
+
+        - task: Cache@2
+          inputs:
+            key: 'platformio | "$(PLATFORMIO_VERSION)"'
+            restoreKeys: 'platformio | "$(PLATFORMIO_VERSION)"'  # we want an exact match
+            path: $(variables.stm32pio_platformio_cache_folder)
+            cacheHitVar: PLATFORMIO_CACHE_RESTORED
+          displayName: 'Restore PlatformIO packages cache'
+
+        # Use temp pytest config file to specify correct output format
+        - script: |
+            xvfb-run python CI/tests_runner.py
+          displayName: 'Test & coverage'
+
+        - task: PublishTestResults@2
+          condition: succeededOrFailed()
+          inputs:
+            testResultsFiles: '**/test-*.xml'
+            testRunTitle: 'Publish test results for Python $(python.version) (Ubuntu)'
+
+        - task: PublishCodeCoverageResults@1
+          inputs:
+            codeCoverageTool: Cobertura
+            summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
 
 
       - job: 'Windows'
@@ -121,6 +121,12 @@ stages:
           inputs:
             versionSpec: '$(python.version)'
           displayName: 'Use Python $(python.version)'
+
+        - script: |
+            pip install wheel
+            pip install platformio==$(PLATFORMIO_VERSION)
+            pip install pyyaml
+          displayName: 'Install tools'
 
         - task: Cache@2
           inputs:
@@ -145,15 +151,9 @@ stages:
           displayName: 'Restore CubeMX packages cache'
 
         - script: |
-            pip install wheel pyyaml
             python CI/setup_test_env.py
           condition: ne(variables.CUBEMX_PACKAGES_CACHE_RESTORED, 'true')
           displayName: 'Download CubeMX packages'
-
-        - script: |
-            pip install platformio==$(PLATFORMIO_VERSION)
-            pip install wheel pyyaml
-          displayName: 'Install tools'
 
         - task: Cache@2
           inputs:
@@ -168,44 +168,67 @@ stages:
           displayName: 'Test'
 
 
-#      - job: 'macOS'
-#        pool:
-#          vmImage: 'macOS-latest'
-#        strategy:
-#          matrix:
-#            Python36:
-#              python.version: '3.6'
-#            Python37:
-#              python.version: '3.7'
-#            Python38:
-#              python.version: '3.8'
-#        steps:
-#        - task: UsePythonVersion@0
-#          inputs:
-#            versionSpec: '$(python.version)'
-#          displayName: 'Use Python $(python.version)'
-#
-#        - task: Cache@2
-#          inputs:
-#            key: 'cubemx | "$(CUBEMX_VERSION)"'
-#            restoreKeys: 'cubemx | "$(CUBEMX_VERSION)"'  # we want an exact match
-#            path: ${{ variables.cubemx_cache_folder }}
-#            cacheHitVar: CUBEMX_CACHE_RESTORED
-#          displayName: 'Restore CubeMX cache'
-#
-#        - script: |
-#            wget -O cubemx_${{ variables.cubemx_version }}.zip ${{ variables.cubemx_link }}
-#            unzip -q cubemx_${{ variables.cubemx_version }}.zip -d ${{ variables.cubemx_cache_folder }}
-#          condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
-#          displayName: 'Download & unzip CubeMX'
-#
-#        - script: |
-#            pip install platformio
-#          displayName: 'Install tools'
-#
-#        - script: |
-#            python -m unittest
-#          displayName: 'Test'
+      - job: 'macOS'
+        pool:
+          vmImage: 'macOS-latest'
+        strategy:
+          matrix:
+            Python36:
+              python.version: '3.6'
+            Python37:
+              python.version: '3.7'
+            Python38:
+              python.version: '3.8'
+        steps:
+        - task: UsePythonVersion@0
+          inputs:
+            versionSpec: '$(python.version)'
+          displayName: 'Use Python $(python.version)'
+
+        - script: |
+            pip install wheel
+            pip install platformio==$(PLATFORMIO_VERSION)
+            pip install pyyaml
+          displayName: 'Install tools'
+
+        - task: Cache@2
+          inputs:
+            key: 'cubemx | "$(CUBEMX_VERSION)"'
+            restoreKeys: 'cubemx | "$(CUBEMX_VERSION)"'  # we want an exact match
+            path: ${{ variables.stm32pio_cubemx_cache_folder }}
+            cacheHitVar: CUBEMX_CACHE_RESTORED
+          displayName: 'Restore CubeMX cache'
+
+        - script: |
+            wget -O cubemx_${{ variables.cubemx_version }}.zip ${{ variables.cubemx_link }}
+            unzip -q cubemx_${{ variables.cubemx_version }}.zip -d ${{ variables.stm32pio_cubemx_cache_folder }}
+          condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
+          displayName: 'Download & unzip CubeMX'
+
+        - task: Cache@2
+          inputs:
+            key: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'
+            restoreKeys: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'  # we want an exact match
+            path: $(variables.stm32pio_cubemx_packages_cache_folder)
+            cacheHitVar: CUBEMX_PACKAGES_CACHE_RESTORED
+          displayName: 'Restore CubeMX packages cache'
+
+        - script: |
+            python CI/setup_test_env.py
+          condition: ne(variables.CUBEMX_PACKAGES_CACHE_RESTORED, 'true')
+          displayName: 'Download CubeMX packages'
+
+        - task: Cache@2
+          inputs:
+            key: 'platformio | "$(PLATFORMIO_VERSION)"'
+            restoreKeys: 'platformio | "$(PLATFORMIO_VERSION)"'  # we want an exact match
+            path: $(variables.stm32pio_platformio_cache_folder)
+            cacheHitVar: PLATFORMIO_CACHE_RESTORED
+          displayName: 'Restore PlatformIO packages cache'
+
+        - script: |
+            python CI/tests_runner.py
+          displayName: 'Test'
 
 
 #  - stage: Build
