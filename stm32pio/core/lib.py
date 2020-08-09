@@ -407,7 +407,7 @@ class Stm32pio:
 
                 command_arr = []
                 java_cmd = self.config.get('app', 'java_cmd')
-                # CubeMX can be invoked straightforwardly, without a need in Java command
+                # CubeMX can be invoked directly, without a need in Java command
                 if java_cmd and java_cmd not in ['None', 'none', 'NONE', 'No', 'no', 'NO', '0']:
                     command_arr += [self.config.get('app', 'java_cmd'), '-jar']
                 # -q: read the commands from the file, -s: silent performance

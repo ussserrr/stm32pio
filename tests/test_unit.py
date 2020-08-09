@@ -215,7 +215,7 @@ class TestUnit(CustomTestCase):
         """
         PlatformIO identifiers of boards are requested using PlatformIO CLI in JSON format
         """
-        boards = stm32pio.core.util.get_platformio_boards(platformio_cmd='platformio')
+        boards = stm32pio.core.util.get_platformio_boards()
 
         self.assertIsInstance(boards, collections.abc.MutableSequence)
         self.assertGreater(len(boards), 0, msg="boards list is empty")

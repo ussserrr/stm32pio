@@ -231,31 +231,36 @@ stages:
           displayName: 'Test'
 
 
-#  - stage: Build
-#    jobs:
-#      - job: 'Build to wheel & source distribution'
-##        pool:
-##          vmImage: 'ubuntu-latest'
-#        steps:
-#        - task: UsePythonVersion@0
-#          inputs:
-#            versionSpec: '3.8'
-#          displayName: 'Use Ubuntu Python38'
-#
-#        - script: |
-#            pip install wheel
-#            python setup.py sdist bdist_wheel
-#          displayName: 'Pack via setuptools'
-#
-#        - task: CopyFiles@2
-#          inputs:
-#            contents: dist/**
-#            targetFolder: $(Build.ArtifactStagingDirectory)
-#
-#        - task: PublishBuildArtifacts@1
-#          inputs:
-#            pathToPublish: $(Build.ArtifactStagingDirectory)
-#            artifactName: dist
+  - stage: Build
+    jobs:
+      - job: 'Build to wheel & source distribution'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+        - task: UsePythonVersion@0
+          inputs:
+            versionSpec: '3.8'
+          displayName: 'Use Ubuntu Python38'
+
+        - script: |
+            pip install wheel
+            pip install setuptools setuptools_scm
+          displayName: 'Install build dependencies'
+
+        - script: |
+            pip wheel . --wheel-dir dist
+            python setup.py sdist
+          displayName: 'Pack via setuptools'
+
+        - task: CopyFiles@2
+          inputs:
+            contents: dist/**
+            targetFolder: $(Build.ArtifactStagingDirectory)
+
+        - task: PublishBuildArtifacts@1
+          inputs:
+            pathToPublish: $(Build.ArtifactStagingDirectory)
+            artifactName: dist
 
 
 #  - stage: Publish

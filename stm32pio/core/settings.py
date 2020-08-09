@@ -38,11 +38,7 @@ config_default = collections.OrderedDict(
         # (default is OK) Trying to guess the STM32CubeMX location. STM actually had changed the installation path
         # several times already. Note that STM32CubeMX will be invoked as 'java -jar CUBEMX'
         'cubemx_cmd':
-            # macOS default: 'Applications' folder
-            "/Users/chufyrev/cubemx/STM32CubeMX.exe" if my_os == 'Darwin' else  # TODO
-            # Linux (Ubuntu) default: home directory
-            str(Path.home().joinpath("cubemx/STM32CubeMX.exe")) if my_os == 'Linux' else
-            # Windows default: Program Files
+            str(Path.home().joinpath("cubemx/STM32CubeMX.exe")) if my_os in ['Darwin', 'Linux'] else
             "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe" if my_os == 'Windows' else None
     },
     project={
