@@ -60,14 +60,15 @@
  - [ ] test for different `.ioc` files (i.e. F0, F1, F4 and so on) as it is not the same actually
  - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (shell=True or a list of args (split a string))
  - [x] cache boards for a small interval of time
- - [ ] count another '-v' as '-v' for PlatformIO calls (slider in GUI settings window)
+ - [ ] count another '-v' as '-v' for the PlatformIO calls (as a slider in the GUI settings window)
  - [ ] Project' name (path) can be reused so cannot be used as a unique identifier but so is id(self)? Probably it is better to use a path (human-readable)
- - [x] Analyze `.ioc` file for the wrong framework/parameters
+ - [ ] Analyze `.ioc` file for the wrong framework/parameters
  - [x] Take out to settings "[ERROR]", "Successful code generation" etc.
  - [ ] Kill subprocesses if there is no output have appeared for some timeout (i.e. hung)
- - [x] Fix when '' board string overwrites existing
- - [x] Allow to not specify a board for `new` when it is already specified in the config
+ - [x] Fix when empty '' board string overwrites existing
+ - [x] Allow to not specify a board for the `new` command when it is already specified in the config
  - [ ] Maybe logging notifications about which parameters has superseded which
- - [ ] Add `patch` command (all other are already present in some way (through `stm32pio` or `pio`))
- - [ ] Use CubeMX options such as `project couplefilesbyip <0|1>` and `project toolchain <toolchain>`
- - [ ] Expand CLI keys and options everywhere (e.g. `--project-option` instead of `-O`)
+ - [x] Add `patch` command (all other are already present in some way (through `stm32pio` or `pio`)) or another
+ - [ ] Use CubeMX options such as `project couplefilesbyip <0|1>` and `project toolchain <toolchain>` or ...
+ - [ ] ... parse an `.ioc` file and edit the parameters in-place if necessary
+ - [x] Expand CLI keys and options everywhere (e.g. `--project-option` instead of `-O`)

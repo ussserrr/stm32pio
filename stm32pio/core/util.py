@@ -139,7 +139,7 @@ class DispatchingFormatter(logging.Formatter):
     # Mapping of logging formatters for "special". Currently, only "from_subprocess" is defined. It's good to hide such
     # implementation details as much as possible though they are still tweakable from the outer code
     special_formatters = {
-        'from_subprocess': {  # TODO: maybe remade as enum, too? To have an IDE hints and more safety in general
+        'from_subprocess': {
             level: as_is_formatter for level in Verbosity
         }
     }

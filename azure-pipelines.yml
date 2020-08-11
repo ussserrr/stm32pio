@@ -233,7 +233,7 @@ stages:
 
   - stage: Build
     jobs:
-      - job: 'Build to wheel & source distribution'
+      - job: 'Build to wheel and source distribution'
         pool:
           vmImage: 'ubuntu-latest'
         steps:

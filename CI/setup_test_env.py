@@ -10,7 +10,8 @@ import yaml
 
 
 def install_cubemx_mcu_packages(query):
-    """"""
+    """Install software packages for CubeMX (which are used for code generation)
+    """
     # Use mkstemp() instead of the higher-level API for the compatibility with Windows (see tempfile docs for
     # more details)
     cubemx_script_file, cubemx_script_name = tempfile.mkstemp()
@@ -19,7 +20,7 @@ def install_cubemx_mcu_packages(query):
         cubemx_script_content = '\n'.join([f"swmgr install stm32cube_{series}_{version} accept"
                                            for series, version in query.items()]) + "\nexit"
         cubemx_script.write(cubemx_script_content.encode())  # encode since mode='w+b'
-        subprocess.run(['java', '-jar', str(Path(os.getenv('STM32PIO_CUBEMX_CACHE_FOLDER')).joinpath('STM32CubeMX.exe')), '-q',
+        subprocess.run(['java', '-jar', str(Path(os.getenv('STM32PIO_CUBEMX_CACHE_FOLDER')) / 'STM32CubeMX.exe'), '-q',
                         cubemx_script_name, '-s'])
 
 

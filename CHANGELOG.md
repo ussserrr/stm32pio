@@ -277,7 +277,7 @@
  - New: introducing CI/CD via Azure Pipelines. I tried to make as "general" system as possible with isolated environments, reproducible builds, etc. Due to a number of such a different tools in use and scattered infrastructure around them this task is very complex and the current configuration is far from ideal though
  - New: new project structure. All packages (core, CLI, GUI) are consolidated under the common `stm32pio` Python _namespace_
  - New: app version is completely removed from the repo and is "computed" at build-time from the VCS (GIT) current tag (using [setuptools_scm](https://github.com/pypa/setuptools_scm)). At run-time the version obtaining process depends: for newer Python it can be retrieved from a package metadata, for older one there is an auto-generated `version.py` file with a value stored in it
- - New: support multiple test fixtures to test on different targets (e.g. lightweight `nucleo_f031k6` project + real-life `f103` and so on)
+ - New: support multiple test fixtures to test against a different targets (e.g. lightweight `nucleo_f031k6` project + real-life `f103` and so on)
  - New: new build system. Use modern tools such as `pyproject.toml`, declarative `setup.cfg`, PEP-517 and so on. However in the middle of the development process it became evident that such a workflow is still early and not so common and there are simply not enough tools to implement it gracefully (e.g. no official tool to build both `dist` source tarball and `wheel`)
  - New: CLI. `patch` command. With this function now all meaningful (for end-user) methods of the `Stm32pio` class are mapped by CLI commands and match corresponding buttons from the GUI version so the similar workflow can be applied:
     - Initialize - `stm32pio init`
@@ -291,4 +291,4 @@
  - Changed: take out to the `settings.py` a strings that we looked for to determine successful CubeMX code generation
  - Changed: use newer `platformio project init` command, use verbose versions of CLI arguments
  - Fixed: revise config handling: more robust and straightforward procedure to merge the final runtime config from different sources (fix the reported [problem](https://community.platformio.org/t/platformio-for-stm32-and-cubemx-include-error/10984/11)). Adjust corresponding test
- - Fixed: GUI. Add `project.lastActionSucceed` property to fix some visual behavior
+ - Fixed: GUI. Add `project.lastActionSucceed` property to fix some visual behavior (bold borders remains after an error)

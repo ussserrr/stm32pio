@@ -2,11 +2,11 @@
 
 [![Build Status](https://dev.azure.com/andrei42008/stm32pio/_apis/build/status/ussserrr.stm32pio?branchName=dev)](https://dev.azure.com/andrei42008/stm32pio/_build/latest?definitionId=1&branchName=dev)
 
-Small cross-platform Python app that can create and update [PlatformIO](https://platformio.org) projects from [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html) `.ioc` files.
+Small cross-platform Python app that can create and update [PlatformIO](https://platformio.org) projects from the [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html) `.ioc` files.
 
 It uses STM32CubeMX to generate a HAL-framework-based code and alongside creates PlatformIO project with compatible parameters to stick them both together.
 
-The [GUI version](/stm32pio_gui) is available, too.
+The [GUI version](/docs/gui/README.md) is available, too.
 
 ![Logo](/screenshots/logo.png)
 
@@ -20,7 +20,9 @@ The [GUI version](/stm32pio_gui) is available, too.
 >   - [Project patching](#project-patching)
 >   - [Embedding](#embedding)
 > - [Example](#example)
-> - [Testing](#testing)
+> - [Build](#build)
+> - [Test](#test)
+> - [CI](#ci)
 > - [Restrictions](#restrictions)
 
 
@@ -31,44 +33,43 @@ The [GUI version](/stm32pio_gui) is available, too.
   - Get the status information
   - *[optional]* Automatically run your favorite editor in the end
   - *[optional]* Automatically make an initial build of the project
-  - *[optional]* GUI version (see stm32pio-gui sub-folder for the dedicated README)
+  - *[optional]* GUI version (see [the dedicated README](/docs/gui/README.md))
 
 
 ## Requirements:
-  - For this app:
-    - Python 3.6 and above
-  - For usage:
-    - macOS, Linux, Windows
-    - STM32CubeMX with desired downloaded frameworks (F0, F1, etc.)
-    - Java CLI (JRE) (likely is already installed if the STM32CubeMX is working)
-    - PlatformIO CLI (already presented if you have installed PlatformIO via some package manager or need to be installed as the "command line extension" from IDE)
+The app presents zero-dependencies by itself and requires only this to run:
+  - macOS, Linux, Windows
+  - Python 3.6 and above
+
+Of course, you need to have all the necessary tools to be installed in order to work with them:
+  - STM32CubeMX with the desired downloaded frameworks (F0, F1, etc.)
+  - Java CLI (JRE, Java runtime environment) for the CubeMX (likely is already installed if the CubeMX is working). In other words, you should be able to launch Java from your terminal using `java` command. Which version is appropriate for the CubeMX you can find in its docs
+  - PlatformIO (4.2.0 and above) CLI (already present if you have installed PlatformIO via some package manager (`pip`, `apt`, `brew`, etc.) or need to be installed as the "command line extension" from IDE (see [docs](https://docs.platformio.org/en/latest/core/installation.html) for more information))
+
+If you for some reasons don't want to or cannot install command line versions of these applications you can always specify the direct paths to them in your system using the project configuration file `stm32pio.ini` or even override the default values in the source code file `settings.py`.
+
+Also, some external dependencies may be required to build, test and pack the app. See the corresponding sections for more information.
 
 A general recommendation there would be to test both CubeMX (code generation) and PlatformIO (project creation, building) at least once before using stm32pio to make sure that all tools work properly even without any "glue".
 
+**2020 Update**: in my tests, recent versions of CubeMX had been shipping with no installer of some sort. So I just unpack the distribution archive and place it in `~/cubemx` directory so it can be started simply as `java -jar ~/cubemx/STM32CubeMX.exe`. That's why the default path is as mentioned above. Tell me if your default path is rather another. Also, the default structure of the generated code is significantly different when you invoke the generation from the GUI version of CubeMX or the CLI one. As stm32pio uses the latter one a code from the GUI version currently cannot be got in conformation with the desired PlatformIO project structure (at least with the default patch config, you can always tweak it in the configuration file `stm32pio.ini`).
+
 
 ## Installation
-You can run the app in a portable way by downloading or cloning the snapshot of the repository and invoking the main script or Python module:
+You can run the app in a portable way by downloading or cloning the snapshot of this repository and invoking the main script or the Python module:
 ```shell script
-stm32pio-repo/ $   python3 stm32pio/app.py  # or
-stm32pio-repo/ $   python3 -m stm32pio  # or
-any-path/ $   python3 path/to/stm32pio-repo/stm32pio/app.py
+stm32pio-repo/ $   python3 stm32pio/cli/app.py  # or
+stm32pio-repo/ $   python3 -m stm32pio.cli  # or
+any-path/ $   python3 path/to/stm32pio-repo/stm32pio/cli/app.py
 ```
-(we assume `python3` and `pip3` hereinafter). It is possible to run the app like this from anywhere.
+(we assume `python3` and `pip3` hereinafter).
 
-However, it's handier to install the utility to be able to run stm32pio from anywhere. Use
-```shell script
-stm32pio-repo/ $   pip install wheel
-stm32pio-repo/ $   python setup.py sdist bdist_wheel
-stm32pio-repo/ $   pip install dist/stm32pio-X.XX-py3-none-any.whl
-```
-commands to launch the setup process. Now you can simply type `stm32pio` in the terminal to run the utility in any directory.
-
-Finally, the PyPI distribution (starting from v0.95) is available:
+However, it's handier to install the utility to be able to run stm32pio from anywhere. The PyPI distribution (starting from v0.95) is available:
 ```shell script
 $ pip install stm32pio
 ```
 
-To uninstall in both cases run
+To uninstall run
 ```shell script
 $ pip uninstall stm32pio
 ```
@@ -76,7 +77,7 @@ $ pip uninstall stm32pio
 
 ## Usage
 Basically, you need to follow such a pattern:
-  1. Create CubeMX project (.ioc file), set-up your hardware configuration, save with the compatible parameters
+  1. Create CubeMX project (`.ioc` file), set-up your hardware configuration, save with the compatible parameters
   2. Run the stm32pio that automatically invokes CubeMX to generate the code, creates PlatformIO project, patches a `platformio.ini` file and so on
   3. Work on the project in your editor as usual, compile/upload/debug etc.
   4. Edit the configuration in CubeMX when necessary, then run stm32pio to re-generate the code
@@ -90,7 +91,7 @@ On the first run stm32pio will create a config file `stm32pio.ini`, syntax of wh
 ```shell script
 $ stm32pio init -d path/to/project
 ```
-It may be useful to tweak some parameters before proceeding. The structure of the config is separated in two sections: `app` and `project`. Options of the first one is related to the global settings such as commands to invoke different instruments though they can be adjusted on the per-project base while the second section contains of project-related parameters. See comments in the [`settings.py`](/stm32pio/settings.py) file for parameters description.
+It may be useful to tweak some parameters before proceeding. The structure of the config is separated in two sections: `app` and `project`. Options of the first one is related to the global settings such as commands to invoke different instruments though they can be adjusted on the per-project base while the second section contains of project-related parameters. See comments in the [`settings.py`](/stm32pio/core/settings.py) file for parameters description.
 
 You can always run
 ```shell script
@@ -99,31 +100,31 @@ $ stm32pio --help
 to see help on available commands. Find the copy of its output on the [project wiki](https://github.com/ussserrr/stm32pio/wiki/stm32pio-help) page, also.
 
 ### GUI from CLI
-You can start the [GUI version](/stm32pio_gui) using `gui` subcommand and pass some of the arguments to it:
+You can start the [GUI version](/docs/gui/README.md) using the `gui` subcommand and pass some of the arguments to it:
 ```shell script
 $ stm32pio gui -d ./sample-project -b discovery_f4
 ```
 
 ### Project patching
 
-Note, that the patch operation (which takes the CubeMX code and PlatformIO project to the compliance) erases all the comments (lines starting with `;`) inside the `platformio.ini` file. They are not required anyway, in general, but if you need them for some reason please consider to save the information somewhere else.
+Note, that the patch operation (which takes the CubeMX code and PlatformIO project to the compliance) erases all the comments (lines starting with `;`) inside the `platformio.ini` file. They are not required anyway, in general, but if you need them for some reason please consider saving the information somewhere else.
 
-For those who want to modify the patch (default one is at [`settings.py`](/stm32pio/settings.py), project one in a config file `stm32pio.ini`): it can has a general-form .INI content so it is possible to specify several sections and apply composite patches. This works totally fine for the most cases except, perhaps, some really big complex patches involving, say, the parameters interpolation feature. It is turned off for both `platformio.ini` and user's patch parsing by default. If there are some problems you've met due to a such behavior please modify the source code to match the parameters interpolation kind for the configs you need to. Seems like `platformio.ini` uses `ExtendedInterpolation` for its needs, by the way.
+For those who wants to modify the patch (default one is at [`settings.py`](/stm32pio/core/settings.py), project one in a config file `stm32pio.ini`): it can has a general-form .INI-style content so it is possible to specify several sections and apply composite patches. This works totally fine for the most cases except, perhaps, some really big complex patches involving, say, the parameters interpolation feature. It is turned off for both `platformio.ini` and user's patch parsing by default. If there are some problems you've met due to a such behavior please modify the source code to match the parameters interpolation kind for the configs you need to. Seems like `platformio.ini` uses `ExtendedInterpolation` for its needs, by the way.
 
 ### Embedding
 
-You can also use stm32pio as an ordinary Python package and embed it in your own application. Find the minimal example at the [examples](/examples) to see some possible ways of implementing this. Basically, you need to import `stm32pio.lib` module (where the main `Stm32pio` class resides), (optionally) set up a logger and you are good to go. If you prefer higher-level API similar to the CLI version, use `main()` function in `app.py` passing the same CLI arguments to it (except the actual script name). Also, take a look at the CLI ([`app.py`](/stm32pio/app.py)) or GUI versions.
+You can also use stm32pio as an ordinary Python package and embed it in your own application. Find the minimal example at the [examples](/examples) to see some possible ways of implementing this. Basically, you need to import `stm32pio.core.lib` module (where the main `Stm32pio` class resides), _optionally_ set up a logger and you are good to go. If you prefer higher-level API similar to the CLI version, use `main()` function in `cli/app.py` passing the same CLI arguments to it. Also, take a look at the CLI ([`app.py`](/stm32pio/cli/app.py)) or GUI versions.
 
 
 ## Example
 1. Run CubeMX, choose MCU/board, do all necessary tweaking
 2. Select `Project Manager -> Project` tab, specify "Project Name", choose "Other Toolchains (GPDSC)". In `Code Generator` tab check "Copy only the necessary library files" and "Generate periphery initialization as a pair of '.c/.h' files per peripheral" options
 
-![Code Generator tab](/screenshots/tab_CodeGenerator.png)
+![Code Generator tab](/docs/cubemx_project_settings/tab_CodeGenerator.png)
 
 3. Back in the first tab (Project) copy the "Toolchain Folder Location" string (you may not be able to copy it in modern CubeMX versions so use a terminal or a file manager to do this). Save the project, close CubeMX
 
-![Project tab](/screenshots/tab_Project.png)
+![Project tab](/docs/cubemx_project_settings/tab_Project.png)
 
 4. Use a copied string (project folder) as a `-d` argument for stm32pio (can be omitted if your current working directory is already a project directory).
 5. Run `platformio boards` (`pio boards`) or go to [boards](https://docs.platformio.org/en/latest/boards) to list all supported devices. Pick one and use its ID as a `-b` argument (for example, `nucleo_f031k6`)
@@ -143,18 +144,43 @@ You can also use stm32pio as an ordinary Python package and embed it in your own
 9. To clean-up the folder and keep only the `.ioc` file run `clean` command.
 
 
-## Testing
-There are some tests in file [`test.py`](/stm32pio/tests/test.py) (based on the unittest module). Run
+## Build
+Staring from v2.0.0 PEP517-compatible build process is supported. For the build dependencies list see [pyproject.toml](/pyproject.toml) file:
 ```shell script
-stm32pio-repo/ $   python -m unittest -b -v
+$ pip install wheel
+$ pip install setuptools setuptools_scm
 ```
-to test the app. It uses STM32F0 framework to generate and build a code from the test [`stm32pio-test-project.ioc`](/stm32pio-test-project/stm32pio-test-project.ioc) project file. Please make sure that the test project folder is clean (i.e. contains only an .ioc file) before running the test otherwise it can lead to some cases failing. Tests automatically create temporary directory (using `tempfile` Python standard module) where all actions are performed.
+This process yet described and standardized in PEPs is still early and not fully implemented by the different tools (such as pip, twine) though (at the time of this version at least). So the current way is a little bit messy and depends on different instruments. Use the latest Python and build packages versions. To build a _wheel_ `setup.py` is not even needed:
+```shell script
+$ pip wheel . --wheel-dir dist
+```
+but for the source distribution tarball it is still necessary:
+```shell script
+$ python setup.py sdist
+```
 
-For the specific test suite or case you can use
+
+## Test
+There are some tests in [`tests`](/tests) directory (based on the unittest module). The test stage is a CubeMX project (`.ioc` file) with an optional `platformio.ini.lockfile` config specifying the versions of the used PlatformIO libraries (see "CI" chapter) (this config is an ordinary .INI-style file which will be merged with the `platformio.ini` test file). Several such targets can be placed to the `fixtures` folder to test against. Finally, run this command setting the current case as an environment variable
 ```shell script
-stm32pio-repo/ $   python -m unittest tests.test_integration.TestIntegration -b -v
-stm32pio-repo/ $   python -m unittest tests.test_cli.TestCLI.test_verbosity -b -v
+stm32pio-repo/ $   STM32PIO_TEST_CASE=nucleo_f031k6 python -m unittest -b -v
 ```
+to test the stm32pio. Currently, the `STM32PIO_TEST_CASE` envvar can be omitted as only the single test case is defined and it is hardcoded as a default one. Tests code automatically create temporary directory (using `tempfile` Python standard module) where all actions are performed.
+
+To run the specific group of tests or a single test function you can use:
+```shell script
+stm32pio-repo/ $   python -m unittest tests.test_integration.TestIntegration
+stm32pio-repo/ $   python -m unittest tests.test_cli.TestCLI.test_verbosity
+```
+
+
+## CI
+Azure pipelines is used to automate test, build, and publish tasks. The repo is tested against all 3 major OSes and for the Linux the test coverage is also calculated. For this purposes some external dependencies are necessary, such as
+  - pytest
+  - coverage
+  - yaml
+  
+There are some elements of the "reproducible builds" approach using several "lockfiles", isolated test fixtures and caching. Actually, due to a number of different tools in use and their nature the truly and fully "canonical" CI seems challenging to implement so the current system is far from ideal. It probably will be improved in the future, see [azure-pipelines.yml](/azure-pipelines.yml), [CI](/CI) for more information for now.
 
 
 ## Restrictions

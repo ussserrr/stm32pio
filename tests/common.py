@@ -26,8 +26,7 @@ import tempfile
 import unittest
 
 
-CASES_ROOT = Path(os.environ.get('STM32PIO_TEST_FIXTURES',
-                                 default=Path(__file__).parent.joinpath('fixtures'))).resolve(strict=True)
+CASES_ROOT = Path(os.environ.get('STM32PIO_TEST_FIXTURES', default=Path(__file__).parent / 'fixtures')).resolve(strict=True)
 os.environ['STM32PIO_TEST_FIXTURES'] = str(CASES_ROOT)
 
 CASE = os.environ.get('STM32PIO_TEST_CASE', default='nucleo_f031k6')
