@@ -45,8 +45,6 @@ stages:
             sudo apt install xvfb
             sudo systemctl start xvfb
             export DISPLAY=:99.0
-            echo ${{ variables.cubemx_version }}
-            echo ${{ variables.cubemx_link }}
           displayName: 'Set up X virtual frame buffer'
 
         - script: |
@@ -64,7 +62,7 @@ stages:
           displayName: 'Restore CubeMX cache'
 
         - script: |
-            wget -O cubemx_${{ variables.cubemx_version }}.zip ${{ variables.cubemx_link }}
+            wget -O cubemx_${{ variables.cubemx_version }}.zip ${{ variables.stm32pio_cubemx_link }}
             unzip -q cubemx_${{ variables.cubemx_version }}.zip -d ${{ variables.stm32pio_cubemx_cache_folder }}
           condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
           displayName: 'Download & unzip CubeMX'
@@ -139,7 +137,7 @@ stages:
           displayName: 'Restore CubeMX cache'
 
         - powershell: |
-            Invoke-WebRequest ${{ variables.cubemx_link }} -OutFile cubemx_${{ variables.cubemx_version }}.zip
+            Invoke-WebRequest ${{ variables.stm32pio_cubemx_link }} -OutFile cubemx_${{ variables.cubemx_version }}.zip
             7z x -o${{ variables.stm32pio_cubemx_cache_folder }} cubemx_${{ variables.cubemx_version }}.zip
           condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
           displayName: 'Download & unzip CubeMX'
@@ -202,7 +200,7 @@ stages:
           displayName: 'Restore CubeMX cache'
 
         - script: |
-            wget -O cubemx_${{ variables.cubemx_version }}.zip ${{ variables.cubemx_link }}
+            wget -O cubemx_${{ variables.cubemx_version }}.zip ${{ variables.stm32pio_cubemx_link }}
             unzip -q cubemx_${{ variables.cubemx_version }}.zip -d ${{ variables.stm32pio_cubemx_cache_folder }}
           condition: ne(variables.CUBEMX_CACHE_RESTORED, 'true')
           displayName: 'Download & unzip CubeMX'
