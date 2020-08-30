@@ -1,10 +1,10 @@
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQml.Models 2.12
-import QtQuick.Layouts 1.12
-import QtGraphicalEffects 1.12
+import QtQuick 2.14
+import QtQuick.Controls 2.14
+import QtQml.Models 2.14
+import QtQuick.Layouts 1.14
+import QtGraphicalEffects 1.14
 import QtQuick.Dialogs 1.3 as Dialogs
-import QtQml.StateMachine 1.12 as DSM
+import QtQml.StateMachine 1.14 as DSM
 
 import Qt.labs.platform 1.1 as Labs
 
@@ -187,7 +187,9 @@ ApplicationWindow {
 
     Connections {
         target: projectsModel
-        onGoToProject: projectsListView.currentIndex = indexToGo
+        function onGoToProject(indexToGo) {
+            projectsListView.currentIndex = indexToGo;
+        }
     }
     function removeCurrentProject() {
         const indexToRemove = projectsListView.currentIndex;
@@ -304,7 +306,7 @@ ApplicationWindow {
                             Connections {
                                 target: project
                                 // Currently, this event is equivalent to the complete initialization of the backend side of the project
-                                onNameChanged: {
+                                function onNameChanged() {
                                     initLoading = false;
 
                                     // Appropriately highlight an item depending on its initialization result
@@ -320,11 +322,11 @@ ApplicationWindow {
                                         projectCurrentStage.color = 'seagreen';
                                     }
                                 }
-                                onActionStarted: {
+                                function onActionStarted(action) {
                                     runningOrFinished.currentIndex = 0;
                                     runningOrFinished.visible = true;
                                 }
-                                onActionFinished: {
+                                function onActionFinished(action, success) {
                                     if (index !== projectsListView.currentIndex) {
                                         projectCurrentStage.color = 'darkgray';  // show that the stage has changed from the last visit
                                         runningOrFinished.currentIndex = 1;  // show "notification" about the finished action
@@ -337,7 +339,7 @@ ApplicationWindow {
                             }
                             Connections {
                                 target: projectsListView
-                                onCurrentIndexChanged: {
+                                function onCurrentIndexChanged() {
                                     // "Read" all "notifications" after navigating to the list element
                                     if (projectsListView.currentIndex === index) {
                                         if (Qt.colorEqual(projectName.color, 'seagreen')) {
@@ -476,7 +478,9 @@ ApplicationWindow {
 
             Connections {
                 target: projectsListView
-                onCurrentIndexChanged: projectsWorkspaceView.currentIndex = projectsListView.currentIndex
+                function onCurrentIndexChanged() {
+                    projectsWorkspaceView.currentIndex = projectsListView.currentIndex;
+                }
             }
             Repeater {
                 // Use similar to ListView pattern (same projects model, Loader component)
@@ -534,7 +538,7 @@ ApplicationWindow {
                         Connections {
                             target: project
                             // Currently, this event is equivalent to the complete initialization of the backend side of the project
-                            onNameChanged: {
+                            function onNameChanged() {
                                 const state = project.state;
                                 stateCached = state;
                                 const completedStages = Object.keys(state).filter(stateName => state[stateName]);
@@ -971,10 +975,10 @@ ApplicationWindow {
                                         }
                                         Connections {
                                             target: project
-                                            onActionStarted: {
+                                            function onActionStarted(action) {
                                                 glow.visible = false;
                                             }
-                                            onActionFinished: {
+                                            function onActionFinished(action, success) {
                                                 if (action === model.action) {
                                                     if (success) {
                                                         glow.color = 'lightgreen';
@@ -1043,7 +1047,7 @@ ApplicationWindow {
                                         textFormat: TextEdit.RichText
                                         Connections {
                                             target: project
-                                            onLogAdded: {
+                                            function onLogAdded(message, level) {
                                                 if (level === Logging.WARNING) {
                                                     log.append('<font color="goldenrod"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
                                                 } else if (level >= Logging.ERROR) {

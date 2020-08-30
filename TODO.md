@@ -72,3 +72,5 @@
  - [ ] Use CubeMX options such as `project couplefilesbyip <0|1>` and `project toolchain <toolchain>` or ...
  - [ ] ... parse an `.ioc` file and edit the parameters in-place if necessary
  - [x] Expand CLI keys and options everywhere (e.g. `--project-option` instead of `-O`)
+ - [ ] Build, install and only then test the app
+ - [ ] Templates for CI?

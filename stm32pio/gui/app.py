@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 import weakref
-from typing import List, Callable, Optional, Any, Mapping, MutableMapping, Iterator
+from typing import List, Callable, Optional, Any, Mapping, MutableMapping, Iterator, Union
 
 try:
     from PySide2.QtCore import QUrl, Property, QAbstractListModel, QModelIndex, QObject, Qt, Slot, Signal, QThread,\
@@ -21,8 +21,10 @@ try:
         # Most UNIX systems does not provide QtDialogs implementation so the program should be 'linked' against
         # the QApplication...
         from PySide2.QtWidgets import QApplication
+        QApplicationClass = QApplication
     else:
         from PySide2.QtGui import QGuiApplication
+        QApplicationClass = QGuiApplication
     from PySide2.QtGui import QIcon
     from PySide2.QtQml import qmlRegisterType, QQmlApplicationEngine, QJSValue
 except ImportError as e:
@@ -32,7 +34,7 @@ except ImportError as e:
     sys.exit(-1)
 
 MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. stm32pio-repo/stm32pio_gui/
-ROOT_PATH = MODULE_PATH.parent  # repo's or the site-package's entry root
+ROOT_PATH = MODULE_PATH.parent.parent  # repo's or the site-package's entry root
 try:
     import stm32pio.core.settings
     import stm32pio.core.lib
@@ -98,7 +100,7 @@ class LoggingWorker(QObject):
         self.stopped = threading.Event()
         self.can_flush_log = threading.Event()
 
-        self.thread = QThread()
+        self.thread = QThread(parent=self)
         self.moveToThread(self.thread)
         self.thread.started.connect(self.routine)
         self.thread.start()
@@ -124,10 +126,6 @@ class ProjectListItem(QObject):
     """
 
     logAdded = Signal(str, int, arguments=['message', 'level'])  # send the log message to the front-end
-
-    actionStarted = Signal(str, arguments=['action'])
-    actionFinished = Signal(str, bool, arguments=['action', 'success'])
-
 
     def __init__(self, project_args: List[any] = None, project_kwargs: Mapping[str, Any] = None,
                  from_startup: bool = False, parent: QObject = None):
@@ -164,8 +162,8 @@ class ProjectListItem(QObject):
         self.workers_pool.setMaxThreadCount(1)
         self.workers_pool.setExpiryTimeout(-1)  # tasks wait forever for the available spot
 
-        self._current_action = ''
-        self._last_action_succeed = True
+        self._current_action: str = ''
+        self._last_action_succeed: bool = True
 
         # These values are valid only until the Stm32pio project initialize itself (or failed to) (see init_project)
         self.project = None
@@ -198,6 +196,8 @@ class ProjectListItem(QObject):
             **kwargs: keyword arguments of the Stm32pio constructor
         """
         try:
+            # time.sleep(2.0)
+            # raise Exception('blabla')
             self.project = stm32pio.core.lib.Stm32pio(*args, **kwargs)
         except Exception:
             stm32pio.core.util.log_current_exception(self.logger)
@@ -302,6 +302,7 @@ class ProjectListItem(QObject):
         """Have the last action ended with a success?"""
         return self._last_action_succeed
 
+    actionStarted = Signal(str, arguments=['action'])
     @Slot(str)
     def actionStartedSlot(self, action: str):
         """Pass the corresponding signal from the worker, perform related tasks"""
@@ -311,6 +312,7 @@ class ProjectListItem(QObject):
         self._current_action = action
         self.actionStarted.emit(action)
 
+    actionFinished = Signal(str, bool, arguments=['action', 'success'])
     @Slot(str, bool)
     def actionFinishedSlot(self, action: str, success: bool):
         """Pass the corresponding signal from the worker, perform related tasks"""
@@ -341,7 +343,7 @@ class ProjectListItem(QObject):
             args: list of positional arguments for this action
         """
 
-        worker = Worker(getattr(self.project, action), args, self.logger)
+        worker = Worker(getattr(self.project, action), args, self.logger, parent=self)
         worker.started.connect(self.actionStartedSlot)
         worker.finished.connect(self.actionFinishedSlot)
         worker.finished.connect(self.stateChanged)
@@ -445,32 +447,31 @@ class ProjectsList(QAbstractListModel):
 
     def _saveInSettings(self) -> None:
         """
-        Get correct projects and save them to Settings. Intended to be run in a thread
+        Get correct projects and save them to Settings. Intended to be run in a thread (as it blocks)
         """
 
         # Wait for all projects to be loaded (project.init_project is finished), whether successful or not
         while not all(project.name != 'Loading...' for project in self.projects):
             pass
 
-        settings.beginGroup('app')
-        settings.remove('projects')  # clear the current saved list
-
-        settings.beginWriteArray('projects')
         # Only correct ones (inner Stm32pio instance has been successfully constructed)
         projects_to_save = [project for project in self.projects if project.project is not None]
+
+        settings.beginGroup('app')
+        settings.remove('projects')  # clear the current saved list
+        settings.beginWriteArray('projects')
         for idx, project in enumerate(projects_to_save):
             settings.setArrayIndex(idx)
             # This ensures that we always save paths in pathlib form
             settings.setValue('path', str(project.project.path))
         settings.endArray()
-
         settings.endGroup()
+
         module_logger.info(f"{len(projects_to_save)} projects have been saved to Settings")  # total amount
 
     def saveInSettings(self) -> None:
         """Spawn a thread to wait for all projects and save them in background"""
-        w = Worker(self._saveInSettings, logger=module_logger)
-        self.workers_pool.start(w)
+        self.workers_pool.start(Worker(self._saveInSettings, logger=module_logger, parent=self))
 
     def each_project_is_duplicate_of(self, path: str) -> Iterator[bool]:
         """
@@ -488,7 +489,8 @@ class ProjectsList(QAbstractListModel):
             except OSError:
                 yield False
 
-    def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None, go_to_this: bool = False) -> None:
+    def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None, go_to_this: bool = False,
+                    on_initialized: Callable[[], None] = None) -> ProjectListItem:
         """
         Create and append to the list tail a new ProjectListItem instance. This doesn't save in QSettings, it's an up to
         the caller task (e.g. if we adding a bunch of projects, it make sense to store them once in the end).
@@ -497,12 +499,11 @@ class ProjectsList(QAbstractListModel):
             path: path as string
             list_item_kwargs: keyword arguments passed to the ProjectListItem constructor
             go_to_this: should we jump to the new project in GUI
+            on_initialized:
         """
 
-        if list_item_kwargs is not None:
-            list_item_kwargs = dict(list_item_kwargs)  # shallow copy, dict makes it mutable
-        else:
-            list_item_kwargs = {}
+        # Shallow copy, dict makes it mutable
+        list_item_kwargs = dict(list_item_kwargs if list_item_kwargs is not None else {})
 
         duplicate_index = next((idx for idx, is_duplicated in enumerate(self.each_project_is_duplicate_of(path))
                                 if is_duplicated), -1)
@@ -518,37 +519,42 @@ class ProjectsList(QAbstractListModel):
                 self.projects[duplicate_index].run('save_config', [proj_params])
 
             self.goToProject.emit(duplicate_index)  # jump to the existing one
-            return
 
-        # Insert given path into the constructor args (do not use dict.update() as we have list value that we also want
-        # to "merge")
-        if len(list_item_kwargs) == 0:
-            list_item_kwargs = { 'project_args': [path] }
-        elif 'project_args' not in list_item_kwargs or len(list_item_kwargs['project_args']) == 0:
-            list_item_kwargs['project_args'] = [path]
+            return self.projects[duplicate_index]
         else:
-            list_item_kwargs['project_args'][0] = path
+            # Insert given path into the constructor args (do not use dict.update() as we have list value that we also
+            # want to "merge")
+            if len(list_item_kwargs) == 0:
+                list_item_kwargs = { 'project_args': [path] }
+            elif 'project_args' not in list_item_kwargs or len(list_item_kwargs['project_args']) == 0:
+                list_item_kwargs['project_args'] = [path]
+            else:
+                list_item_kwargs['project_args'][0] = path
 
-        self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
+            # The project is ready to be appended to the model right after the main constructor (wrapper) finished.
+            # The underlying Stm32pio class will be initialized soon later in the dedicated thread
+            project = ProjectListItem(**list_item_kwargs)
 
-        # The project is ready to be appended to the model right after the main constructor (wrapper) finished. The
-        # underlying Stm32pio class will be initialized soon later in the dedicated thread
-        project = ProjectListItem(**list_item_kwargs)
-        self.projects.append(project)
+            if on_initialized is not None:
+                def on_initialized_proxy():
+                    project.nameChanged.disconnect(on_initialized_proxy)
+                    on_initialized()
+                project.nameChanged.connect(on_initialized_proxy)
 
-        self.endInsertRows()
+            self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
+            self.projects.append(project)
+            self.endInsertRows()
 
-        if go_to_this:
-            self.goToProject.emit(len(self.projects) - 1)
+            if go_to_this:
+                self.goToProject.emit(len(self.projects) - 1)  # append always at the end
+
+            return project
 
 
     @Slot('QStringList')
     def addProjectsByPaths(self, paths: List[str]):
         """QUrl path (typically is sent from the QML GUI)"""
-        if len(paths) == 0:
-            module_logger.warning("No paths were given")
-            return
-        else:
+        if len(paths):
             for path_str in paths:  # convert to strings
                 path_qurl = QUrl(path_str)
                 if path_qurl.isEmpty():
@@ -562,7 +568,9 @@ class ProjectsList(QAbstractListModel):
                     module_logger.error(f"Incorrect path: {path_str}")
                     continue
                 self.addListItem(path, list_item_kwargs={ 'parent': self })
-            self.saveInSettings()
+            self.saveInSettings()  # save after all
+        else:
+            module_logger.warning("No paths were given")
 
 
     @Slot(int)
@@ -570,19 +578,14 @@ class ProjectsList(QAbstractListModel):
         """
         Remove the project residing on the index both from the runtime list and QSettings
         """
-        if index not in range(len(self.projects)):
-            return
+        if index in range(len(self.projects)):
+            self.beginRemoveRows(QModelIndex(), index, index)
+            project = self.projects.pop(index)
+            self.endRemoveRows()
 
-        self.beginRemoveRows(QModelIndex(), index, index)
-        project = self.projects.pop(index)
-        self.endRemoveRows()
-
-        # Re-save the settings only if this project is saved in the settings
-        if project.project is not None or project.fromStartup:
-            self.saveInSettings()
-
-        # It allows the project to be deconstructed (i.e. GC'ed) very soon, not at the app shutdown time
-        project.deleteLater()
+            # Re-save the settings only if this project is saved in the settings
+            if project.project is not None or project.fromStartup:
+                self.saveInSettings()
 
 
 
@@ -650,6 +653,16 @@ class Settings(QSettings):
             self.external_triggers[key](value)
 
 
+class Application(QApplicationClass):
+
+    loaded = Signal(str, bool, arguments=['action', 'success'])
+
+    def quit(self):
+        """Shutdown"""
+        for window in self.allWindows():
+            window.close()
+
+
 def parse_args(args: list) -> Optional[argparse.Namespace]:
     parser = argparse.ArgumentParser(description=inspect.cleandoc('''lala'''))
 
@@ -663,7 +676,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     return parser.parse_args(args) if len(args) else None
 
 
-def main(sys_argv: List[str] = None) -> int:
+def main(sys_argv: List[str] = None) -> Union[QGuiApplication, QGuiApplication]:
     if sys_argv is None:
         sys_argv = sys.argv[1:]
 
@@ -701,11 +714,7 @@ def main(sys_argv: List[str] = None) -> int:
         qml_logger.addHandler(qml_log_handler)
         qInstallMessageHandler(qt_message_handler)
 
-    # Most Linux distros should be "linked" with QWidgets' QApplication instead of QGuiApplication to enable QtDialogs
-    if platform.system() == 'Linux':
-        app = QApplication(sys.argv)
-    else:
-        app = QGuiApplication(sys.argv)
+    app = Application(sys.argv)
 
     # These are used as a settings identifier too
     app.setOrganizationName('ussserrr')
@@ -773,24 +782,32 @@ def main(sys_argv: List[str] = None) -> int:
         boards = ['None'] + stm32pio.core.util.get_platformio_boards()
         boards_model.setStringList(boards)
 
-    def loaded(_: str, success: bool):
+    def loaded(action_name: str, success: bool):
         try:
+            cli_project_provided = args is not None
+            initialized_projects_counter = 0
+            def on_initialized():
+                nonlocal initialized_projects_counter
+                initialized_projects_counter += 1
+                if initialized_projects_counter == (len(restored_projects_paths) + (1 if cli_project_provided else 0)):
+                    app.loaded.emit(action_name, all((list_item.project is not None for list_item in projects_model.projects)))
+
             # Qt objects cannot be parented from the different thread so we restore the projects list in the main thread
             for path in restored_projects_paths:
-                projects_model.addListItem(path, go_to_this=False, list_item_kwargs={
+                projects_model.addListItem(path, go_to_this=False, on_initialized=on_initialized, list_item_kwargs={
                    'from_startup': True,
                    'parent': projects_model
                 })
 
             # At the end, append (or jump to) a CLI-provided project, if there is one
-            if args is not None:
+            if cli_project_provided:
                 list_item_kwargs = {
                     'from_startup': True,
-                    'parent': projects_model
+                    'parent': projects_model  # TODO: probably can be omitted and automatically passed in the addListItem method (as we do now with a path)
                 }
                 if args.board:
                     list_item_kwargs['project_kwargs'] = { 'parameters': { 'project': { 'board': args.board } } }  # pizdec konechno...
-                projects_model.addListItem(str(pathlib.Path(args.path)), go_to_this=True,
+                projects_model.addListItem(str(pathlib.Path(args.path)), go_to_this=True, on_initialized=on_initialized,
                                            list_item_kwargs=list_item_kwargs)
                 projects_model.saveInSettings()
         except Exception:
@@ -799,11 +816,11 @@ def main(sys_argv: List[str] = None) -> int:
 
         main_window.backendLoaded.emit(success)  # inform the GUI
 
-    loader = Worker(loading, logger=module_logger)
+    loader = Worker(loading, logger=module_logger, parent=app)
     loader.finished.connect(loaded)
     QThreadPool.globalInstance().start(loader)
 
-    return app.exec_()
+    return app
 
 
 
@@ -812,9 +829,10 @@ module_logger = logging.getLogger('stm32pio.gui.app')  # use it as a console log
                                                        # not related to the concrete project
 projects_logger_handler = BuffersDispatchingHandler()  # a storage of the buffers for the logging messages of all
                                                        # current projects (see its docs for more info)
-settings = QSettings()  # placeholder, will be replaced in main()
+settings: Optional[QSettings] = None  # placeholder, will be replaced in main()
 
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    app_ = main()
+    sys.exit(app_.exec_())

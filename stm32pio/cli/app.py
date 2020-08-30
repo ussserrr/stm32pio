@@ -135,7 +135,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
     if args is not None and args.subcommand == 'gui':
         gui_args = [arg for arg in sys_argv if arg != 'gui']
         import stm32pio.gui.app as gui_app
-        return gui_app.main(sys_argv=gui_args)
+        return gui_app.main(sys_argv=gui_args).exec_()
     elif args is not None and args.subcommand is not None:
         logger = setup_logging(args_verbose_counter=args.verbose, dummy=not should_setup_logging)
     else:

@@ -50,7 +50,7 @@ stages:
         - script: |
             pip install wheel
             pip install platformio==$(PLATFORMIO_VERSION)
-            pip install pyyaml pytest pytest-cov
+            pip install pyyaml pytest pytest-cov PySide2
           displayName: 'Install tools'
 
         - task: Cache@2
@@ -125,7 +125,7 @@ stages:
         - script: |
             pip install wheel
             pip install platformio==$(PLATFORMIO_VERSION)
-            pip install pyyaml
+            pip install pyyaml PySide2
           displayName: 'Install tools'
 
         - task: Cache@2
@@ -188,7 +188,7 @@ stages:
         - script: |
             pip install wheel
             pip install platformio==$(PLATFORMIO_VERSION)
-            pip install pyyaml
+            pip install pyyaml PySide2
           displayName: 'Install tools'
 
         - task: Cache@2
@@ -233,7 +233,8 @@ stages:
 
   - stage: Build
     jobs:
-      - job: 'Build to wheel and source distribution'
+      - job: Build
+        displayName: 'Build to wheel & source distribution'
         pool:
           vmImage: 'ubuntu-latest'
         steps:
