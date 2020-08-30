@@ -45,6 +45,8 @@ stages:
             sudo apt install xvfb
             sudo systemctl start xvfb
             export DISPLAY=:99.0
+            echo ${{ variables.cubemx_version }}
+            echo ${{ variables.cubemx_link }}
           displayName: 'Set up X virtual frame buffer'
 
         - script: |
