@@ -45,7 +45,6 @@ stages:
             sudo apt install xvfb
             sudo systemctl start xvfb
             export DISPLAY=:99.0
-            echo $(variables.stm32pio_platformio_cache_folder)
           displayName: 'Set up X virtual frame buffer'
 
         - script: |
@@ -72,7 +71,7 @@ stages:
           inputs:
             key: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'
             restoreKeys: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'  # we want an exact match
-            path: $(variables.stm32pio_cubemx_packages_cache_folder)
+            path: ${{ variables.stm32pio_cubemx_packages_cache_folder }}
             cacheHitVar: CUBEMX_PACKAGES_CACHE_RESTORED
           displayName: 'Restore CubeMX packages cache'
 
@@ -85,7 +84,7 @@ stages:
           inputs:
             key: 'platformio | "$(PLATFORMIO_VERSION)"'
             restoreKeys: 'platformio | "$(PLATFORMIO_VERSION)"'  # we want an exact match
-            path: $(variables.stm32pio_platformio_cache_folder)
+            path: ${{ variables.stm32pio_platformio_cache_folder }}
             cacheHitVar: PLATFORMIO_CACHE_RESTORED
           displayName: 'Restore PlatformIO packages cache'
 
@@ -147,7 +146,7 @@ stages:
           inputs:
             key: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'
             restoreKeys: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'  # we want an exact match
-            path: $(variables.stm32pio_cubemx_packages_cache_folder)
+            path: ${{ variables.stm32pio_cubemx_packages_cache_folder }}
             cacheHitVar: CUBEMX_PACKAGES_CACHE_RESTORED
           displayName: 'Restore CubeMX packages cache'
 
@@ -160,7 +159,7 @@ stages:
           inputs:
             key: 'platformio | "$(PLATFORMIO_VERSION)"'
             restoreKeys: 'platformio | "$(PLATFORMIO_VERSION)"'  # we want an exact match
-            path: $(variables.stm32pio_platformio_cache_folder)
+            path: ${{ variables.stm32pio_platformio_cache_folder }}
             cacheHitVar: PLATFORMIO_CACHE_RESTORED
           displayName: 'Restore PlatformIO packages cache'
 
@@ -210,7 +209,7 @@ stages:
           inputs:
             key: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'
             restoreKeys: 'cubemx_packages | "$(CUBEMX_PACKAGES)"'  # we want an exact match
-            path: $(variables.stm32pio_cubemx_packages_cache_folder)
+            path: ${{ variables.stm32pio_cubemx_packages_cache_folder }}
             cacheHitVar: CUBEMX_PACKAGES_CACHE_RESTORED
           displayName: 'Restore CubeMX packages cache'
 
@@ -223,7 +222,7 @@ stages:
           inputs:
             key: 'platformio | "$(PLATFORMIO_VERSION)"'
             restoreKeys: 'platformio | "$(PLATFORMIO_VERSION)"'  # we want an exact match
-            path: $(variables.stm32pio_platformio_cache_folder)
+            path: ${{ variables.stm32pio_platformio_cache_folder }}
             cacheHitVar: PLATFORMIO_CACHE_RESTORED
           displayName: 'Restore PlatformIO packages cache'
 
