@@ -829,7 +829,7 @@ module_logger = logging.getLogger('stm32pio.gui.app')  # use it as a console log
                                                        # not related to the concrete project
 projects_logger_handler = BuffersDispatchingHandler()  # a storage of the buffers for the logging messages of all
                                                        # current projects (see its docs for more info)
-settings: Optional[QSettings] = None  # placeholder, will be replaced in main()
+settings = QSettings()  # placeholder, will be replaced in main()
 
 
 
