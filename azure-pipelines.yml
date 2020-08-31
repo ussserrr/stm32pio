@@ -45,6 +45,7 @@ stages:
             sudo apt install xvfb
             sudo systemctl start xvfb
             export DISPLAY=:99.0
+            echo $(variables.stm32pio_platformio_cache_folder)
           displayName: 'Set up X virtual frame buffer'
 
         - script: |

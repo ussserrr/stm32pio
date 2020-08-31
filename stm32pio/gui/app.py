@@ -676,7 +676,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     return parser.parse_args(args) if len(args) else None
 
 
-def main(sys_argv: List[str] = None) -> Union[QGuiApplication, QGuiApplication]:
+def main(sys_argv: List[str] = None):
     if sys_argv is None:
         sys_argv = sys.argv[1:]
 
