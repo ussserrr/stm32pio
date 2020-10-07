@@ -126,6 +126,7 @@ class ProjectListItem(QObject):
     """
 
     logAdded = Signal(str, int, arguments=['message', 'level'])  # send the log message to the front-end
+    initialized = Signal(ProjectID, arguments=['project_id'])
 
     def __init__(self, project_args: List[any] = None, project_kwargs: Mapping[str, Any] = None,
                  from_startup: bool = False, parent: QObject = None):
@@ -217,6 +218,7 @@ class ProjectListItem(QObject):
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
                                                self.name if self.project is None else str(self.project))
             self.qml_ready.wait()  # wait for the GUI to initialize (which one is earlier, actually, back or front)
+            self.initialized.emit(id(self))
             self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
             self.stateChanged.emit()
@@ -233,7 +235,7 @@ class ProjectListItem(QObject):
         workers_pool.waitForDone(msecs=-1)
         logging_worker.stopped.set()  # post the event in the logging worker to inform it...
         logging_worker.thread.wait()  # ...and wait for it to exit, too
-        module_logger.info(f"destroyed {name} ProjectListItem")
+        module_logger.info(f"destroyed {name}")
 
 
     @Property(bool)
@@ -490,7 +492,7 @@ class ProjectsList(QAbstractListModel):
                 yield False
 
     def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None, go_to_this: bool = False,
-                    on_initialized: Callable[[], None] = None) -> ProjectListItem:
+                    on_initialized: Callable[[ProjectID], None] = None) -> ProjectListItem:
         """
         Create and append to the list tail a new ProjectListItem instance. This doesn't save in QSettings, it's an up to
         the caller task (e.g. if we adding a bunch of projects, it make sense to store them once in the end).
@@ -536,10 +538,7 @@ class ProjectsList(QAbstractListModel):
             project = ProjectListItem(**list_item_kwargs)
 
             if on_initialized is not None:
-                def on_initialized_proxy():
-                    project.nameChanged.disconnect(on_initialized_proxy)
-                    on_initialized()
-                project.nameChanged.connect(on_initialized_proxy)
+                project.initialized.connect(on_initialized)
 
             self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
             self.projects.append(project)
@@ -586,6 +585,9 @@ class ProjectsList(QAbstractListModel):
             # Re-save the settings only if this project is saved in the settings
             if project.project is not None or project.fromStartup:
                 self.saveInSettings()
+
+            # It allows the project to be deconstructed (i.e. GC'ed) very soon, not at the app shutdown time
+            project.deleteLater()
 
 
 
@@ -664,7 +666,8 @@ class Application(QApplicationClass):
 
 
 def parse_args(args: list) -> Optional[argparse.Namespace]:
-    parser = argparse.ArgumentParser(description=inspect.cleandoc('''lala'''))
+    parser = argparse.ArgumentParser(description=inspect.cleandoc('''stm32pio GUI version.
+        Visit https://github.com/ussserrr/stm32pio for more information.'''))
 
     # Global arguments (there is also an automatically added '-h, --help' option)
     parser.add_argument('--version', action='version', version=f"stm32pio v{stm32pio.core.util.get_version()}")
@@ -686,7 +689,7 @@ def main(sys_argv: List[str] = None):
     module_log_handler.setFormatter(logging.Formatter("%(levelname)s %(funcName)s %(message)s"))
     module_logger.addHandler(module_log_handler)
     module_logger.setLevel(logging.INFO)  # set this again later after getting QSettings
-    module_logger.info('Starting stm32pio_gui...')
+    module_logger.info('Starting stm32pio GUI...')
 
     def qt_message_handler(mode, context, message):
         """
@@ -786,7 +789,7 @@ def main(sys_argv: List[str] = None):
         try:
             cli_project_provided = args is not None
             initialized_projects_counter = 0
-            def on_initialized():
+            def on_initialized(_: ProjectID):
                 nonlocal initialized_projects_counter
                 initialized_projects_counter += 1
                 if initialized_projects_counter == (len(restored_projects_paths) + (1 if cli_project_provided else 0)):

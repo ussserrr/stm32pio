@@ -286,6 +286,7 @@
     - Patch - `stm32pio patch`
     - Build - `platformio run`
  - New: CubeMX now can be invoked directly, without Java command need to be specified
+ - New: add dedicated `initialized` signal to `ProjectListItem`
  - Changed: migrate to [Semantic Versioning](https://semver.org) (2.0.0). The next version (i.e. this one) was supposed to be 1.40 so with semver – 1.4.0. This can be confusing for some automatic tools in the future to correctly find out which version is latter though so this version will be marked with 2.0.0 tag to start things over
  - Changed: remove board absence warning in `Stm32pio` constructor (this should be done outside)
  - Changed: take out to the `settings.py` a strings that we looked for to determine successful CubeMX code generation

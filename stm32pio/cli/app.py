@@ -111,7 +111,7 @@ def setup_logging(args_verbose_counter: int = 0, dummy: bool = False) -> logging
 
 def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
     """
-    Can be used as a high-level wrapper to do complete tasks.
+    Can be used as a high-level wrapper to perform independent tasks.
 
     Example:
         ret_code = stm32pio.app.main(sys_argv=['new', '-d', '~/path/to/project', '-b', 'nucleo_f031k6', '--with-build'])

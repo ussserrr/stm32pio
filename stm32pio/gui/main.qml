@@ -148,7 +148,7 @@ ApplicationWindow {
                     text: `ver. ${appVersion}<br>
                            2018 - 2020 © ussserrr<br>
                            <a href='https://github.com/ussserrr/stm32pio'>GitHub</a><br><br>
-                           Powered by Python3, PlatformIO, Qt for Python, FlatIcons and other awesome technologies`
+                           Powered by Python, PlatformIO, PySide2, FlatIcons and other awesome technologies`
                     onLinkActivated: {
                         Qt.openUrlExternally(link);
                         aboutDialog.close();
@@ -278,7 +278,7 @@ ApplicationWindow {
                 id: projectsListView
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: true  // crawls under the Add/Remove buttons otherwise
+                clip: true
                 keyNavigationWraps: true
 
                 highlight: Rectangle { color: 'darkseagreen' }
@@ -294,7 +294,7 @@ ApplicationWindow {
                     delegate: Loader {
                         /*
                            (See setInitInfo docs) One of the two main widgets representing the project. Use Loader component
-                           as it can give us the relible timestamp of all its children loading completion (unlike Component.onCompleted)
+                           as it can give us the reliable timestamp of all its children loading completion (unlike Component.onCompleted)
                         */
                         onLoaded: {
                             setInitInfo(index);
@@ -305,8 +305,7 @@ ApplicationWindow {
                             readonly property ProjectListItem project: projectsModel.get(index)
                             Connections {
                                 target: project
-                                // Currently, this event is equivalent to the complete initialization of the backend side of the project
-                                function onNameChanged() {
+                                function onInitialized() {
                                     initLoading = false;
 
                                     // Appropriately highlight an item depending on its initialization result
@@ -502,7 +501,7 @@ ApplicationWindow {
 
                         /*
                            State retrieving procedure is relatively expensive (many IO operations) so we optimize it by getting the state
-                           only in certain situations (see Component.onCompleted below) and caching a value in the local varible. Then, all
+                           only in certain situations (see Component.onCompleted below) and caching a value in the local variable. Then, all
                            widgets can pick up this value as many times as they want while not abusing the real property getter. Such a subscription
                            can be established by the creation of a local reference to the cache and listening to the change event like this:
 
@@ -537,8 +536,7 @@ ApplicationWindow {
 
                         Connections {
                             target: project
-                            // Currently, this event is equivalent to the complete initialization of the backend side of the project
-                            function onNameChanged() {
+                            function onInitialized() {
                                 const state = project.state;
                                 stateCached = state;
                                 const completedStages = Object.keys(state).filter(stateName => state[stateName]);
@@ -712,7 +710,7 @@ ApplicationWindow {
                                They also serve the project state displaying - each button indicates a stage associated with it:
                                  - green (and green glow): done
                                  - yellow: in progress right now
-                                 - red glow: an error has occured during the last execution
+                                 - red glow: an error has occurred during the last execution
                             */
                             RowLayout {
                                 id: projActionsRow
@@ -903,7 +901,7 @@ ApplicationWindow {
                                             }
                                         }
                                         /*
-                                           Detect modifier keys using overlayed MouseArea:
+                                           Detect modifier keys using overlaying MouseArea:
                                              - Ctrl (Cmd): start the editor after the action(s)
                                              - Shift: batch actions run
                                         */
@@ -999,7 +997,7 @@ ApplicationWindow {
                                             }
                                         }
                                         /*
-                                           Blinky glowing
+                                           "Blinky" glowing
                                         */
                                         RectangularGlow {
                                             id: glow

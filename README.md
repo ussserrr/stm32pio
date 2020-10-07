@@ -166,6 +166,8 @@ stm32pio-repo/ $   python -m unittest tests.test_integration.TestIntegration
 stm32pio-repo/ $   python -m unittest tests.test_cli.TestCLI.test_verbosity
 ```
 
+Automated tests against old `.ioc` files seems not possible because of CubeMX interactive GUI prompts about migrations. I don't find any CLI key or option to disable them (and in general, documentation for the CubeMX CLI doesn't look complete...).
+
 
 ## CI
 Azure Pipelines is used to automate test, build, and publish tasks. The repo is tested against all 3 major OSes and for the Linux the test coverage is also calculated. For this purposes some additional external dependencies are necessary, such as

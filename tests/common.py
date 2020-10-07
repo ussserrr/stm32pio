@@ -31,7 +31,7 @@ os.environ['STM32PIO_TEST_FIXTURES'] = str(CASES_ROOT)
 
 CASE = os.environ.get('STM32PIO_TEST_CASE', default='nucleo_f031k6')
 PROJECT_PATH = CASES_ROOT.joinpath(CASE).resolve(strict=True)
-PROJECT_BOARD = CASE  # currently (board == folder_name)
+PROJECT_BOARD = CASE  # currently (PlatformIO board == folder name)
 os.environ['STM32PIO_TEST_CASE'] = CASE
 
 
@@ -44,20 +44,6 @@ else:
     PROJECT_IOC_FILENAME = next(PROJECT_PATH.glob('*.ioc')).name
 print(PROJECT_IOC_FILENAME)
 
-# PROJECT_PATH = pathlib.Path('stm32pio-test-project').resolve(strict=True)
-# if not PROJECT_PATH.joinpath('stm32pio-test-project.ioc').is_file():
-#     raise FileNotFoundError("No test project is present")
-
-# Gently ask a user running tests to remove all irrelevant files from the PROJECT_PATH as they can interfere with
-# execution
-# if len(list(PROJECT_PATH.iterdir())) > 1:
-#     raise Warning(f"There are extrinsic files in the test project directory '{PROJECT_PATH}'. Please persist only "
-#                   "the .ioc file and restart")
-
-# Make sure you have F0 framework installed (both for PlatformIO and CubeMX) (try to run a code generation and build
-# manually at least once before proceeding)
-# PROJECT_BOARD = 'nucleo_f031k6'
-
 # Instantiate a temporary folder on every test suite run. It is used across all the tests and is deleted on shutdown
 # automatically
 TEMP_DIR = tempfile.TemporaryDirectory()
@@ -69,7 +55,7 @@ STM32PIO_MAIN_SCRIPT: str = inspect.getfile(stm32pio.cli.app.main)
 PYTHON_EXEC: str = sys.executable
 
 print(f"Test case: {PROJECT_BOARD}")
-print(f"The file of 'stm32pio.app' module: {STM32PIO_MAIN_SCRIPT}")
+print(f"The file of {stm32pio.cli.app.__name__} module: {STM32PIO_MAIN_SCRIPT}")
 print(f"Python executable: {PYTHON_EXEC} {sys.version}")
 print(f"Temp test stage path: {STAGE_PATH}")
 print()
