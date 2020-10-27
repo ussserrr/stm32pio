@@ -74,5 +74,5 @@
  - [x] Expand CLI keys and options everywhere (e.g. `--project-option` instead of `-O`)
  - [ ] Build, install and only then test the app
  - [ ] Templates for CI?
- - [x] Deal with CubeMX requests about software package and CubeMX versions migrations (seems like the only way is to set them in `.ioc` file, no appropriate CLI keys)
+ - [ ] Deal with CubeMX requests about software package and CubeMX versions migrations (seems like the only way is to set them in `.ioc` file, no appropriate CLI keys)
  - [ ] If `--board` has not been supplied try to get it from the `platformio.ini` (if present)

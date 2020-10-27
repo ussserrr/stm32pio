@@ -1,3 +1,5 @@
+import platform
+
 # Provides test constants and definitions
 from tests.common import *
 
@@ -6,6 +8,7 @@ class TestGUI(CustomTestCase):
     def test_imports(self):
         import stm32pio.gui.app
 
+    @unittest.skipIf(platform.system() == 'Linux', "works unstable under Linux")
     def test_starts(self):
         import stm32pio.gui.app
 

@@ -13,7 +13,9 @@ The cross-platform GUI version of the stm32pio. It wraps the core library functi
 
 ## Install and run
 
-The app requires PySide2 5.14+ package. It is available in all major package managers including pip, apt, brew and so on.
+The app requires PySide2 5.14+ package. It should be available in all major package managers including pip, apt, brew and so on.
+
+**WARNING:** PySide2 5.15 at the moment has a bug making the Add/Remove buttons not active.
 
 The convenient way to install is via `pip` specifying `extras` option:
 ```shell script
@@ -28,7 +30,7 @@ or
 ```shell script
 $ stm32pio gui
 ```
-from anywhere. If you have already installed the latest basic CLI version, the GUI sources are already on your machine so you can reinstall it using the command above or just supplement the setup installing the PySide2 manually.
+from anywhere. If you have already installed the latest basic CLI version, the GUI sources are already on your machine so you can reinstall it using the command above or just supplement the existing setup installing the PySide2 manually.
 
 If you rather want to launch completely from sources, it is possible like this:
 ```shell script
@@ -39,7 +41,7 @@ or
 stm32pio-repo/ $   python -m stm32pio.gui
 ```
 
-Either way, you can additionally specify the project (and board ID) to open with:
+Either way, you can additionally specify the project (and board ID) to start with:
 ```shell script
 $ stm32pio gui -d ./sample-project -b discovery_f4
 ```

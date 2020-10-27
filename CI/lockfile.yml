@@ -5,9 +5,9 @@
 # to have them all in one place (especially because they are all make sense mostly for the testing/CI purposes)
 
 variables:
-  cubemx_version: 600  # 6.0.0
+  cubemx_version: 601  # 6.0.1
   # we should store nothing but strings for variables values so we encapsulate YAML into string
-  cubemx_packages: "f0: 1.11.0"
-  platformio_version: 4.3.4
+  cubemx_packages: "f0: 1.11.1"
+  platformio_version: 5.0.1
   test_cases: |
     - nucleo_f031k6

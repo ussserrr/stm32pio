@@ -264,6 +264,19 @@ stages:
             artifactName: dist
 
 
-#  - stage: Publish
-#    jobs:
-#      - deployment: PyPI
+  - stage: Publish
+    condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/master'))
+    jobs:
+      - job: PyPI
+        steps:
+        - script: |
+            pip install twine
+         
+        - task: TwineAuthenticate@1
+          displayName: 'Twine Authenticate'
+          inputs:
+            pythonUploadServiceConnection: stm32pio
+         
+        # Use command line script to 'twine upload', use -r to pass the repository name and --config-file to pass the environment variable set by the authenticate task.
+        - script: |
+            python -m twine upload -r "stm32pio" --config-file $(PYPIRC_PATH) dist/*

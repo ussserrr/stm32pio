@@ -218,7 +218,12 @@ class ProjectListItem(QObject):
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
                                                self.name if self.project is None else str(self.project))
             self.qml_ready.wait()  # wait for the GUI to initialize (which one is earlier, actually, back or front)
+
+            # TODO: causing
+            # RuntimeWarning: libshiboken: Overflow: Value 4595188736 exceeds limits of type  [signed] "i" (4bytes).
+            # OverflowError
             self.initialized.emit(id(self))
+
             self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
             self.stateChanged.emit()
@@ -415,7 +420,7 @@ class ProjectsList(QAbstractListModel):
     ProjectListItem
     """
 
-    goToProject = Signal(int, arguments=['indexToGo'])
+    goToProject = Signal(int, arguments=['indexToGo'])  # TODO: should probably belongs to list
 
     def __init__(self, projects: List[ProjectListItem] = None, parent: QObject = None):
         """
