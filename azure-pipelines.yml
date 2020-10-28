@@ -269,7 +269,9 @@ stages:
     jobs:
       - job: PyPI
         steps:
+        # Install twine and its dependencies
         - script: |
+            pip install wheel
             pip install twine
 
         - task: TwineAuthenticate@1
