@@ -158,7 +158,7 @@ There are some tests in [`tests`](/tests) directory (based on the unittest modul
 ```shell script
 stm32pio-repo/ $   STM32PIO_TEST_CASE=nucleo_f031k6 python -m unittest -b -v
 ```
-to test the stm32pio. Currently, the `STM32PIO_TEST_CASE` envvar can be omitted as only the single test case is defined and it is hardcoded as a default one. Tests code automatically create temporary directory (using `tempfile` Python standard module) where all actions are performed.
+to test the stm32pio. Tests code automatically create temporary directory (using `tempfile` Python standard module) where all actions are performed.
 
 To run the specific group of tests or a single test function you can use:
 ```shell script
