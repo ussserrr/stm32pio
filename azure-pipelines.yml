@@ -258,9 +258,9 @@ stages:
             contents: dist/**
             targetFolder: $(Build.ArtifactStagingDirectory)
 
-        - task: PublishBuildArtifacts@1
+        - task: PublishPipelineArtifact@1
           inputs:
-            pathToPublish: $(Build.ArtifactStagingDirectory)
+            targetPath: $(Build.ArtifactStagingDirectory)
             artifactName: dist
 
 
@@ -271,6 +271,10 @@ stages:
         pool:
           vmImage: 'ubuntu-latest'
         steps:
+        # Restore what had been built previously
+        - download: current
+          artifact: dist
+
         - task: UsePythonVersion@0
           inputs:
             versionSpec: '3.8'
@@ -288,4 +292,4 @@ stages:
 
         # Use command line script to 'twine upload', use -r to pass the repository name and --config-file to pass the environment variable set by the authenticate task.
         - script: |
-            ls $(Build.ArtifactStagingDirectory)/dist
+            ls $(Pipeline.Workspace)/dist
