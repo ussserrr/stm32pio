@@ -1,0 +1,4 @@
+; Doesn't work on all OSes...
+; [env:nucleo_f031k6]
+; platform = ststm32@6.1.0
+; platform_packages = toolchain-gccarmnoneeabi@1.70201.0, framework-stm32cube@2.0.181130

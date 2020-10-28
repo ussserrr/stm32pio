@@ -1,10 +1,10 @@
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQml.Models 2.12
-import QtQuick.Layouts 1.12
-import QtGraphicalEffects 1.12
+import QtQuick 2.14
+import QtQuick.Controls 2.14
+import QtQml.Models 2.14
+import QtQuick.Layouts 1.14
+import QtGraphicalEffects 1.14
 import QtQuick.Dialogs 1.3 as Dialogs
-import QtQml.StateMachine 1.12 as DSM
+import QtQml.StateMachine 1.14 as DSM
 
 import Qt.labs.platform 1.1 as Labs
 
@@ -148,7 +148,7 @@ ApplicationWindow {
                     text: `ver. ${appVersion}<br>
                            2018 - 2020 © ussserrr<br>
                            <a href='https://github.com/ussserrr/stm32pio'>GitHub</a><br><br>
-                           Powered by Python3, PlatformIO, Qt for Python, FlatIcons and other awesome technologies`
+                           Powered by Python, PlatformIO, PySide2, FlatIcons and other awesome technologies`
                     onLinkActivated: {
                         Qt.openUrlExternally(link);
                         aboutDialog.close();
@@ -187,7 +187,9 @@ ApplicationWindow {
 
     Connections {
         target: projectsModel
-        onGoToProject: projectsListView.currentIndex = indexToGo
+        function onGoToProject(indexToGo) {
+            projectsListView.currentIndex = indexToGo;
+        }
     }
     function removeCurrentProject() {
         const indexToRemove = projectsListView.currentIndex;
@@ -276,7 +278,7 @@ ApplicationWindow {
                 id: projectsListView
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: true  // crawls under the Add/Remove buttons otherwise
+                clip: true
                 keyNavigationWraps: true
 
                 highlight: Rectangle { color: 'darkseagreen' }
@@ -292,7 +294,7 @@ ApplicationWindow {
                     delegate: Loader {
                         /*
                            (See setInitInfo docs) One of the two main widgets representing the project. Use Loader component
-                           as it can give us the relible timestamp of all its children loading completion (unlike Component.onCompleted)
+                           as it can give us the reliable timestamp of all its children loading completion (unlike Component.onCompleted)
                         */
                         onLoaded: {
                             setInitInfo(index);
@@ -303,8 +305,7 @@ ApplicationWindow {
                             readonly property ProjectListItem project: projectsModel.get(index)
                             Connections {
                                 target: project
-                                // Currently, this event is equivalent to the complete initialization of the backend side of the project
-                                onNameChanged: {
+                                function onInitialized() {
                                     initLoading = false;
 
                                     // Appropriately highlight an item depending on its initialization result
@@ -320,11 +321,11 @@ ApplicationWindow {
                                         projectCurrentStage.color = 'seagreen';
                                     }
                                 }
-                                onActionStarted: {
+                                function onActionStarted(action) {
                                     runningOrFinished.currentIndex = 0;
                                     runningOrFinished.visible = true;
                                 }
-                                onActionFinished: {
+                                function onActionFinished(action, success) {
                                     if (index !== projectsListView.currentIndex) {
                                         projectCurrentStage.color = 'darkgray';  // show that the stage has changed from the last visit
                                         runningOrFinished.currentIndex = 1;  // show "notification" about the finished action
@@ -337,7 +338,7 @@ ApplicationWindow {
                             }
                             Connections {
                                 target: projectsListView
-                                onCurrentIndexChanged: {
+                                function onCurrentIndexChanged() {
                                     // "Read" all "notifications" after navigating to the list element
                                     if (projectsListView.currentIndex === index) {
                                         if (Qt.colorEqual(projectName.color, 'seagreen')) {
@@ -476,7 +477,9 @@ ApplicationWindow {
 
             Connections {
                 target: projectsListView
-                onCurrentIndexChanged: projectsWorkspaceView.currentIndex = projectsListView.currentIndex
+                function onCurrentIndexChanged() {
+                    projectsWorkspaceView.currentIndex = projectsListView.currentIndex;
+                }
             }
             Repeater {
                 // Use similar to ListView pattern (same projects model, Loader component)
@@ -498,7 +501,7 @@ ApplicationWindow {
 
                         /*
                            State retrieving procedure is relatively expensive (many IO operations) so we optimize it by getting the state
-                           only in certain situations (see Component.onCompleted below) and caching a value in the local varible. Then, all
+                           only in certain situations (see Component.onCompleted below) and caching a value in the local variable. Then, all
                            widgets can pick up this value as many times as they want while not abusing the real property getter. Such a subscription
                            can be established by the creation of a local reference to the cache and listening to the change event like this:
 
@@ -533,8 +536,7 @@ ApplicationWindow {
 
                         Connections {
                             target: project
-                            // Currently, this event is equivalent to the complete initialization of the backend side of the project
-                            onNameChanged: {
+                            function onInitialized() {
                                 const state = project.state;
                                 stateCached = state;
                                 const completedStages = Object.keys(state).filter(stateName => state[stateName]);
@@ -708,7 +710,7 @@ ApplicationWindow {
                                They also serve the project state displaying - each button indicates a stage associated with it:
                                  - green (and green glow): done
                                  - yellow: in progress right now
-                                 - red glow: an error has occured during the last execution
+                                 - red glow: an error has occurred during the last execution
                             */
                             RowLayout {
                                 id: projActionsRow
@@ -872,11 +874,11 @@ ApplicationWindow {
                                                     }
                                                 }
                                                 onExited: {
-                                                    // Erase highlighting if this action is last in the series or at all
-                                                    if (project.currentAction === model.action &&
+                                                    // Erase highlighting if this action is the last in the series (or an error occurred)
+                                                    if ((project.currentAction === model.action || !project.lastActionSucceed) &&
                                                         shouldBeHighlightedWhileRunning &&
                                                         (buttonIndex === (projActionsModel.count - 1) ||
-                                                         projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning === false)
+                                                         !projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning)
                                                     ) {
                                                         for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                             projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
@@ -899,7 +901,7 @@ ApplicationWindow {
                                             }
                                         }
                                         /*
-                                           Detect modifier keys using overlayed MouseArea:
+                                           Detect modifier keys using overlaying MouseArea:
                                              - Ctrl (Cmd): start the editor after the action(s)
                                              - Shift: batch actions run
                                         */
@@ -971,10 +973,10 @@ ApplicationWindow {
                                         }
                                         Connections {
                                             target: project
-                                            onActionStarted: {
+                                            function onActionStarted(action) {
                                                 glow.visible = false;
                                             }
-                                            onActionFinished: {
+                                            function onActionFinished(action, success) {
                                                 if (action === model.action) {
                                                     if (success) {
                                                         glow.color = 'lightgreen';
@@ -995,7 +997,7 @@ ApplicationWindow {
                                             }
                                         }
                                         /*
-                                           Blinky glowing
+                                           "Blinky" glowing
                                         */
                                         RectangularGlow {
                                             id: glow
@@ -1043,7 +1045,7 @@ ApplicationWindow {
                                         textFormat: TextEdit.RichText
                                         Connections {
                                             target: project
-                                            onLogAdded: {
+                                            function onLogAdded(message, level) {
                                                 if (level === Logging.WARNING) {
                                                     log.append('<font color="goldenrod"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
                                                 } else if (level >= Logging.ERROR) {

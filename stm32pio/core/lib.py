@@ -17,8 +17,8 @@ import tempfile
 import weakref
 from typing import Mapping, Any, Union
 
-import stm32pio.settings
-import stm32pio.util
+import stm32pio.core.settings
+import stm32pio.core.util
 
 
 _stages_string_representations = {
@@ -176,7 +176,7 @@ class Stm32pio:
             self.logger = instance_options['logger']
         else:
             underlying_logger = logging.getLogger('stm32pio.projects')
-            self.logger = stm32pio.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
+            self.logger = stm32pio.core.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
 
         # The path is a primary entity of the project so we process it first and foremost. Handle 'path/to/proj',
         # 'path/to/proj/', '.', '../proj', etc., make the path absolute and check for existence. Also, the .ioc file can
@@ -194,17 +194,15 @@ class Stm32pio:
         self.ioc_file = self._find_ioc_file(explicit_file=ioc_file)
         self.config.set('project', 'ioc_file', self.ioc_file.name)  # save only the name of file to the config
 
-        # Notify the caller about the board presence
-        if 'board' in parameters and parameters['board'] is not None:
-            try:
-                boards = stm32pio.util.get_platformio_boards(self.config.get('app', 'platformio_cmd'))
-            except Exception as e:
-                self.logger.warning(f"There was an error while obtaining possible PlatformIO boards: {e}",
-                                    exc_info=self.logger.isEnabledFor(logging.DEBUG))
-                boards = []
-            if parameters['board'] not in boards:
-                self.logger.warning(f"'{parameters['board']}' was not found in PlatformIO. "
-                                    "Run 'platformio boards' for possible names")
+        # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow a
+        # propagation of this message
+        if self.logger.isEnabledFor(logging.DEBUG):
+            debug_str = 'resolved config:'
+            for section in self.config.sections():
+                debug_str += f"\n========== {section} ==========\n"
+                for value in self.config.items(section):
+                    debug_str += f"{value}\n"
+            self.logger.debug(debug_str)
 
         # Save the config on an instance destruction
         if instance_options['save_on_destruction']:
@@ -234,7 +232,7 @@ class Stm32pio:
         stages_conditions = collections.OrderedDict()
         stages_conditions[ProjectStage.UNDEFINED] = [True]
         stages_conditions[ProjectStage.EMPTY] = [self.ioc_file.is_file()]
-        stages_conditions[ProjectStage.INITIALIZED] = [self.path.joinpath(stm32pio.settings.config_file_name).is_file()]
+        stages_conditions[ProjectStage.INITIALIZED] = [self.path.joinpath(stm32pio.core.settings.config_file_name).is_file()]
         stages_conditions[ProjectStage.GENERATED] = [self.path.joinpath('Inc').is_dir() and
                                                      len(list(self.path.joinpath('Inc').iterdir())) > 0,
                                                      self.path.joinpath('Src').is_dir() and
@@ -304,7 +302,8 @@ class Stm32pio:
 
     def _load_config(self, runtime_parameters: Mapping[str, Any] = None) -> configparser.ConfigParser:
         """
-        Prepare ConfigParser config for the project. Order of getting values (masking) (higher levels overwrites lower):
+        Prepare ConfigParser config for the project. Order of getting values (masking) (higher levels overwrites lower,
+        but only if a value is non-empty):
 
             default dict (settings module)  =>  config file stm32pio.ini  =>  user-given (runtime) values
                                                                               (via CLI or another way)
@@ -316,42 +315,24 @@ class Stm32pio:
         if runtime_parameters is None:
             runtime_parameters = {}
 
-        config = configparser.ConfigParser(interpolation=None)
-
         # Fill with default values ...
-        config.read_dict(copy.deepcopy(stm32pio.settings.config_default))
+        config = configparser.ConfigParser(interpolation=None)
+        config.read_dict(copy.deepcopy(stm32pio.core.settings.config_default))
 
-        # ... then merge with user's config file values (if exist) ...
-        self.logger.debug(f"searching for {stm32pio.settings.config_file_name}...")
-        config.read(self.path.joinpath(stm32pio.settings.config_file_name))
-
+        # ... then merge with user's config file (if exist) values ...
+        self.logger.debug(f"searching for {stm32pio.core.settings.config_file_name}...")
         ini_config = configparser.ConfigParser(interpolation=None)
-        ini_config.read(self.path.joinpath(stm32pio.settings.config_file_name))
-        runtime_config = configparser.ConfigParser(interpolation=None)
-        runtime_config.read_dict(runtime_parameters)
-
-        if len(ini_config.sections()):
-            if len(runtime_config.sections()):
-                for ini_sect in ini_config.sections():
-                    if runtime_config.has_section(ini_sect):
-                        for ini_key, ini_value in ini_config.items(ini_sect):
-                            if runtime_config.get(ini_sect, ini_key, fallback=None) not in [None, ini_value]:
-                                self.logger.info(f"given '{ini_key}' has taken a precedence over the .ini one")
-        else:
-            self.logger.debug(f"no or empty {stm32pio.settings.config_file_name} config file, will use the default one")
+        ini_config.read(self.path.joinpath(stm32pio.core.settings.config_file_name))
+        ini_config_dict = stm32pio.core.util.configparser_to_dict(ini_config)
+        ini_config_dict_cleaned = stm32pio.core.util.cleanup_dict(ini_config_dict)
+        config.read_dict(ini_config_dict_cleaned)
 
         # ... finally merge with the given in this session CLI parameters
-        config.read_dict(runtime_parameters)
-
-        # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow a
-        # propagation of this message
-        if self.logger.isEnabledFor(logging.DEBUG):
-            debug_str = 'resolved config:'
-            for section in config.sections():
-                debug_str += f"\n========== {section} ==========\n"
-                for value in config.items(section):
-                    debug_str += f"{value}\n"
-            self.logger.debug(debug_str)
+        runtime_config = configparser.ConfigParser(interpolation=None)
+        runtime_config.read_dict(runtime_parameters)
+        runtime_config_dict = stm32pio.core.util.configparser_to_dict(runtime_config)
+        runtime_config_dict_cleaned = stm32pio.core.util.cleanup_dict(runtime_config_dict)
+        config.read_dict(runtime_config_dict_cleaned)
 
         return config
 
@@ -369,9 +350,9 @@ class Stm32pio:
             0 on success, -1 otherwise
         """
         try:
-            with path.joinpath(stm32pio.settings.config_file_name).open(mode='w') as config_file:
+            with path.joinpath(stm32pio.core.settings.config_file_name).open(mode='w') as config_file:
                 config.write(config_file)
-            logger.debug(f"{stm32pio.settings.config_file_name} config file has been saved")
+            logger.debug(f"{stm32pio.core.settings.config_file_name} config file has been saved")
             return 0
         except Exception as e:
             logger.warning(f"cannot save the config: {e}", exc_info=logger.isEnabledFor(logging.DEBUG))
@@ -424,10 +405,15 @@ class Stm32pio:
                                                                           project_dir_absolute_path=self.path)
                 cubemx_script.write(cubemx_script_content.encode())  # should encode, since mode='w+b'
 
-                command_arr = [self.config.get('app', 'java_cmd'), '-jar', self.config.get('app', 'cubemx_cmd'), '-q',
-                               cubemx_script_name, '-s']  # -q: read the commands from the file, -s: silent performance
+                command_arr = []
+                java_cmd = self.config.get('app', 'java_cmd')
+                # CubeMX can be invoked directly, without a need in Java command
+                if java_cmd and (java_cmd.lower() not in ['none', 'no', 'null', '0']):
+                    command_arr += [self.config.get('app', 'java_cmd'), '-jar']
+                # -q: read the commands from the file, -s: silent performance
+                command_arr += [self.config.get('app', 'cubemx_cmd'), '-q', cubemx_script_name, '-s']
                 # Redirect the output of the subprocess into the logging module (with DEBUG level)
-                with stm32pio.util.LogPipe(self.logger, logging.DEBUG) as log:
+                with stm32pio.core.util.LogPipe(self.logger, logging.DEBUG) as log:
                     result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
                     result_output = log.value
 
@@ -438,14 +424,13 @@ class Stm32pio:
 
         error_msg = "code generation error"
         if result.returncode == 0:
-            # CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared
-            # and 'Cancel' was chosen, or CubeMX_version < ioc_file_version), should analyze the output
-            if 'Code succesfully generated' in result_output:
+            if stm32pio.core.settings.cubemx_str_indicating_success in result_output:
                 self.logger.info("successful code generation")
                 return result.returncode
             else:
                 # GUESSING
-                error_lines = [line for line in result_output.splitlines(keepends=True) if '[ERROR]' in line]
+                error_lines = [line for line in result_output.splitlines(keepends=True)
+                               if stm32pio.core.settings.cubemx_str_indicating_error in line]
                 if len(error_lines):
                     self.logger.error(error_lines, extra={ 'from_subprocess': True })
                     raise Exception(error_msg)
@@ -480,8 +465,8 @@ class Stm32pio:
         except Exception:
             self.logger.warning("'platformio.ini' file is already exist and incorrect")
 
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'init', '-d', str(self.path), '-b',
-                       self.config.get('project', 'board'), '-O', 'framework=stm32cube']
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'project', 'init', '--project-dir', str(self.path),
+                       '--board', self.config.get('project', 'board'), '--project-option', 'framework=stm32cube']
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
@@ -570,11 +555,11 @@ class Stm32pio:
         violated. In the end, removes an old empty folders.
         """
 
-        self.logger.debug("patching 'platformio.ini' file...")
-
         if self.platformio_ini_is_patched:
             self.logger.info("'platformio.ini' has been already patched")
         else:
+            self.logger.debug("patching 'platformio.ini' file...")
+
             platformio_ini_config = self.platformio_ini_config  # existing .ini file
 
             patch_config = configparser.ConfigParser(interpolation=None)  # our patch has the INI config format, too
@@ -589,7 +574,7 @@ class Stm32pio:
                     self.logger.debug(f"set [{patch_section}]{patch_key} = {patch_value}")
                     platformio_ini_config.set(patch_section, patch_key, patch_value)
 
-            # Save, overwriting (node='w') the original file (deletes all comments!)
+            # Save, overwriting (mode='w') the original file (deletes all comments!)
             with self.path.joinpath('platformio.ini').open(mode='w') as platformio_ini_file:
                 platformio_ini_config.write(platformio_ini_file)
                 self.logger.debug("'platformio.ini' has been patched")
@@ -629,7 +614,7 @@ class Stm32pio:
         # In the non-verbose mode (logging.INFO) there would be a '--silent' option so if the PlatformIO will decide to
         # output something then it's really important and we use logging.WARNING as a level
         log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
-        with stm32pio.util.LogPipe(self.logger, log_level) as log:
+        with stm32pio.core.util.LogPipe(self.logger, log_level) as log:
             result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
 
         if result.returncode == 0:
