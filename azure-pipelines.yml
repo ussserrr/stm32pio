@@ -268,7 +268,14 @@ stages:
     condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/master'))
     jobs:
       - job: PyPI
+        pool:
+          vmImage: 'ubuntu-latest'
         steps:
+        - task: UsePythonVersion@0
+          inputs:
+            versionSpec: '3.8'
+          displayName: 'Use Ubuntu Python38'
+
         # Install twine and its dependencies
         - script: |
             pip install wheel
