@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 
 # Import the core library containing the main class - Stm32pio - representing the single project
-import stm32pio.core.lib
+import stm32pio.core.project
 
 # Instantiate the project. We can pass parameters at the creation stage ...
 import stm32pio.core.state
 
-project = stm32pio.core.lib.Stm32pio('./stm32pio-test-project',
-                                     parameters={ 'project': { 'board': 'nucleo_f429zi' } })
+project = stm32pio.core.project.Stm32pio('./stm32pio-test-project',
+                                         parameters={ 'project': { 'board': 'nucleo_f429zi' } })
 # ... or later when there will be a need to do so
 project.config.set('project', 'board', 'nucleo_f031k6')
 

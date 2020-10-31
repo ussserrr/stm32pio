@@ -7,7 +7,7 @@ import shutil
 from tests.common import *
 
 import stm32pio.core.settings
-import stm32pio.core.lib
+import stm32pio.core.project
 import stm32pio.core.state
 
 
@@ -21,13 +21,13 @@ class TestIntegration(CustomTestCase):
         Test the portability of projects: they should stay totally valid after moving to another path (same as renaming
         the parent part of the path). If we will not meet any exceptions, we should consider the test passed
         """
-        project_before = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project_before = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         project_before.save_config()
 
         new_path = f'{project_before.path}-moved'
         shutil.move(str(project_before.path), new_path)
 
-        project_after = stm32pio.core.lib.Stm32pio(new_path, parameters={'project': {'board': PROJECT_BOARD}})
+        project_after = stm32pio.core.project.Stm32pio(new_path, parameters={'project': {'board': PROJECT_BOARD}})
         self.assertEqual(project_after.generate_code(), 0)
         self.assertEqual(project_after.pio_init(), 0)
         self.assertEqual(project_after.patch(), None)
@@ -59,7 +59,7 @@ class TestIntegration(CustomTestCase):
 
         # On project creation we should interpret the CLI-provided values as superseding to the saved ones and
         # saved ones, in turn, as superseding to the default ones (BUT only non-empty values)
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, instance_options={'save_on_destruction': True}, parameters={
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, instance_options={'save_on_destruction': True}, parameters={
             'app': {
                 'cubemx_cmd': ''
             },
@@ -87,7 +87,7 @@ class TestIntegration(CustomTestCase):
         """
         Initialize a new project and try to build it
         """
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         project.generate_code()
         project.pio_init()
         project.patch()
@@ -99,7 +99,7 @@ class TestIntegration(CustomTestCase):
         Simulate a new project creation, its changing and CubeMX code re-generation (for example, after adding new
         hardware features and some new files by a user)
         """
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
 
         # Generate a new project ...
         project.generate_code()
@@ -133,7 +133,7 @@ class TestIntegration(CustomTestCase):
         Go through the sequence of states emulating the real-life project lifecycle
         """
 
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
 
         for method, expected_stage in [(None, stm32pio.core.state.ProjectStage.EMPTY),
                                        ('save_config', stm32pio.core.state.ProjectStage.INITIALIZED),
@@ -167,7 +167,7 @@ class TestIntegration(CustomTestCase):
             self.assertTrue(all(item in STAGE_PATH.iterdir() for item in [users_file, users_dir]))
             self.assertIn(users_file_content, users_file.read_text())
 
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
 
         for method in ['save_config', 'generate_code', 'pio_init', 'patch', 'build']:
             getattr(project, method)()

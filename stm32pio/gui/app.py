@@ -38,7 +38,7 @@ ROOT_PATH = MODULE_PATH.parent.parent  # repo's or the site-package's entry root
 try:
     import stm32pio.core.settings
     import stm32pio.core.logging
-    import stm32pio.core.lib
+    import stm32pio.core.project
     import stm32pio.core.util
     import stm32pio.core.state
     import stm32pio.cli.app
@@ -46,7 +46,7 @@ except ModuleNotFoundError:
     sys.path.insert(0, str(ROOT_PATH))
     import stm32pio.core.settings
     import stm32pio.core.logging
-    import stm32pio.core.lib
+    import stm32pio.core.project
     import stm32pio.core.util
     import stm32pio.core.state
     import stm32pio.cli.app
@@ -203,7 +203,7 @@ class ProjectListItem(QObject):
         try:
             # time.sleep(2.0)
             # raise Exception('blabla')
-            self.project = stm32pio.core.lib.Stm32pio(*args, **kwargs)
+            self.project = stm32pio.core.project.Stm32pio(*args, **kwargs)
         except Exception:
             stm32pio.core.logging.log_current_exception(self.logger)
             if len(args):

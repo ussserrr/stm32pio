@@ -9,7 +9,7 @@ import time
 from tests.common import *
 
 import stm32pio.core.settings
-import stm32pio.core.lib
+import stm32pio.core.project
 import stm32pio.core.util
 
 
@@ -24,7 +24,7 @@ class TestUnit(CustomTestCase):
         """
         Check whether files and folders have been created (by STM32CubeMX)
         """
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         project.generate_code()
 
         # Assuming that the presence of these files indicating a success
@@ -39,7 +39,7 @@ class TestUnit(CustomTestCase):
         There are other artifacts that can be checked too but we are interested only in a 'platformio.ini' anyway. Also,
         check that it is a correct configparser.ConfigParser file and is not empty
         """
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         result = project.pio_init()
 
         self.assertEqual(result, 0, msg="Non-zero return code")
@@ -54,7 +54,7 @@ class TestUnit(CustomTestCase):
         Check that the new parameters have been added, modified ones have been updated and existing parameters didn't
         gone. Also, check for unnecessary folders deletion
         """
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH)
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH)
 
         test_content = inspect.cleandoc('''
             ; This is a test config .ini file
@@ -107,7 +107,7 @@ class TestUnit(CustomTestCase):
         """
         Build an empty project so PlatformIO should return an error
         """
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         project.pio_init()
 
         with self.assertLogs(level='ERROR') as logs:
@@ -120,7 +120,7 @@ class TestUnit(CustomTestCase):
         """
         Call the editors. Use subprocess shell=True as it works on all OSes
         """
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH)
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH)
 
         editors = {  # some edotors to check
             'atom': {
@@ -176,7 +176,7 @@ class TestUnit(CustomTestCase):
         path_does_not_exist = STAGE_PATH.joinpath(path_does_not_exist_name)
         with self.assertRaisesRegex(FileNotFoundError, path_does_not_exist_name,
                                     msg="FileNotFoundError has not been raised or doesn't contain a description"):
-            stm32pio.core.lib.Stm32pio(path_does_not_exist)
+            stm32pio.core.project.Stm32pio(path_does_not_exist)
 
     def test_save_config(self):
         """
@@ -184,7 +184,7 @@ class TestUnit(CustomTestCase):
         preserved
         """
         # 'board' is non-default, 'project'-section parameter
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
 
         # Merge additional parameters
         retcode = project.save_config({
@@ -230,14 +230,14 @@ class TestUnit(CustomTestCase):
         shutil.copy(STAGE_PATH.joinpath(PROJECT_IOC_FILENAME), STAGE_PATH.joinpath('42.ioc'))
         shutil.copy(STAGE_PATH.joinpath(PROJECT_IOC_FILENAME), STAGE_PATH.joinpath('Abracadabra.ioc'))
 
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH.joinpath('42.ioc'))  # pick just one
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH.joinpath('42.ioc'))  # pick just one
         self.assertTrue(project.ioc_file.samefile(STAGE_PATH.joinpath('42.ioc')),
                         msg="Provided .ioc file hasn't been chosen")
         self.assertEqual(project.config.get('project', 'ioc_file'), '42.ioc',
                          msg="Provided .ioc file is not in the config")
 
     def test_validate_environment(self):
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH)
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH)
 
         result_should_be_ok = project.validate_environment()
         self.assertTrue(result_should_be_ok.succeed, msg="All the tools are correct but the validation says otherwise")

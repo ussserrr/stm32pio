@@ -11,13 +11,13 @@ from typing import Optional, List
 try:
     import stm32pio.core.settings
     import stm32pio.core.logging
-    import stm32pio.core.lib
+    import stm32pio.core.project
     import stm32pio.core.util
 except ModuleNotFoundError:
     sys.path.append(str(pathlib.Path(sys.path[0]).parent.parent))  # hack to be able to run the app as 'python app.py'
     import stm32pio.core.settings
     import stm32pio.core.logging
-    import stm32pio.core.lib
+    import stm32pio.core.project
     import stm32pio.core.util
 
 
@@ -149,8 +149,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
     # Main routine
     try:
         if args.subcommand == 'init':
-            project = stm32pio.core.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
-                                                 instance_options={'save_on_destruction': True})
+            project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
+                                                     instance_options={'save_on_destruction': True})
             if project.config.get('project', 'board') == '':
                 logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
                                "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
@@ -160,7 +160,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'generate':
-            project = stm32pio.core.lib.Stm32pio(args.path)
+            project = stm32pio.core.project.Stm32pio(args.path)
             project.generate_code()
             if args.with_build:
                 project.build()
@@ -168,12 +168,12 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'patch':
-            project = stm32pio.core.lib.Stm32pio(args.path)
+            project = stm32pio.core.project.Stm32pio(args.path)
             project.patch()
 
         elif args.subcommand == 'new':
-            project = stm32pio.core.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
-                                                 instance_options={'save_on_destruction': True})
+            project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
+                                                     instance_options={'save_on_destruction': True})
             if project.config.get('project', 'board') == '':
                 logger.info("project has been initialized. You can now edit stm32pio.ini config file")
                 raise Exception("PlatformIO board identifier is not specified, it is needed for PlatformIO project "
@@ -188,15 +188,15 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'status':
-            project = stm32pio.core.lib.Stm32pio(args.path)
+            project = stm32pio.core.project.Stm32pio(args.path)
             print(project.state)
 
         elif args.subcommand == 'validate':
-            project = stm32pio.core.lib.Stm32pio(args.path)
+            project = stm32pio.core.project.Stm32pio(args.path)
             print(project.validate_environment())
 
         elif args.subcommand == 'clean':
-            project = stm32pio.core.lib.Stm32pio(args.path)
+            project = stm32pio.core.project.Stm32pio(args.path)
             if args.quiet:
                 project.clean()
             else:

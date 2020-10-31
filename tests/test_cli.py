@@ -13,7 +13,7 @@ import stm32pio.cli.app
 import stm32pio.core.logging
 import stm32pio.core.settings
 import stm32pio.core.util
-import stm32pio.core.lib
+import stm32pio.core.project
 import stm32pio.core.state
 
 
@@ -123,7 +123,7 @@ class TestCLI(CustomTestCase):
 
         # inspect.getmembers() is great but it triggers class properties to execute leading to the unwanted code
         # execution
-        methods = dir(stm32pio.core.lib.Stm32pio) + ['main']
+        methods = dir(stm32pio.core.project.Stm32pio) + ['main']
 
         with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.NORMAL):
             result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(STAGE_PATH)],
