@@ -273,7 +273,7 @@
  - Changed: make `platformio_ini_is_patched` a property instead of function
  - Changed: improved in-code docs
 
-## ver 2.0.0
+## ver 2.0.0 (28.10.20)
  - New: introducing CI/CD via Azure Pipelines. I tried to make as "general" system as possible with isolated environments, reproducible builds, etc. Due to a number of such a different tools in use and scattered infrastructure around them this task is very complex and the current configuration is far from ideal though
  - New: new project structure. All packages (core, CLI, GUI) are consolidated under the common `stm32pio` Python _namespace_
  - New: app version is completely removed from the repo and is "computed" at build-time from the VCS (GIT) current tag (using [setuptools_scm](https://github.com/pypa/setuptools_scm)). At run-time the version obtaining process depends: for newer Python it can be retrieved from a package metadata, for older one there is an auto-generated `version.py` file with a value stored in it
@@ -294,3 +294,7 @@
  - Changed: remove board absence warning in `Stm32pio` constructor (this should be done outside)
  - Changed: take out to the `settings.py` a strings that we looked for to determine successful CubeMX code generation
  - Changed: use newer `platformio project init` command, use verbose versions of CLI arguments
+
+## ver 2.1.0
+ - Fixed: `clean` method doesn't look for the determined `.ioc` file but does it by itself which can cause some unwanted behavior (potential data loss)
+ - Fixed: remove done TODOs from the TODO.md list

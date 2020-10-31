@@ -54,9 +54,10 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
                                          help="clean-up the project (delete ALL content of 'path' except an .ioc file)")
     parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. All arguments will "
                                                    "be passed forward, see its own --help for more information")
+    parser_validate = subparsers.add_parser('validate', help="verify the current environment based on the config values")
 
     # Common subparsers options
-    for parser in [parser_init, parser_generate, parser_patch, parser_new, parser_status, parser_clean, parser_gui]:
+    for parser in [parser_init, parser_generate, parser_patch, parser_new, parser_status, parser_clean, parser_gui, parser_validate]:
         parser.add_argument('-d', '--directory', dest='path', default=pathlib.Path.cwd(),
                             help="path to the project (current directory, if not given)")
     for parser in [parser_init, parser_new, parser_gui]:
@@ -186,6 +187,10 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
         elif args.subcommand == 'status':
             project = stm32pio.core.lib.Stm32pio(args.path)
             print(project.state)
+
+        elif args.subcommand == 'validate':
+            project = stm32pio.core.lib.Stm32pio(args.path)
+            print(project.validate_environment())
 
         elif args.subcommand == 'clean':
             project = stm32pio.core.lib.Stm32pio(args.path)

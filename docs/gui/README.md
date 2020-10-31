@@ -77,4 +77,4 @@ Add Ctrl to the mouse click to start the editor specified in the settings after 
 
 Projects list (not the projects themself) and settings are stored by `QSettings` so refer to its docs if you bother about the actual location.
 
-See `docs` directory to see the state machine diagram of the project action button.
+Also, see the state machine diagram of the project action button.

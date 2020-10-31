@@ -7,6 +7,7 @@ import subprocess
 import unittest.mock
 
 # Provides test constants and definitions
+import stm32pio.core.state
 from tests.common import *
 
 import stm32pio.cli.app
@@ -195,8 +196,8 @@ class TestCLI(CustomTestCase):
 
         matches_counter = 0
         last_stage_pos = -1
-        for stage in stm32pio.core.lib.ProjectStage:
-            if stage != stm32pio.core.lib.ProjectStage.UNDEFINED:
+        for stage in stm32pio.core.state.ProjectStage:
+            if stage != stm32pio.core.state.ProjectStage.UNDEFINED:
                 match = re.search(r"^((\[ \])|(\[\*\])) {2}" + str(stage) + '$', buffer_stdout.getvalue(), re.MULTILINE)
                 self.assertTrue(match, msg="Status information was not found on STDOUT")
                 if match:
@@ -204,4 +205,5 @@ class TestCLI(CustomTestCase):
                     self.assertGreater(match.start(), last_stage_pos, msg="The order of stages is messed up")
                     last_stage_pos = match.start()
 
-        self.assertEqual(matches_counter, len(stm32pio.core.lib.ProjectStage) - 1)  # UNDEFINED stage should not be printed
+        # UNDEFINED stage should not be printed
+        self.assertEqual(matches_counter, len(stm32pio.core.state.ProjectStage) - 1)

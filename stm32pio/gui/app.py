@@ -33,18 +33,20 @@ except ImportError as e:
           "or manually install its dependencies by yourself")
     sys.exit(-1)
 
-MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. stm32pio-repo/stm32pio_gui/
+MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. root/stm32pio/gui/
 ROOT_PATH = MODULE_PATH.parent.parent  # repo's or the site-package's entry root
 try:
     import stm32pio.core.settings
     import stm32pio.core.lib
     import stm32pio.core.util
+    import stm32pio.core.state
     import stm32pio.cli.app
 except ModuleNotFoundError:
     sys.path.insert(0, str(ROOT_PATH))
     import stm32pio.core.settings
     import stm32pio.core.lib
     import stm32pio.core.util
+    import stm32pio.core.state
     import stm32pio.cli.app
 
 
@@ -113,7 +115,7 @@ class LoggingWorker(QObject):
             if self.can_flush_log.is_set() and len(self.buffer):
                 record = self.buffer.popleft()
                 self.sendLog.emit(projects_logger_handler.format(record), record.levelno)
-        # TODO: maybe we should flush all remaining logs before termination
+        # We do not flush all remaining logs before termination, it can be useful in some other applications though
         projects_logger_handler.buffers.pop(self.project_id)  # unregister our buffer
         module_logger.debug(f"exit LoggingWorker of project id {self.project_id}")
         self.thread.quit()
@@ -126,7 +128,7 @@ class ProjectListItem(QObject):
     """
 
     logAdded = Signal(str, int, arguments=['message', 'level'])  # send the log message to the front-end
-    initialized = Signal(ProjectID, arguments=['project_id'])
+    initialized = Signal()
 
     def __init__(self, project_args: List[any] = None, project_kwargs: Mapping[str, Any] = None,
                  from_startup: bool = False, parent: QObject = None):
@@ -218,12 +220,7 @@ class ProjectListItem(QObject):
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
                                                self.name if self.project is None else str(self.project))
             self.qml_ready.wait()  # wait for the GUI to initialize (which one is earlier, actually, back or front)
-
-            # TODO: causing
-            # RuntimeWarning: libshiboken: Overflow: Value 4595188736 exceeds limits of type  [signed] "i" (4bytes).
-            # OverflowError
-            self.initialized.emit(id(self))
-
+            self.initialized.emit()
             self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
             self.stateChanged.emit()
@@ -281,7 +278,7 @@ class ProjectListItem(QObject):
             # to necessarily keeps them separated
             self._current_stage = str(state.current_stage)
 
-            state.pop(stm32pio.core.lib.ProjectStage.UNDEFINED)  # exclude UNDEFINED key
+            state.pop(stm32pio.core.state.ProjectStage.UNDEFINED)  # exclude UNDEFINED key
             # Convert to {string: boolean} dict (will be translated into the JavaScript object)
             return { stage.name: value for stage, value in state.items() }
         else:
@@ -420,7 +417,7 @@ class ProjectsList(QAbstractListModel):
     ProjectListItem
     """
 
-    goToProject = Signal(int, arguments=['indexToGo'])  # TODO: should probably belongs to list
+    goToProject = Signal(int, arguments=['indexToGo'])
 
     def __init__(self, projects: List[ProjectListItem] = None, parent: QObject = None):
         """
@@ -496,7 +493,7 @@ class ProjectsList(QAbstractListModel):
             except OSError:
                 yield False
 
-    def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None, go_to_this: bool = False,
+    def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None,
                     on_initialized: Callable[[ProjectID], None] = None) -> ProjectListItem:
         """
         Create and append to the list tail a new ProjectListItem instance. This doesn't save in QSettings, it's an up to
@@ -505,12 +502,15 @@ class ProjectsList(QAbstractListModel):
         Args:
             path: path as string
             list_item_kwargs: keyword arguments passed to the ProjectListItem constructor
-            go_to_this: should we jump to the new project in GUI
-            on_initialized:
+            on_initialized: optional callback to run after the complete project initialization
         """
 
         # Shallow copy, dict makes it mutable
         list_item_kwargs = dict(list_item_kwargs if list_item_kwargs is not None else {})
+
+        # Parent is always this model so we implicitly pass it there
+        if 'parent' not in list_item_kwargs or not list_item_kwargs['parent']:
+            list_item_kwargs['parent'] = self
 
         duplicate_index = next((idx for idx, is_duplicated in enumerate(self.each_project_is_duplicate_of(path))
                                 if is_duplicated), -1)
@@ -531,9 +531,7 @@ class ProjectsList(QAbstractListModel):
         else:
             # Insert given path into the constructor args (do not use dict.update() as we have list value that we also
             # want to "merge")
-            if len(list_item_kwargs) == 0:
-                list_item_kwargs = { 'project_args': [path] }
-            elif 'project_args' not in list_item_kwargs or len(list_item_kwargs['project_args']) == 0:
+            if 'project_args' not in list_item_kwargs or len(list_item_kwargs['project_args']) == 0:
                 list_item_kwargs['project_args'] = [path]
             else:
                 list_item_kwargs['project_args'][0] = path
@@ -548,9 +546,6 @@ class ProjectsList(QAbstractListModel):
             self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
             self.projects.append(project)
             self.endInsertRows()
-
-            if go_to_this:
-                self.goToProject.emit(len(self.projects) - 1)  # append always at the end
 
             return project
 
@@ -571,7 +566,7 @@ class ProjectsList(QAbstractListModel):
                 else:
                     module_logger.error(f"Incorrect path: {path_str}")
                     continue
-                self.addListItem(path, list_item_kwargs={ 'parent': self })
+                self.addListItem(path)
             self.saveInSettings()  # save after all
         else:
             module_logger.warning("No paths were given")
@@ -714,7 +709,6 @@ def main(sys_argv: List[str] = None):
         qml_logger.log(mode, message)
 
     # Apparently Windows version of PySide2 doesn't have QML logging feature turn on so we fill this gap
-    # TODO: set up for other platforms too (separate console.debug, console.warn, etc.)
     qml_logger = logging.getLogger('stm32pio.gui.qml')
     if platform.system() == 'Windows':
         qml_log_handler = logging.StreamHandler()
@@ -794,7 +788,7 @@ def main(sys_argv: List[str] = None):
         try:
             cli_project_provided = args is not None
             initialized_projects_counter = 0
-            def on_initialized(_: ProjectID):
+            def on_initialized():
                 nonlocal initialized_projects_counter
                 initialized_projects_counter += 1
                 if initialized_projects_counter == (len(restored_projects_paths) + (1 if cli_project_provided else 0)):
@@ -802,21 +796,19 @@ def main(sys_argv: List[str] = None):
 
             # Qt objects cannot be parented from the different thread so we restore the projects list in the main thread
             for path in restored_projects_paths:
-                projects_model.addListItem(path, go_to_this=False, on_initialized=on_initialized, list_item_kwargs={
-                   'from_startup': True,
-                   'parent': projects_model
-                })
+                projects_model.addListItem(path, on_initialized=on_initialized,
+                                           list_item_kwargs={ 'from_startup': True })
 
             # At the end, append (or jump to) a CLI-provided project, if there is one
             if cli_project_provided:
-                list_item_kwargs = {
-                    'from_startup': True,
-                    'parent': projects_model  # TODO: probably can be omitted and automatically passed in the addListItem method (as we do now with a path)
-                }
+                list_item_kwargs = { 'from_startup': True }
                 if args.board:
                     list_item_kwargs['project_kwargs'] = { 'parameters': { 'project': { 'board': args.board } } }  # pizdec konechno...
-                projects_model.addListItem(str(pathlib.Path(args.path)), go_to_this=True, on_initialized=on_initialized,
+                projects_model.addListItem(str(pathlib.Path(args.path)), on_initialized=on_initialized,
                                            list_item_kwargs=list_item_kwargs)
+                # Append always happens to the end of list and we want to jump to the last added project (CLI one). The
+                # resulting length of the list is (len(restored_projects_paths) + 1) so the last index is that minus 1
+                projects_model.goToProject.emit((len(restored_projects_paths) + 1) - 1)
                 projects_model.saveInSettings()
         except Exception:
             stm32pio.core.util.log_current_exception(module_logger)

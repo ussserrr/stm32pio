@@ -23,10 +23,6 @@ my_os = platform.system()
 
 config_default = collections.OrderedDict(
     app={
-        'java_cmd': 'java',
-        'platformio_cmd': 'platformio',
-        'cubemx_cmd': str(Path(os.getenv('STM32PIO_CUBEMX_CACHE_FOLDER')).joinpath('STM32CubeMX.exe'))
-    } if CI_ENV_VARIABLE is not None else {
         # (default is OK) How do you start Java from the command line? (edit if Java not in PATH). Set to 'None'
         # (string) if in your setup the CubeMX can be invoked straightforwardly
         'java_cmd': 'java',
@@ -40,6 +36,10 @@ config_default = collections.OrderedDict(
         'cubemx_cmd':
             str(Path.home().joinpath("cubemx/STM32CubeMX.exe")) if my_os in ['Darwin', 'Linux'] else
             "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe" if my_os == 'Windows' else None
+    } if CI_ENV_VARIABLE is None else {
+        'java_cmd': 'java',
+        'platformio_cmd': 'platformio',
+        'cubemx_cmd': str(Path(os.getenv('STM32PIO_CUBEMX_CACHE_FOLDER')).joinpath('STM32CubeMX.exe'))
     },
     project={
         # (default is OK) See CubeMX user manual PDF (UM1718) to get other useful options
@@ -67,6 +67,8 @@ config_default = collections.OrderedDict(
         'ioc_file': ''  # required, the file name (not a full path)
     }
 )
+
+none_options = ['none', 'no', 'null', '0']  # any of these mean the same when met in the config
 
 config_file_name = 'stm32pio.ini'
 

@@ -6,7 +6,6 @@ import collections
 import configparser
 import contextlib
 import copy
-import enum
 import logging
 import pathlib
 import shlex
@@ -15,109 +14,11 @@ import string
 import subprocess
 import tempfile
 import weakref
-from typing import Mapping, Any, Union
+from typing import Mapping, Any, Union, Tuple
 
 import stm32pio.core.settings
 import stm32pio.core.util
-
-
-_stages_string_representations = {
-    'UNDEFINED': 'The project is messed up',
-    'EMPTY': '.ioc file is present',
-    'INITIALIZED': 'stm32pio initialized',
-    'GENERATED': 'CubeMX code generated',
-    'PIO_INITIALIZED': 'PlatformIO project initialized',
-    'PATCHED': 'PlatformIO project patched',
-    'BUILT': 'PlatformIO project built'
-}
-
-@enum.unique
-class ProjectStage(enum.IntEnum):
-    """
-    Codes indicating a project state at the moment. Should be the sequence of incrementing integers to be suited for
-    state determining algorithm. Starts from 1
-
-    Hint: Files/folders to be present on every project state:
-        UNDEFINED: use this state to indicate none of the states below. Also, when we do not have any .ioc file the
-                   Stm32pio class instance cannot be created (constructor raises an exception)
-        EMPTY: ['project.ioc']
-        INITIALIZED: ['project.ioc', 'stm32pio.ini']
-        GENERATED: ['Inc', 'Src', 'project.ioc', 'stm32pio.ini']
-        PIO_INITIALIZED (on case-sensitive FS): ['test', 'include', 'Inc', 'platformio.ini', '.gitignore', 'Src', 'lib',
-                                                 'project.ioc', '.travis.yml', 'src']
-        PATCHED: ['test', 'Inc', 'platformio.ini', '.gitignore', 'Src', 'lib', 'project.ioc', '.travis.yml']
-        BUILT: same as above + '.pio' folder with build artifacts (such as .pio/build/nucleo_f031k6/firmware.bin,
-                                                                           .pio/build/nucleo_f031k6/firmware.elf)
-    """
-    UNDEFINED = enum.auto()  # note: starts from 1
-    EMPTY = enum.auto()
-    INITIALIZED = enum.auto()
-    GENERATED = enum.auto()
-    PIO_INITIALIZED = enum.auto()
-    PATCHED = enum.auto()
-    BUILT = enum.auto()
-
-    def __str__(self):
-        return _stages_string_representations[self.name]
-
-
-class ProjectState(collections.OrderedDict):
-    """
-    The ordered dictionary subclass suitable for storing the Stm32pio instances state. For example:
-      {
-        ProjectStage.UNDEFINED:         True,  # doesn't necessarily means that the project is messed up, see below
-        ProjectStage.EMPTY:             True,
-        ProjectStage.INITIALIZED:       True,
-        ProjectStage.GENERATED:         False,
-        ProjectStage.PIO_INITIALIZED:   False,
-        ProjectStage.PATCHED:           False,
-        ProjectStage.BUILT:             False
-      }
-    It is also extended with additional properties providing useful information such as obtaining the project current
-    stage.
-
-    The class has no special constructor so its filling - both stages and their order - is a responsibility of the
-    external code. It also has no protection nor checks for its internal correctness. Anyway, it is intended to be used
-    (i.e. creating) only by the internal code of this library so there shouldn't be any worries.
-    """
-
-    def __str__(self):
-        """
-        Pretty human-readable complete representation of the project state (not including the service one UNDEFINED to
-        not confuse the end-user)
-        """
-        # Need 2 spaces between the icon and the text to look fine
-        return '\n'.join(f"{'[*]' if stage_value else '[ ]'}  {str(stage_name)}"
-                         for stage_name, stage_value in self.items() if stage_name != ProjectStage.UNDEFINED)
-
-    @property
-    def current_stage(self) -> ProjectStage:
-        last_consistent_stage = ProjectStage.UNDEFINED
-        not_fulfilled_stage_found = False
-
-        # Search for a consecutive sequence of True's and find the last of them. For example, if the array is
-        #   [1,1,1,0,0,0,0]
-        #        ^
-        # we should consider 2 as the last index
-        for stage_name, stage_fulfilled in self.items():
-            if stage_fulfilled:
-                if not_fulfilled_stage_found:
-                    # Fall back to the UNDEFINED stage if we have breaks in conditions results array. E.g., for
-                    #   [1,1,1,0,1,0,0]
-                    # we should return UNDEFINED as it doesn't look like a correct set of files actually
-                    last_consistent_stage = ProjectStage.UNDEFINED
-                    break
-                else:
-                    last_consistent_stage = stage_name
-            else:
-                not_fulfilled_stage_found = True
-
-        return last_consistent_stage
-
-    @property
-    def is_consistent(self) -> bool:
-        """Whether the state has been went through the stages consequentially or not"""
-        return self.current_stage != ProjectStage.UNDEFINED
+from stm32pio.core.state import ProjectStage, ProjectState
 
 
 class Stm32pio:
@@ -381,6 +282,45 @@ class Stm32pio:
         return self._save_config(self.config, self.path, self.logger)
 
 
+    def _cubemx_execute_script(self, script_content: str) -> Tuple[subprocess.CompletedProcess, str]:
+        """
+
+        Args:
+            script_content:
+
+        Returns:
+
+        """
+        # Use mkstemp() instead of the higher-level API for the compatibility with the Windows (see tempfile docs for
+        # more details)
+        cubemx_script_file, cubemx_script_name = tempfile.mkstemp()
+
+        # We must remove the temp directory, so do not let any exception break our plans
+        try:
+            # buffering=0 leads to the immediate flushing on writing
+            with open(cubemx_script_file, mode='w+b', buffering=0) as cubemx_script:
+                cubemx_script.write(script_content.encode())  # should encode, since mode='w+b'
+
+                command_arr = []
+                java_cmd = self.config.get('app', 'java_cmd')
+                # CubeMX can be invoked directly, without a need in Java command
+                if java_cmd and (java_cmd.lower() not in stm32pio.core.settings.none_options):
+                    command_arr += [java_cmd, '-jar']
+                # -q: read the commands from the file, -s: silent performance
+                command_arr += [self.config.get('app', 'cubemx_cmd'), '-q', cubemx_script_name, '-s']
+                # Redirect the output of the subprocess into the logging module (with DEBUG level)
+                with stm32pio.core.util.LogPipe(self.logger, logging.DEBUG) as log:
+                    result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
+                    result_output = log.value
+
+        except Exception as e:
+            raise e  # re-raise an exception after the 'finally' block
+        else:
+            return result, result_output
+        finally:
+            pathlib.Path(cubemx_script_name).unlink()
+
+
     def generate_code(self) -> int:
         """
         Call STM32CubeMX app as 'java -jar' file to generate the code from the .ioc file. Pass the commands to the
@@ -392,43 +332,17 @@ class Stm32pio:
 
         self.logger.info("starting to generate a code from the CubeMX .ioc file...")
 
-        # Use mkstemp() instead of the higher-level API for the compatibility with the Windows (see tempfile docs for
-        # more details)
-        cubemx_script_file, cubemx_script_name = tempfile.mkstemp()
-
-        # We must remove the temp directory, so do not let any exception break our plans
-        try:
-            # buffering=0 leads to the immediate flushing on writing
-            with open(cubemx_script_file, mode='w+b', buffering=0) as cubemx_script:
-                cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
-                cubemx_script_content = cubemx_script_template.substitute(ioc_file_absolute_path=self.ioc_file,
-                                                                          project_dir_absolute_path=self.path)
-                cubemx_script.write(cubemx_script_content.encode())  # should encode, since mode='w+b'
-
-                command_arr = []
-                java_cmd = self.config.get('app', 'java_cmd')
-                # CubeMX can be invoked directly, without a need in Java command
-                if java_cmd and (java_cmd.lower() not in ['none', 'no', 'null', '0']):
-                    command_arr += [self.config.get('app', 'java_cmd'), '-jar']
-                # -q: read the commands from the file, -s: silent performance
-                command_arr += [self.config.get('app', 'cubemx_cmd'), '-q', cubemx_script_name, '-s']
-                # Redirect the output of the subprocess into the logging module (with DEBUG level)
-                with stm32pio.core.util.LogPipe(self.logger, logging.DEBUG) as log:
-                    result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
-                    result_output = log.value
-
-        except Exception as e:
-            raise e  # re-raise an exception after the 'finally' block
-        finally:
-            pathlib.Path(cubemx_script_name).unlink()
+        cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
+        cubemx_script_content = cubemx_script_template.substitute(ioc_file_absolute_path=self.ioc_file,
+                                                                  project_dir_absolute_path=self.path)
+        result, result_output = self._cubemx_execute_script(cubemx_script_content)
 
         error_msg = "code generation error"
         if result.returncode == 0:
             if stm32pio.core.settings.cubemx_str_indicating_success in result_output:
                 self.logger.info("successful code generation")
                 return result.returncode
-            else:
-                # GUESSING
+            else:  # guessing
                 error_lines = [line for line in result_output.splitlines(keepends=True)
                                if stm32pio.core.settings.cubemx_str_indicating_error in line]
                 if len(error_lines):
@@ -440,8 +354,10 @@ class Stm32pio:
                     return result.returncode
         else:
             # Most likely the 'java' error (e.g. no CubeMX is present)
-            self.logger.error(f"Return code is {result.returncode}. Output:\n\n{result_output}",
-                              extra={ 'from_subprocess': True })
+            self.logger.error(f"Return code is {result.returncode}", extra={ 'from_subprocess': True })
+            if not self.logger.isEnabledFor(logging.DEBUG):
+                # In DEBUG mode the output has already been printed
+                self.logger.error(f"Output:\n{result_output}", extra={ 'from_subprocess': True })
             raise Exception(error_msg)
 
 
@@ -659,7 +575,7 @@ class Stm32pio:
         """
 
         for child in self.path.iterdir():
-            if child.name != f"{self.path.name}.ioc":
+            if child != self.ioc_file:
                 if child.is_dir():
                     shutil.rmtree(child, ignore_errors=True)
                     self.logger.debug(f"del {child}/")
@@ -668,3 +584,36 @@ class Stm32pio:
                     self.logger.debug(f"del {child}")
 
         self.logger.info("project has been cleaned")
+
+
+    def validate_environment(self) -> stm32pio.core.util.ToolsValidationResults:
+        """Verify tools specified in the 'app' section of the current configuration"""
+
+        def java_runner(java_cmd):
+            with stm32pio.core.util.LogPipe(self.logger, logging.DEBUG) as log:
+                java = subprocess.run([java_cmd, '-version'], stdout=log.pipe, stderr=log.pipe)
+                java_output = log.value
+            return java, java_output
+
+        def cubemx_runner(_):
+            return self._cubemx_execute_script('exit\n')  # just start and exit
+
+        def platformio_runner(platformio_cmd):
+            with stm32pio.core.util.LogPipe(self.logger, logging.DEBUG) as log:
+                platformio = subprocess.run([platformio_cmd], stdout=log.pipe, stderr=log.pipe)
+                platformio_output = log.value
+            return platformio, platformio_output
+
+
+        return stm32pio.core.util.ToolsValidationResults(
+            stm32pio.core.util.ToolValidator(
+                param,
+                self.config.get('app', param),
+                runner,
+                required,
+                self.logger
+            ).validate() for param, runner, required in [
+                ('java_cmd', java_runner, False),
+                ('cubemx_cmd', cubemx_runner, True),
+                ('platformio_cmd', platformio_runner, True)
+            ])

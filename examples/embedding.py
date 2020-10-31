@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 
 # Import the core library containing the main class - Stm32pio - representing the single project
-import stm32pio.lib
+import stm32pio.core.lib
 
 # Instantiate the project. We can pass parameters at the creation stage ...
-project = stm32pio.lib.Stm32pio('./stm32pio-test-project',
-                                parameters={ 'project': { 'board': 'nucleo_f429zi' } })
+import stm32pio.core.state
+
+project = stm32pio.core.lib.Stm32pio('./stm32pio-test-project',
+                                     parameters={ 'project': { 'board': 'nucleo_f429zi' } })
 # ... or later when there will be a need to do so
 project.config.set('project', 'board', 'nucleo_f031k6')
 
@@ -22,7 +24,7 @@ print(project.state)  # or ...
 #     [ ]  PlatformIO project initialized
 #     [ ]  PlatformIO project patched
 #     [ ]  PlatformIO project built
-print(project.state[stm32pio.lib.ProjectStage.INITIALIZED] is True)  # or ...
+print(project.state[stm32pio.core.state.ProjectStage.INITIALIZED] is True)  # or ...
 #     True
 print(project.state.current_stage)
 #     stm32pio initialized
@@ -41,8 +43,8 @@ logger.addHandler(handler)
 
 # Or you can just use built-in logging schema which is basically doing the same stuff for you. Note though, that only a
 # single option should be either picked at a time, otherwise records duplication will occur
-import stm32pio.app
-# logger = stm32pio.app.setup_logging()
+import stm32pio.cli.app
+# logger = stm32pio.cli.app.setup_logging()
 
 # Let's try again
 project.pio_init()  # now there should be handful logging records!
@@ -52,8 +54,8 @@ project.pio_init()  # now there should be handful logging records!
 # Finally, you can use the high-level API - same as in the CLI version of the application - to perform complete tasks
 project.clean()  # clean up the previous results first
 # Again, disabling the default logging to prevent interference
-return_code = stm32pio.app.main(sys_argv=['new', '-d', './stm32pio-test-project', '-b', 'nucleo_f031k6'],
-                                should_setup_logging=False)
+return_code = stm32pio.cli.app.main(sys_argv=['new', '-d', './stm32pio-test-project', '-b', 'nucleo_f031k6'],
+                                    should_setup_logging=False)
 print(return_code)
 #     0
 project.clean()  # clean up after yourself

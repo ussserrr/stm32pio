@@ -163,7 +163,7 @@ class TestUnit(CustomTestCase):
                     # "encoding='utf-8'" is for "a bytes-like object is required, not 'str'" in "assertIn"
                     result = subprocess.run(command_arr, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                             encoding='utf-8')
-                    # Or, for Python 3.7 and above:
+                    # TODO: or, for Python 3.7 and above:
                     # result = subprocess.run(command_arr, capture_output=True, encoding='utf-8')
                     self.assertIn(editor_process_names[platform.system()], result.stdout)
 
@@ -235,3 +235,17 @@ class TestUnit(CustomTestCase):
                         msg="Provided .ioc file hasn't been chosen")
         self.assertEqual(project.config.get('project', 'ioc_file'), '42.ioc',
                          msg="Provided .ioc file is not in the config")
+
+    def test_validate_environment(self):
+        project = stm32pio.core.lib.Stm32pio(STAGE_PATH)
+
+        result_should_be_ok = project.validate_environment()
+        self.assertTrue(result_should_be_ok.succeed, msg="All the tools are correct but the validation says otherwise")
+
+        project.config.set('app', 'platformio_cmd', 'this_command_doesnt_exist')
+
+        result_should_fail = project.validate_environment()
+        self.assertFalse(result_should_fail.succeed, msg="One tool is incorrect and the results should reflect this")
+        platformio_result = next((result for result in result_should_fail if result.name == 'platformio_cmd'), None)
+        self.assertIsNotNone(platformio_result, msg="PlatformIO validation results not found")
+        self.assertFalse(platformio_result.succeed, msg="PlatformIO validation results should be False")

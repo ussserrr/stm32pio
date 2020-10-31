@@ -4,6 +4,7 @@ import inspect
 import shutil
 
 # Provides test constants and definitions
+import stm32pio.core.state
 from tests.common import *
 
 import stm32pio.core.lib
@@ -134,18 +135,18 @@ class TestIntegration(CustomTestCase):
 
         project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
 
-        for method, expected_stage in [(None, stm32pio.core.lib.ProjectStage.EMPTY),
-                                       ('save_config', stm32pio.core.lib.ProjectStage.INITIALIZED),
-                                       ('generate_code', stm32pio.core.lib.ProjectStage.GENERATED),
-                                       ('pio_init', stm32pio.core.lib.ProjectStage.PIO_INITIALIZED),
-                                       ('patch', stm32pio.core.lib.ProjectStage.PATCHED),
-                                       ('build', stm32pio.core.lib.ProjectStage.BUILT),
-                                       ('clean', stm32pio.core.lib.ProjectStage.EMPTY),
-                                       ('pio_init', stm32pio.core.lib.ProjectStage.UNDEFINED)]:
+        for method, expected_stage in [(None, stm32pio.core.state.ProjectStage.EMPTY),
+                                       ('save_config', stm32pio.core.state.ProjectStage.INITIALIZED),
+                                       ('generate_code', stm32pio.core.state.ProjectStage.GENERATED),
+                                       ('pio_init', stm32pio.core.state.ProjectStage.PIO_INITIALIZED),
+                                       ('patch', stm32pio.core.state.ProjectStage.PATCHED),
+                                       ('build', stm32pio.core.state.ProjectStage.BUILT),
+                                       ('clean', stm32pio.core.state.ProjectStage.EMPTY),
+                                       ('pio_init', stm32pio.core.state.ProjectStage.UNDEFINED)]:
             if method is not None:
                 getattr(project, method)()
             self.assertEqual(project.state.current_stage, expected_stage)
-            if expected_stage != stm32pio.core.lib.ProjectStage.UNDEFINED:
+            if expected_stage != stm32pio.core.state.ProjectStage.UNDEFINED:
                 self.assertTrue(project.state.is_consistent)
             else:
                 # Should be UNDEFINED when the project is messed up (pio_init() after clean())
