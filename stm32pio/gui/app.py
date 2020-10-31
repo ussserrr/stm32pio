@@ -37,6 +37,7 @@ MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. root/stm32pio/g
 ROOT_PATH = MODULE_PATH.parent.parent  # repo's or the site-package's entry root
 try:
     import stm32pio.core.settings
+    import stm32pio.core.logging
     import stm32pio.core.lib
     import stm32pio.core.util
     import stm32pio.core.state
@@ -44,6 +45,7 @@ try:
 except ModuleNotFoundError:
     sys.path.insert(0, str(ROOT_PATH))
     import stm32pio.core.settings
+    import stm32pio.core.logging
     import stm32pio.core.lib
     import stm32pio.core.util
     import stm32pio.core.state
@@ -156,7 +158,7 @@ class ProjectListItem(QObject):
         self._from_startup = from_startup
 
         underlying_logger = logging.getLogger('stm32pio.gui.projects')
-        self.logger = stm32pio.core.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
+        self.logger = stm32pio.core.logging.ProjectLoggerAdapter(underlying_logger, {'project_id': id(self)})
         self.logging_worker = LoggingWorker(project_id=id(self))
         self.logging_worker.sendLog.connect(self.logAdded)
 
@@ -203,7 +205,7 @@ class ProjectListItem(QObject):
             # raise Exception('blabla')
             self.project = stm32pio.core.lib.Stm32pio(*args, **kwargs)
         except Exception:
-            stm32pio.core.util.log_current_exception(self.logger)
+            stm32pio.core.logging.log_current_exception(self.logger)
             if len(args):
                 self._name = args[0]  # use a project path string (as it should be a first argument) as a name
             else:
@@ -392,7 +394,7 @@ class Worker(QObject, QRunnable):
             result = self.func(*self.args)
         except Exception:
             if self.logger is not None:
-                stm32pio.core.util.log_current_exception(self.logger)
+                stm32pio.core.logging.log_current_exception(self.logger)
             result = -1
 
         if result is None or (type(result) == int and result == 0):
@@ -730,7 +732,7 @@ def main(sys_argv: List[str] = None):
         module_logger.setLevel(logging.DEBUG if value else logging.INFO)
         qml_logger.setLevel(logging.DEBUG if value else logging.INFO)
         projects_logger.setLevel(logging.DEBUG if value else logging.INFO)
-        formatter.verbosity = stm32pio.core.util.Verbosity.VERBOSE if value else stm32pio.core.util.Verbosity.NORMAL
+        formatter.verbosity = stm32pio.core.logging.Verbosity.VERBOSE if value else stm32pio.core.logging.Verbosity.NORMAL
 
     settings = Settings(prefix='app/settings/', qs_kwargs={ 'parent': app },
                         external_triggers={ 'verbose': verbose_setter })
@@ -738,10 +740,10 @@ def main(sys_argv: List[str] = None):
     # Use "singleton" real logger for all projects just wrapping it into the LoggingAdapter for every project
     projects_logger = logging.getLogger('stm32pio.gui.projects')
     projects_logger.setLevel(logging.DEBUG if settings.get('verbose') else logging.INFO)
-    formatter = stm32pio.core.util.DispatchingFormatter(
+    formatter = stm32pio.core.logging.DispatchingFormatter(
         general={
-            stm32pio.core.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
-            stm32pio.core.util.Verbosity.VERBOSE: logging.Formatter(
+            stm32pio.core.logging.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
+            stm32pio.core.logging.Verbosity.VERBOSE: logging.Formatter(
                 f"%(levelname)-8s %(funcName)-{stm32pio.core.settings.log_fieldwidth_function}s %(message)s")
         })
     projects_logger_handler.setFormatter(formatter)
@@ -767,7 +769,7 @@ def main(sys_argv: List[str] = None):
     boards_model = QStringListModel(parent=engine)
 
     engine.rootContext().setContextProperty('appVersion', stm32pio.core.util.get_version())
-    engine.rootContext().setContextProperty('Logging', stm32pio.core.util.logging_levels)
+    engine.rootContext().setContextProperty('Logging', stm32pio.core.logging.logging_levels)
     engine.rootContext().setContextProperty('projectsModel', projects_model)
     engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.rootContext().setContextProperty('appSettings', settings)
@@ -811,7 +813,7 @@ def main(sys_argv: List[str] = None):
                 projects_model.goToProject.emit((len(restored_projects_paths) + 1) - 1)
                 projects_model.saveInSettings()
         except Exception:
-            stm32pio.core.util.log_current_exception(module_logger)
+            stm32pio.core.logging.log_current_exception(module_logger)
             success = False
 
         main_window.backendLoaded.emit(success)  # inform the GUI

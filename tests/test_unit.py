@@ -8,8 +8,8 @@ import time
 # Provides test constants and definitions
 from tests.common import *
 
-import stm32pio.core.lib
 import stm32pio.core.settings
+import stm32pio.core.lib
 import stm32pio.core.util
 
 

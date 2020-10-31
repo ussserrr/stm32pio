@@ -4,11 +4,11 @@ import inspect
 import shutil
 
 # Provides test constants and definitions
-import stm32pio.core.state
 from tests.common import *
 
-import stm32pio.core.lib
 import stm32pio.core.settings
+import stm32pio.core.lib
+import stm32pio.core.state
 
 
 class TestIntegration(CustomTestCase):

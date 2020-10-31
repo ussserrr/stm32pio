@@ -16,8 +16,10 @@ import tempfile
 import weakref
 from typing import Mapping, Any, Union, Tuple
 
+import stm32pio.core.logging
 import stm32pio.core.settings
 import stm32pio.core.util
+import stm32pio.core.validate
 from stm32pio.core.state import ProjectStage, ProjectState
 
 
@@ -77,7 +79,7 @@ class Stm32pio:
             self.logger = instance_options['logger']
         else:
             underlying_logger = logging.getLogger('stm32pio.projects')
-            self.logger = stm32pio.core.util.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self) })
+            self.logger = stm32pio.core.logging.ProjectLoggerAdapter(underlying_logger, {'project_id': id(self)})
 
         # The path is a primary entity of the project so we process it first and foremost. Handle 'path/to/proj',
         # 'path/to/proj/', '.', '../proj', etc., make the path absolute and check for existence. Also, the .ioc file can
@@ -283,14 +285,6 @@ class Stm32pio:
 
 
     def _cubemx_execute_script(self, script_content: str) -> Tuple[subprocess.CompletedProcess, str]:
-        """
-
-        Args:
-            script_content:
-
-        Returns:
-
-        """
         # Use mkstemp() instead of the higher-level API for the compatibility with the Windows (see tempfile docs for
         # more details)
         cubemx_script_file, cubemx_script_name = tempfile.mkstemp()
@@ -309,7 +303,7 @@ class Stm32pio:
                 # -q: read the commands from the file, -s: silent performance
                 command_arr += [self.config.get('app', 'cubemx_cmd'), '-q', cubemx_script_name, '-s']
                 # Redirect the output of the subprocess into the logging module (with DEBUG level)
-                with stm32pio.core.util.LogPipe(self.logger, logging.DEBUG) as log:
+                with stm32pio.core.logging.LogPipe(self.logger, logging.DEBUG) as log:
                     result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
                     result_output = log.value
 
@@ -530,7 +524,7 @@ class Stm32pio:
         # In the non-verbose mode (logging.INFO) there would be a '--silent' option so if the PlatformIO will decide to
         # output something then it's really important and we use logging.WARNING as a level
         log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
-        with stm32pio.core.util.LogPipe(self.logger, log_level) as log:
+        with stm32pio.core.logging.LogPipe(self.logger, log_level) as log:
             result = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
 
         if result.returncode == 0:
@@ -586,11 +580,11 @@ class Stm32pio:
         self.logger.info("project has been cleaned")
 
 
-    def validate_environment(self) -> stm32pio.core.util.ToolsValidationResults:
+    def validate_environment(self) -> stm32pio.core.validate.ToolsValidationResults:
         """Verify tools specified in the 'app' section of the current configuration"""
 
         def java_runner(java_cmd):
-            with stm32pio.core.util.LogPipe(self.logger, logging.DEBUG) as log:
+            with stm32pio.core.logging.LogPipe(self.logger, logging.DEBUG) as log:
                 java = subprocess.run([java_cmd, '-version'], stdout=log.pipe, stderr=log.pipe)
                 java_output = log.value
             return java, java_output
@@ -599,14 +593,14 @@ class Stm32pio:
             return self._cubemx_execute_script('exit\n')  # just start and exit
 
         def platformio_runner(platformio_cmd):
-            with stm32pio.core.util.LogPipe(self.logger, logging.DEBUG) as log:
+            with stm32pio.core.logging.LogPipe(self.logger, logging.DEBUG) as log:
                 platformio = subprocess.run([platformio_cmd], stdout=log.pipe, stderr=log.pipe)
                 platformio_output = log.value
             return platformio, platformio_output
 
 
-        return stm32pio.core.util.ToolsValidationResults(
-            stm32pio.core.util.ToolValidator(
+        return stm32pio.core.validate.ToolsValidationResults(
+            stm32pio.core.validate.ToolValidator(
                 param,
                 self.config.get('app', param),
                 runner,

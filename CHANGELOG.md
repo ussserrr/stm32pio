@@ -296,5 +296,18 @@
  - Changed: use newer `platformio project init` command, use verbose versions of CLI arguments
 
 ## ver 2.1.0
+ - New: validate environment API and CLI feature. Allows to quickly verify the tools specified in the config
  - Fixed: `clean` method doesn't look for the determined `.ioc` file but does it by itself which can cause some unwanted behavior (potential data loss)
  - Fixed: remove done TODOs from the TODO.md list
+ - Fixed: GUI. Recursive layout warning in Settings window
+ - Fixed: remove forgotten TODOs
+ - Fixed: update embedding example to the current API
+ - Fixed: `setup.cfg` PySide2 supported version
+ - Fixed: `setup.cfg` PyPA parsing issues
+ - Fixed: GUI. Remove `ProjectID` parameter for the `initialized` signal to get rid of annoying Shiboken overflow error
+ - Changed: spawn project-state-related code to the `state.py` module
+ - Changed: move possible config None options to the `settings` module
+ - Changed: separate CubeMX invoking code (new project's private `_cubemx_execute_script` method)
+ - Changed: edit output behavior in case of occurred error in the `generate_code()` function
+ - Changed: GUI. Remove `go_to_this` option for the `addListItem` method (instead invoke on the list model)
+ - Changed: GUI. Implicitly pass the parent to the project constructor in `addListItem` method

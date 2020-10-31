@@ -10,11 +10,13 @@ from typing import Optional, List
 
 try:
     import stm32pio.core.settings
+    import stm32pio.core.logging
     import stm32pio.core.lib
     import stm32pio.core.util
 except ModuleNotFoundError:
     sys.path.append(str(pathlib.Path(sys.path[0]).parent.parent))  # hack to be able to run the app as 'python app.py'
     import stm32pio.core.settings
+    import stm32pio.core.logging
     import stm32pio.core.lib
     import stm32pio.core.util
 
@@ -54,10 +56,11 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
                                          help="clean-up the project (delete ALL content of 'path' except an .ioc file)")
     parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. All arguments will "
                                                    "be passed forward, see its own --help for more information")
-    parser_validate = subparsers.add_parser('validate', help="verify the current environment based on the config values")
+    parser_validate = subparsers.add_parser('validate', help="verify current environment based on the config values")
 
     # Common subparsers options
-    for parser in [parser_init, parser_generate, parser_patch, parser_new, parser_status, parser_clean, parser_gui, parser_validate]:
+    for parser in [parser_init, parser_generate, parser_patch, parser_new, parser_status, parser_validate, parser_clean,
+                   parser_gui]:
         parser.add_argument('-d', '--directory', dest='path', default=pathlib.Path.cwd(),
                             help="path to the project (current directory, if not given)")
     for parser in [parser_init, parser_new, parser_gui]:
@@ -96,12 +99,12 @@ def setup_logging(args_verbose_counter: int = 0, dummy: bool = False) -> logging
         logger = logging.getLogger('stm32pio')
         logger.setLevel(logging.DEBUG if args_verbose_counter else logging.INFO)
         handler = logging.StreamHandler()
-        formatter = stm32pio.core.util.DispatchingFormatter(
-            verbosity=stm32pio.core.util.Verbosity.VERBOSE if args_verbose_counter else
-                stm32pio.core.util.Verbosity.NORMAL,
+        formatter = stm32pio.core.logging.DispatchingFormatter(
+            verbosity=stm32pio.core.logging.Verbosity.VERBOSE if args_verbose_counter else
+                stm32pio.core.logging.Verbosity.NORMAL,
             general={
-                stm32pio.core.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
-                stm32pio.core.util.Verbosity.VERBOSE: logging.Formatter(
+                stm32pio.core.logging.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
+                stm32pio.core.logging.Verbosity.VERBOSE: logging.Formatter(
                     f"%(levelname)-8s %(funcName)-{stm32pio.core.settings.log_fieldwidth_function}s %(message)s")
             })
         handler.setFormatter(formatter)
@@ -209,7 +212,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
 
     # Library is designed to throw the exception in bad cases so we catch here globally
     except Exception:
-        stm32pio.core.util.log_current_exception(logger)
+        stm32pio.core.logging.log_current_exception(logger)
         return -1
 
     return 0

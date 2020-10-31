@@ -7,13 +7,14 @@ import subprocess
 import unittest.mock
 
 # Provides test constants and definitions
-import stm32pio.core.state
 from tests.common import *
 
 import stm32pio.cli.app
-import stm32pio.core.lib
+import stm32pio.core.logging
 import stm32pio.core.settings
 import stm32pio.core.util
+import stm32pio.core.lib
+import stm32pio.core.state
 
 
 class TestCLI(CustomTestCase):
@@ -124,7 +125,7 @@ class TestCLI(CustomTestCase):
         # execution
         methods = dir(stm32pio.core.lib.Stm32pio) + ['main']
 
-        with self.subTest(verbosity_level=stm32pio.core.util.Verbosity.NORMAL):
+        with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.NORMAL):
             result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(STAGE_PATH)],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
 
@@ -141,7 +142,7 @@ class TestCLI(CustomTestCase):
             # The snippet of the actual STM32CubeMX output
             self.assertNotIn('Starting STM32CubeMX', result.stderr, msg="STM32CubeMX has printed its logs")
 
-        with self.subTest(verbosity_level=stm32pio.core.util.Verbosity.VERBOSE):
+        with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.VERBOSE):
             result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new', '-d', str(STAGE_PATH),
                                      '-b', PROJECT_BOARD], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     encoding='utf-8')
