@@ -7,8 +7,10 @@ import traceback
 import warnings
 from typing import Any, MutableMapping, Tuple, Mapping, Optional
 
+from stm32pio.core.config import Config
 
-module_logger = logging.getLogger(__name__)  # this file logger
+
+module_logger = logging.getLogger(__name__)  # this module logger
 
 logging_levels = {  # for exposing the levels to the GUI
     logging.getLevelName(logging.CRITICAL): logging.CRITICAL,
@@ -20,7 +22,9 @@ logging_levels = {  # for exposing the levels to the GUI
 }
 
 
-def log_current_exception(logger: logging.Logger, show_traceback_threshold_level: int = logging.DEBUG):
+show_traceback_threshold_level: int = logging.DEBUG
+
+def log_current_exception(logger: logging.Logger, show_traceback: bool = None, config: Config = None):
     """
     Print format is:
 
@@ -31,12 +35,24 @@ def log_current_exception(logger: logging.Logger, show_traceback_threshold_level
     current Python frame and/or variables causing some possible weird errors (objects are not GC'ed) and memory leaks.
     See https://cosmicpercolator.com/2016/01/13/exception-leaks-in-python-2-and-3/ for more information
     """
+
+    if show_traceback is None:
+        show_traceback = logger.isEnabledFor(show_traceback_threshold_level)
+
     exc_full_str = traceback.format_exc()
     exc_str = exc_full_str.splitlines()[-1]
-    if exc_str.startswith('Exception') and not logger.isEnabledFor(show_traceback_threshold_level):
+    if exc_str.startswith('Exception') and not show_traceback:
         exc_str = exc_str[len('Exception: '):]  # meaningless information
     exc_tb = ''.join(exc_full_str.splitlines(keepends=True)[:-1])
-    logger.error(f'{exc_str}\n{exc_tb}' if logger.isEnabledFor(show_traceback_threshold_level) else exc_str)
+
+    if show_traceback:
+        logger.error(f"{exc_str}\n{exc_tb}")
+    elif config is not None:
+        config.save({ 'project': { 'last_error': f"{exc_str}\n{exc_tb}" } })
+        logger.error(f"{exc_str}. Traceback has been saved to the {config.path.name}. It will be cleared on the next "
+                     "run")
+    else:
+        logger.error(exc_str)
 
 
 class ProjectLoggerAdapter(logging.LoggerAdapter):

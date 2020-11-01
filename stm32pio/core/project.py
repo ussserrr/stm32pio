@@ -20,6 +20,7 @@ import stm32pio.core.logging
 import stm32pio.core.settings
 import stm32pio.core.util
 import stm32pio.core.validate
+import stm32pio.core.config
 from stm32pio.core.state import ProjectStage, ProjectState
 
 
@@ -92,29 +93,28 @@ class Stm32pio:
             path = path.parent
         self.path = path
 
-        self.config = self._load_config(parameters)
+        self.config = stm32pio.core.config.Config(self.path, runtime_parameters=parameters, logger=self.logger)
 
         self.ioc_file = self._find_ioc_file(explicit_file=ioc_file)
         self.config.set('project', 'ioc_file', self.ioc_file.name)  # save only the name of file to the config
 
+        if self.config.get('project', 'last_error', fallback=None):  # only if the config file already exist
+            self.config.set('project', 'last_error', '')
+            self.config.save()
+
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow a
         # propagation of this message
         if self.logger.isEnabledFor(logging.DEBUG):
-            debug_str = 'resolved config:'
-            for section in self.config.sections():
-                debug_str += f"\n========== {section} ==========\n"
-                for value in self.config.items(section):
-                    debug_str += f"{value}\n"
-            self.logger.debug(debug_str)
+            self.logger.debug(f"resolved config:\n\n{self.config}")
 
         # Save the config on an instance destruction
         if instance_options['save_on_destruction']:
-            self._finalizer = weakref.finalize(self, self._save_config, self.config, self.path, self.logger)
+            self._finalizer = weakref.finalize(self, self.config.save)
 
 
     def __repr__(self):
         """String representation of the project (use an absolute path for this)"""
-        return f"Stm32pio project: {str(self.path)}"
+        return f"Stm32pio project: {self.path}"
 
 
     @property
@@ -203,85 +203,11 @@ class Stm32pio:
             raise Exception(f"{result_file.name} is incorrect") from e
 
 
-    def _load_config(self, runtime_parameters: Mapping[str, Any] = None) -> configparser.ConfigParser:
-        """
-        Prepare ConfigParser config for the project. Order of getting values (masking) (higher levels overwrites lower,
-        but only if a value is non-empty):
-
-            default dict (settings module)  =>  config file stm32pio.ini  =>  user-given (runtime) values
-                                                                              (via CLI or another way)
-
-        Returns:
-            new configparser.ConfigParser instance
-        """
-
-        if runtime_parameters is None:
-            runtime_parameters = {}
-
-        # Fill with default values ...
-        config = configparser.ConfigParser(interpolation=None)
-        config.read_dict(copy.deepcopy(stm32pio.core.settings.config_default))
-
-        # ... then merge with user's config file (if exist) values ...
-        self.logger.debug(f"searching for {stm32pio.core.settings.config_file_name}...")
-        ini_config = configparser.ConfigParser(interpolation=None)
-        ini_config.read(self.path.joinpath(stm32pio.core.settings.config_file_name))
-        ini_config_dict = stm32pio.core.util.configparser_to_dict(ini_config)
-        ini_config_dict_cleaned = stm32pio.core.util.cleanup_dict(ini_config_dict)
-        config.read_dict(ini_config_dict_cleaned)
-
-        # ... finally merge with the given in this session CLI parameters
-        runtime_config = configparser.ConfigParser(interpolation=None)
-        runtime_config.read_dict(runtime_parameters)
-        runtime_config_dict = stm32pio.core.util.configparser_to_dict(runtime_config)
-        runtime_config_dict_cleaned = stm32pio.core.util.cleanup_dict(runtime_config_dict)
-        config.read_dict(runtime_config_dict_cleaned)
-
-        return config
-
-    @staticmethod
-    def _save_config(config: configparser.ConfigParser, path: pathlib.Path, logger: logging.Logger) -> int:
-        """
-        Writes the ConfigParser 'config' to the file 'path' and logs using the Logger 'logger'.
-
-        We declare this helper function which can be safely invoked by both internal methods and outer code. The latter
-        case is suitable for using in weakref' finalizer objects as one of its main requirement is to not keep
-        references to the destroyable object in any of the finalizer argument so the ordinary bound class method does
-        not fit well.
-
-        Returns:
-            0 on success, -1 otherwise
-        """
-        try:
-            with path.joinpath(stm32pio.core.settings.config_file_name).open(mode='w') as config_file:
-                config.write(config_file)
-            logger.debug(f"{stm32pio.core.settings.config_file_name} config file has been saved")
-            return 0
-        except Exception as e:
-            logger.warning(f"cannot save the config: {e}", exc_info=logger.isEnabledFor(logging.DEBUG))
-            return -1
-
     def save_config(self, parameters: Mapping[str, Mapping[str, Any]] = None) -> int:
         """
-        Invokes base _save_config function. Preliminarily, updates the config with the given 'parameters' dictionary. It
-        should has the following format:
-            {
-                'project': {
-                    'board': 'nucleo_f031k6',
-                    'ioc_file': 'fan_controller.ioc'
-                },
-                ...
-            }
-
-        Returns:
-            passes forward the _save_config() result
+        Pass the call to the config instance. This method exist mainly for the consistency in available project actions.
         """
-
-        if parameters is None:
-            parameters = {}
-
-        self.config.read_dict(parameters)
-        return self._save_config(self.config, self.path, self.logger)
+        return self.config.save(parameters)
 
 
     def _cubemx_execute_script(self, script_content: str) -> Tuple[subprocess.CompletedProcess, str]:
@@ -375,7 +301,7 @@ class Stm32pio:
         except Exception:
             self.logger.warning("'platformio.ini' file is already exist and incorrect")
 
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'project', 'init', '--project-dir', str(self.path),
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'project', 'init', '--project-dir', self.path,
                        '--board', self.config.get('project', 'board'), '--project-option', 'framework=stm32cube']
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
@@ -549,17 +475,17 @@ class Stm32pio:
 
         sanitized_input = shlex.quote(editor_command)
 
-        self.logger.info(f'starting an editor "{sanitized_input}"...')
+        self.logger.info(f"starting an editor '{sanitized_input}'...")
         try:
             # Works unstable on some Windows 7 systems, but correct on Win10...
-            # result = subprocess.run([editor_command, str(self.path)], check=True)
-            result = subprocess.run(f"{sanitized_input} {str(self.path)}", shell=True, check=True,
+            # result = subprocess.run([editor_command, self.path], check=True)
+            result = subprocess.run(f"{sanitized_input} {self.path}", shell=True, check=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.logger.debug(result.stdout, extra={ 'from_subprocess': True })
 
             return result.returncode
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"failed to start the editor {sanitized_input}: {e.stdout}")
+            self.logger.error(f"failed to start the editor '{sanitized_input}': {e.stdout}")
             return e.returncode
 
 

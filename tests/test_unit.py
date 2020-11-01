@@ -239,13 +239,16 @@ class TestUnit(CustomTestCase):
     def test_validate_environment(self):
         project = stm32pio.core.project.Stm32pio(STAGE_PATH)
 
-        result_should_be_ok = project.validate_environment()
-        self.assertTrue(result_should_be_ok.succeed, msg="All the tools are correct but the validation says otherwise")
+        with self.subTest(msg="Valid config"):
+            result_should_be_ok = project.validate_environment()
+            self.assertTrue(result_should_be_ok.succeed, msg="All the tools are correct but the validation says "
+                                                             "otherwise")
 
-        project.config.set('app', 'platformio_cmd', 'this_command_doesnt_exist')
-
-        result_should_fail = project.validate_environment()
-        self.assertFalse(result_should_fail.succeed, msg="One tool is incorrect and the results should reflect this")
-        platformio_result = next((result for result in result_should_fail if result.name == 'platformio_cmd'), None)
-        self.assertIsNotNone(platformio_result, msg="PlatformIO validation results not found")
-        self.assertFalse(platformio_result.succeed, msg="PlatformIO validation results should be False")
+        with self.subTest(mag="Invalid config"):
+            project.config.set('app', 'platformio_cmd', 'this_command_doesnt_exist')
+            result_should_fail = project.validate_environment()
+            self.assertFalse(result_should_fail.succeed, msg="One tool is incorrect and the results should reflect "
+                                                             "this")
+            platformio_result = next((result for result in result_should_fail if result.name == 'platformio_cmd'), None)
+            self.assertIsNotNone(platformio_result, msg="PlatformIO validation results not found")
+            self.assertFalse(platformio_result.succeed, msg="PlatformIO validation results should be False")

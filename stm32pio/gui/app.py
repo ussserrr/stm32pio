@@ -201,8 +201,6 @@ class ProjectListItem(QObject):
             **kwargs: keyword arguments of the Stm32pio constructor
         """
         try:
-            # time.sleep(2.0)
-            # raise Exception('blabla')
             self.project = stm32pio.core.project.Stm32pio(*args, **kwargs)
         except Exception:
             stm32pio.core.logging.log_current_exception(self.logger)
@@ -394,6 +392,7 @@ class Worker(QObject, QRunnable):
             result = self.func(*self.args)
         except Exception:
             if self.logger is not None:
+                # We cannot pass the project config here to preserve the error because we don't have the reference
                 stm32pio.core.logging.log_current_exception(self.logger)
             result = -1
 

@@ -306,6 +306,8 @@
  - Fixed: `setup.cfg` PyPA parsing issues
  - Fixed: GUI. Remove `ProjectID` parameter for the `initialized` signal to get rid of annoying Shiboken overflow error
  - Changed: spawn project-state-related code to the `state.py` module
+ - Changed: spawn logging-related code to the `logging.py` module
+ - Changed: rename `lib.py` -> `project.py` module
  - Changed: move possible config None options to the `settings` module
  - Changed: separate CubeMX invoking code (new project's private `_cubemx_execute_script` method)
  - Changed: edit output behavior in case of occurred error in the `generate_code()` function

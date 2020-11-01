@@ -146,6 +146,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
         print("\nNo arguments were given, exiting...")
         return 0
 
+    project = None
+
     # Main routine
     try:
         if args.subcommand == 'init':
@@ -155,7 +157,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
                                "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
                                "identifier")
-            logger.info("project has been initialized. You can now edit stm32pio.ini config file")
+            logger.info(f"project has been initialized. You can now edit {stm32pio.core.settings.config_file_name} "
+                        "config file")
             if args.editor:
                 project.start_editor(args.editor)
 
@@ -175,7 +178,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
             project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
                                                      instance_options={'save_on_destruction': True})
             if project.config.get('project', 'board') == '':
-                logger.info("project has been initialized. You can now edit stm32pio.ini config file")
+                logger.info(f"project has been initialized. You can now edit {stm32pio.core.settings.config_file_name} "
+                            "config file")
                 raise Exception("PlatformIO board identifier is not specified, it is needed for PlatformIO project "
                                 "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
                                 "identifier")
@@ -212,7 +216,10 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
 
     # Library is designed to throw the exception in bad cases so we catch here globally
     except Exception:
-        stm32pio.core.logging.log_current_exception(logger)
+        config = None
+        if project is not None and hasattr(project, 'config'):
+            config = project.config
+        stm32pio.core.logging.log_current_exception(logger, config=config)
         return -1
 
     return 0

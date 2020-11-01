@@ -1,4 +1,4 @@
-# TODOs
+# TODO list
 
 ## Business logic, general features
  - [ ] GitHub CHANGELOG - separate New, Fixed, Changed into paragraphs
@@ -6,9 +6,9 @@
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Create VSCode plugin
  - [ ] UML diagrams (core, GUI back- and front-ends, thread flows, events, etc.)
- - [x] CI is possible (Arch's AUR has the STM32CubeMX package, also there is a direct link). Deploy Docker one in Azure Pipelines, basic at Travis CI
  - [ ] In the future, probably use https://setuptools.readthedocs.io/en/latest/setuptools.html#accessing-data-files-at-runtime `importlib.resources` as a standard API to access non-Python files inside Python packages (such as `.qml`)
  - [ ] Use some features of newer Pythons after dropping the support for 3.6 (and so on)
+ - [ ] Generate code docs (help user to understand an internal mechanics, e.g. for embedding). Can be uploaded to the GitHub Wiki
 
 ## GUI version
  - [ ] Obtain boards on demand (not at the startup)
@@ -46,18 +46,18 @@
  - [ ] Add multiple folders on "Add" button
  - [ ] Do not store the state in the list delegate. Save it in the model, also widgets will be using it so the code will be cleaner
  - [ ] Setup QML logging proxy (QML's `console.log()` functions family to the Python `logging`) for all platforms (not only Windows)
+ - [ ] Interface for the validation feature
 
 ## Core library and CLI
  - [ ] when updating the project (`generate` command), check for boards match
- - [ ] Remove casts to string where we can use path-like objects (related to a Python version as new ones receives path-like objects arguments while old ones aren't)
- - [ ] We look for some snippets of strings in logs and output for the testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
+ - [x] Remove casts to string where we can use path-like objects (related to a Python version as new ones receives path-like objects arguments while old ones aren't)
+ - [x] We look for some snippets of strings in logs and output in a testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
  - [ ] Store an initial content of the folder in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion) in the config file. Mb some integration with `.gitignore`
- - [ ] at some point check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI) (global `--check` command (as `--version`), also before execution of the full cycle (no sense to start if some tool doesn't exist))
- - [ ] generate code docs (help user to understand an internal mechanics, e.g. for embedding). Can be uploaded to the GitHub Wiki
- - [ ] colored logs, maybe (breaks zero-dependency principle)
+ - [x] at some point check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI) (global `--check` command (as `--version`), also before execution of the full cycle (no sense to start if some tool doesn't exist))
+ - [ ] colored logs, maybe (breaks zero-dependency principle though...)
  - [ ] maybe migrate to async/await approach in the future (return some kind of a "remote controller" to control the running action)
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
- - [ ] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode and repeat this action). And, in general, we should show the error reason right off
+ - [x] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode and repeat this action). And, in general, we should show the error reason right off
  - [ ] the lib sometimes raising, sometimes returning the code and it is not consistent. While the reasons behind such behavior are clear, would be great to always return a result code and raise the exceptions in the outer scope, if there is need to
  - [ ] check board (no sense to go further on 'new' if the board in config.ini is not correct)
  - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (`shell=True` or a list of args (split a string))
@@ -73,3 +73,5 @@
  - [ ] Deal with CubeMX requests about software package and CubeMX versions migrations (seems like the only way is to set them in `.ioc` file, no appropriate CLI keys)
  - [ ] If `--board` has not been supplied try to get it from the `platformio.ini` (if present)
  - [ ] Pretty printer for the config
+ - [ ] Store editor in the config?
+ - [ ] Search for `str(...)` calls to eliminate them where possible

@@ -73,7 +73,7 @@ class TestIntegration(CustomTestCase):
 
         # Parse the resulting stm32pio.ini via the configparser to see
         saved_config = configparser.ConfigParser(interpolation=None)
-        saved_config.read(str(STAGE_PATH.joinpath('stm32pio.ini')))
+        saved_config.read(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name))
 
         with self.subTest(msg="User's .INI parameter has not been prioritized over the default one"):
             self.assertEqual(config_parameter_user_value,

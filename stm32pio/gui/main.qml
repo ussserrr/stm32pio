@@ -549,6 +549,7 @@ ApplicationWindow {
                                 } else {
                                     const config = project.config;
                                     if (Object.keys(config['project']).length && !config['project']['board']) {
+                                        // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
                                         project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
                                                          'project creation. You can set it in "stm32pio.ini" file in the project directory',
                                                          Logging.WARNING);
@@ -668,6 +669,7 @@ ApplicationWindow {
                                             }
                                         }]);
                                         if (board.editText === board.textAt(0)) {
+                                            // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
                                             project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
                                                              'project creation. You can set it in "stm32pio.ini" file in the project directory',
                                                              Logging.WARNING);
@@ -742,6 +744,7 @@ ApplicationWindow {
                                             name: 'Initialize'
                                             stageRepresented: 'INITIALIZED'  // the project stage this button is representing
                                             action: 'save_config'
+                                            // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
                                             tooltip: "Saves the current configuration to the config file <b>stm32pio.ini</b>"
                                         }
                                         ListElement {

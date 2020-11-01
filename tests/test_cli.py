@@ -15,6 +15,7 @@ import stm32pio.core.settings
 import stm32pio.core.util
 import stm32pio.core.project
 import stm32pio.core.state
+import stm32pio.core.config
 
 
 class TestCLI(CustomTestCase):
@@ -93,7 +94,7 @@ class TestCLI(CustomTestCase):
             path_not_exist = pathlib.Path('path_some_uniq_name/does/not/exist')
             with self.assertLogs(level='ERROR') as logs:
                 return_code = stm32pio.cli.app.main(sys_argv=['init', '-d', str(path_not_exist)],
-                                                    should_setup_logging=False)
+                                                    should_setup_logging=True)
                 self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
                 # Actual text varies for different OSes and system languages so we check only for a part of the string
                 self.assertTrue(next((True for msg in logs.output if 'path_some_uniq_name' in msg.lower()), False),
@@ -104,7 +105,7 @@ class TestCLI(CustomTestCase):
             dir_with_no_ioc_file.mkdir(exist_ok=False)
             with self.assertLogs(level='ERROR') as logs:
                 return_code = stm32pio.cli.app.main(sys_argv=['init', '-d', str(dir_with_no_ioc_file)],
-                                                    should_setup_logging=False)
+                                                    should_setup_logging=True)
                 self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
                 self.assertTrue(next((True for msg in logs.output if FileNotFoundError.__name__ in msg), False),
                                 msg="'ERROR' logging message hasn't been printed")
@@ -126,7 +127,7 @@ class TestCLI(CustomTestCase):
         methods = dir(stm32pio.core.project.Stm32pio) + ['main']
 
         with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.NORMAL):
-            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(STAGE_PATH)],
+            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', STAGE_PATH],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
 
             self.assertEqual(result.returncode, 0, msg="Non-zero return code")
@@ -143,9 +144,8 @@ class TestCLI(CustomTestCase):
             self.assertNotIn('Starting STM32CubeMX', result.stderr, msg="STM32CubeMX has printed its logs")
 
         with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.VERBOSE):
-            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new', '-d', str(STAGE_PATH),
-                                     '-b', PROJECT_BOARD], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    encoding='utf-8')
+            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new', '-d', STAGE_PATH, '-b',
+                                     PROJECT_BOARD], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
 
             self.assertEqual(result.returncode, 0, msg="Non-zero return code")
             # stderr and not stdout contains the actual output (by default for the logging module)
@@ -167,8 +167,8 @@ class TestCLI(CustomTestCase):
         """
         Check for the config creation and parameters presence
         """
-        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(STAGE_PATH),
-                                 '-b', PROJECT_BOARD], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', STAGE_PATH, '-b', PROJECT_BOARD],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
 
         self.assertTrue(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name).is_file(),
@@ -208,3 +208,41 @@ class TestCLI(CustomTestCase):
 
         # UNDEFINED stage should not be printed
         self.assertEqual(matches_counter, len(stm32pio.core.state.ProjectStage) - 1)
+
+    def test_save_last_error_in_config(self):
+        """The app should retain the last error occurred and clear it on the next successful run"""
+
+        # Create and save a deliberately invalid config...
+        config_with_invalid_tool = stm32pio.core.config.Config(STAGE_PATH, runtime_parameters={
+            'app': {
+                'java_cmd': 'incorrect_java_command'
+            }
+        })
+        config_with_invalid_tool.save()
+
+        # ...with this config the following command should fail...
+        with self.subTest(msg="Register the error"):
+            return_code = stm32pio.cli.app.main(sys_argv=['generate', '-d', str(STAGE_PATH)], should_setup_logging=False)
+            self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
+
+            # ...and write an error to the config
+            config_after_run = configparser.ConfigParser(interpolation=None)
+            config_after_run.read(config_with_invalid_tool.path)  # it is the same one
+            self.assertTrue(config_after_run.has_option('project', 'last_error'), msg="'last_error' key is missing")
+            self.assertGreater(len(config_after_run.get('project', 'last_error', fallback='')), 0,
+                               msg="'last_error' value is empty")
+            self.assertIn('Traceback', config_after_run.get('project', 'last_error', fallback=''),
+                          msg="seems like 'last_error' value doesn't contain the traceback: "
+                              f"{config_after_run.get('project', 'last_error', fallback='')}")
+
+        # Then make an ordinary successful run...
+        with self.subTest(msg="Clear the error"):
+            return_code = stm32pio.cli.app.main(sys_argv=['init', '-d', str(STAGE_PATH)], should_setup_logging=False)
+            self.assertEqual(return_code, 0, msg="Non-zero return code")
+
+            # ...and see for the disappeared error message
+            config_after_run.clear()
+            config_after_run.read(config_with_invalid_tool.path)
+            self.assertTrue((not config_after_run.has_option('project', 'last_error')) or
+                            (len(config_after_run.get('project', 'last_error', fallback='')) == 0),
+                            msg="'last_error' is still present after the successful run")
