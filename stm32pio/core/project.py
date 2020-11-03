@@ -105,7 +105,7 @@ class Stm32pio:
         # Put away unnecessary processing as the string still will be formed even if the logging level doesn't allow a
         # propagation of this message
         if self.logger.isEnabledFor(logging.DEBUG):
-            self.logger.debug(f"resolved config:\n\n{self.config}")
+            self.logger.debug(f"resolved config:\n{self.config}")
 
         # Save the config on an instance destruction
         if instance_options['save_on_destruction']:

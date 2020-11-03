@@ -37,15 +37,43 @@ class Config(configparser.ConfigParser):
         self.read_dict(copy.deepcopy(defaults))
 
         # ... then merge with user's config file (if exist) values ...
-        if self.logger:
+        if self.logger is not None:
             self.logger.debug(f"searching for {name}...")
-        self.merge_with(self.path)
+        self.merge_with(self.path, reason="compared to default")
 
         # ... finally merge with the given in this session CLI parameters
         if runtime_parameters is not None and len(runtime_parameters):
-            self.merge_with(runtime_parameters)
+            self.merge_with(runtime_parameters, reason="CLI keys")
 
-    def merge_with(self, another: Union[pathlib.Path, Mapping[str, Mapping[str, Any]]]) -> None:
+    def _log_whats_changed(self, compared_to: Mapping[str, Mapping[str, Any]],
+                           log_string: str = "these config parameters will be overridden", reason: str = None) -> None:
+        """
+        Compare the current configuration with the given mapping forming the resulting string for logging.
+
+        Args:
+            compared_to: compare the current state with this argument
+            log_string: prefix to put before the diff
+            reason: optional comment about the merging cause
+        """
+        if self.logger is not None and self.logger.isEnabledFor(logging.DEBUG):
+            whats_changed = []
+            for section in compared_to.keys():
+                for key, new_value in compared_to[section].items():
+                    old_value = self.get(section, key, fallback=None)
+                    if old_value != new_value:
+                        old_value = old_value or "''"
+                        if ('\n' in old_value) or ('\n' in new_value):
+                            whats_changed.append(f"=== {section}.{key} ===\n{old_value}\n->\n{new_value}\n")
+                        else:
+                            whats_changed.append(f"=== {section}.{key} ===: {old_value} -> {new_value}")
+            if len(whats_changed):
+                overridden = '\n'.join(whats_changed)
+                if reason is not None:
+                    log_string += f" ({reason})"
+                log_string += f":\n{overridden}"
+                self.logger.debug(log_string)
+
+    def merge_with(self, another: Union[pathlib.Path, Mapping[str, Mapping[str, Any]]], reason: str = None) -> None:
         """
         Merge itself with some external thing. It is safe because the empty given values will not overwrite existing
         ones
@@ -53,11 +81,13 @@ class Config(configparser.ConfigParser):
         if isinstance(another, pathlib.Path):
             temp_config = configparser.ConfigParser(interpolation=None)
             temp_config.read(another)
-            temp_config_dict = stm32pio.core.util.configparser_to_dict(temp_config)
-            temp_config_dict_cleaned = stm32pio.core.util.cleanup_dict(temp_config_dict)
+            temp_config_dict_cleaned = stm32pio.core.util.cleanup_mapping(temp_config)
+            self._log_whats_changed(temp_config_dict_cleaned, reason=reason,
+                                    log_string=f"these config parameters will be overridden by {another}")
             self.read_dict(temp_config_dict_cleaned)
         elif isinstance(another, collections.abc.Mapping):
-            self.read_dict(stm32pio.core.util.cleanup_dict(another))
+            self._log_whats_changed(another, reason=reason)
+            self.read_dict(stm32pio.core.util.cleanup_mapping(another))
         else:
             raise TypeError(f"Cannot merge the given value of type {type(another)} to the config {self.path}. This "
                             "type isn't supported")
@@ -81,16 +111,16 @@ class Config(configparser.ConfigParser):
         """
 
         if parameters is not None and len(parameters):
-            self.merge_with(parameters)
+            self.merge_with(parameters, reason="config file saving was requested")
 
         try:
             with self.path.open(mode='w') as config_file:
                 self.write(config_file)
-            if self.logger:
+            if self.logger is not None:
                 self.logger.debug(f"{self.path.name} config file has been saved")
             return 0
         except Exception as e:
-            if self.logger:
+            if self.logger is not None:
                 self.logger.warning(f"cannot save the config: {e}", exc_info=self.logger.isEnabledFor(logging.DEBUG))
             return -1
 

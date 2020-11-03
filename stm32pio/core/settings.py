@@ -16,7 +16,7 @@ patch_mixin = ''
 if TEST_FIXTURES_PATH is not None and TEST_CASE is not None:
     platformio_ini_lockfile = TEST_FIXTURES_PATH / TEST_CASE / 'platformio.ini.lockfile'
     if platformio_ini_lockfile.exists():
-        patch_mixin = '\n' + platformio_ini_lockfile.read_text()
+        patch_mixin = '\n\n' + platformio_ini_lockfile.read_text()
 
 
 my_os = platform.system()
@@ -47,7 +47,7 @@ config_default = collections.OrderedDict(
             config load ${ioc_file_absolute_path}
             generate code ${project_dir_absolute_path}
             exit
-        ''') + '\n',
+        '''),
 
         # Override the defaults to comply with CubeMX project structure. This should meet INI-style requirements. You
         # can include existing sections, too (e.g.
@@ -60,7 +60,7 @@ config_default = collections.OrderedDict(
             [platformio]
             include_dir = Inc
             src_dir = Src
-        ''') + '\n' + patch_mixin,
+        ''') + patch_mixin,
 
         # Runtime-determined values
         'board': '',
@@ -79,4 +79,4 @@ cubemx_str_indicating_error = '[ERROR]'
 
 # Longest name (not necessarily a method so a little bit tricky...)
 # log_fieldwidth_function = max([len(member) for member in dir(stm32pio.lib.Stm32pio)]) + 1
-log_fieldwidth_function = 25 + 1
+log_fieldwidth_function = 20

@@ -3,7 +3,6 @@ Some auxiliary entities not falling into other categories
 """
 
 import collections
-import configparser
 import copy
 import json
 import subprocess
@@ -61,7 +60,7 @@ def get_platformio_boards() -> List[str]:
     global _pio_boards_fetched_at, _pio_boards_cache, _pio_boards_cache_lifetime
 
     current_time = time.time()
-    if len(_pio_boards_cache) == 0 or (current_time - _pio_boards_fetched_at > _pio_boards_cache_lifetime):
+    if (len(_pio_boards_cache) == 0) or (current_time - _pio_boards_fetched_at > _pio_boards_cache_lifetime):
         # Windows 7, as usual, correctly works only with shell=True...
         result = subprocess.run(f"{stm32pio.core.settings.config_default['app']['platformio_cmd']} boards "
                                 f"--json-output stm32cube", encoding='utf-8', shell=True, stdout=subprocess.PIPE,
@@ -72,21 +71,15 @@ def get_platformio_boards() -> List[str]:
     return copy.copy(_pio_boards_cache)
 
 
-def cleanup_dict(mapping: Mapping[str, Any]) -> dict:
+def cleanup_mapping(mapping: Mapping[str, Any]) -> dict:
     """Recursively copy non-empty values to the new dictionary. Return this new dict"""
+
     cleaned = {}
 
     for key, value in mapping.items():
         if isinstance(value, collections.abc.Mapping):
-            cleaned[key] = cleanup_dict(value)
+            cleaned[key] = cleanup_mapping(value)
         elif value is not None and value != '':
             cleaned[key] = value
 
     return cleaned
-
-
-def configparser_to_dict(config: configparser.ConfigParser) -> dict:
-    """Convert configparser.ConfigParser instance to a dictionary"""
-    return {section: {key: value for key, value in config.items(section)} for section in config.sections()}
-
-
