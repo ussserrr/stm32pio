@@ -5,6 +5,7 @@ Some auxiliary entities not falling into other categories
 import collections
 import copy
 import json
+import pathlib
 import subprocess
 import sys
 import time
@@ -83,3 +84,42 @@ def cleanup_mapping(mapping: Mapping[str, Any]) -> dict:
             cleaned[key] = value
 
     return cleaned
+
+
+def get_folder_contents(path: pathlib.Path, pattern: str = '*', ignore_list: List[pathlib.Path] = None) -> List[pathlib.Path]:
+    """
+
+    Note: this is "naive", straightforward and non-efficient solution (probably, both for time and memory consumption).
+    The algorithm behind can (but not necessarily should) definitely be improved
+
+    Args:
+        path:
+        pattern:
+        ignore_list:
+
+    Returns:
+
+    """
+
+    folder_contents = []
+
+    if ignore_list is not None:
+        ignore_list = sorted(ignore_list)
+    else:
+        ignore_list = []
+
+    for child in sorted(path.rglob(pattern)):  # all files and folders, recursively
+
+        # Check such cases:
+        #   1) current child:        a/b/
+        #      ignore list entry:    a/b/c/d.txt
+        #
+        #   2) current child:        a/b/c/d.txt
+        #      ignore list entry:    a/b/
+        is_root_of_another = next(
+            (True for entry in ignore_list if (child in entry.parents) or (entry in child.parents)), False)
+
+        if (child not in ignore_list) and (not is_root_of_another):
+            folder_contents.append(child)
+
+    return folder_contents

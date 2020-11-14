@@ -66,10 +66,13 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     for parser in [parser_init, parser_new, parser_gui]:
         parser.add_argument('-b', '--board', dest='board', default='', help="PlatformIO name of the board")
     for parser in [parser_init, parser_generate, parser_new]:
-        parser.add_argument('--start-editor', dest='editor',
+        parser.add_argument('-e', '--start-editor', dest='editor',
                             help="use specified editor to open the PlatformIO project (e.g. subl, code, atom, etc.)")
     for parser in [parser_generate, parser_new]:
-        parser.add_argument('--with-build', action='store_true', help="build the project after generation")
+        parser.add_argument('-c', '--with-build', action='store_true', help="build the project after generation")
+    for parser in [parser_init, parser_clean, parser_new]:
+        parser.add_argument('-s', '--store-content', action='store_true',
+                            help="save current folder contents as a cleanup ignore list")
 
     parser_clean.add_argument('-q', '--quiet', action='store_true',
                               help="suppress the caution about the content removal (be sure of what you are doing!)")
@@ -153,6 +156,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
         if args.subcommand == 'init':
             project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
                                                      instance_options={'save_on_destruction': True})
+            if args.store_content:
+                project.config.save_content_as_ignore_list()
             if project.config.get('project', 'board') == '':
                 logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
                                "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
@@ -177,6 +182,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
         elif args.subcommand == 'new':
             project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
                                                      instance_options={'save_on_destruction': True})
+            if args.store_content:
+                project.config.save_content_as_ignore_list()
             if project.config.get('project', 'board') == '':
                 logger.info(f"project has been initialized. You can now edit {stm32pio.core.settings.config_file_name} "
                             "config file")
@@ -201,25 +208,15 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
 
         elif args.subcommand == 'clean':
             project = stm32pio.core.project.Stm32pio(args.path)
-            if args.quiet:
-                project.clean()
+            if args.store_content:
+                project.config.save_content_as_ignore_list()
             else:
-                while True:
-                    reply = input(f'WARNING: this operation will delete ALL content of the directory "{project.path}" '
-                                  f'except the "{pathlib.Path(project.config.get("project", "ioc_file")).name}" file. '
-                                  'Are you sure? (y/n) ')
-                    if reply.lower() in ['y', 'yes', 'true', '1']:
-                        project.clean()
-                        break
-                    elif reply.lower() in ['n', 'no', 'false', '0']:
-                        break
+                project.clean(quiet_on_cli=args.quiet)
 
     # Library is designed to throw the exception in bad cases so we catch here globally
     except Exception:
-        config = None
-        if project is not None and hasattr(project, 'config'):
-            config = project.config
-        stm32pio.core.logging.log_current_exception(logger, config=config)
+        stm32pio.core.logging.log_current_exception(
+            logger, config=project.config if (project is not None and hasattr(project, 'config')) else None)
         return -1
 
     return 0

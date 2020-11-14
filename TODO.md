@@ -13,9 +13,12 @@
  - [ ] Templates for CI?
  - [ ] Remade this TODOs list as a GitHub issues/project/milestones? Use labels to mimic DISCUSSION ones and so on
  - [ ] Write in README about why we use an INI config format (because it should be familiar to the PlatformIO user). Also consider to migrate to some other (more feature-rich) format (JSON, etc.)
+ - [ ] CI/test-related code in the `settings.py` is probably not good, should find the workaround
+ - [ ] Config README description (a little bit too many parameters now)
 
 
 ## GUI version
+ - [ ] Live-reload config file
  - [ ] Obtain boards on demand (not at the startup)
  - [ ] Can probably detect Ctrl and Shift clicks without moving the mouse first
  - [ ] Mac: sometimes auto turned off shift highlighting after action (hide-restore helps)
@@ -68,7 +71,7 @@
 ### CubeMX
  - [ ] Use CubeMX options such as `project couplefilesbyip <0|1>` and `project toolchain <toolchain>` or ...
  - [ ] ... parse an `.ioc` file and edit the parameters in-place if necessary
- - [ ] Analyze `.ioc` file for the wrong framework/parameters (validation continue...)
+ - [ ] Analyze `.ioc` file for the wrong framework/parameters (validation continues...)
  - [ ] Deal with CubeMX requests about software package and CubeMX versions migrations (seems like the only way is to set them first in `.ioc` file, no appropriate CLI keys)
  
 ### Config
@@ -77,16 +80,20 @@
  - [x] Maybe log about which parameters has superseded which
  - [x] Pretty printer for the config
  - [ ] Store editor in the config?
+ - [ ] Mark some parameters as unnecessary and do not save them to config unless explicitly stated (it can now be implemented more easily thanks to the `Config` subclass, I guess)
+ - [ ] Getters for some data types (e.g. `get_ignore_list()`)
+ - [x] Store an initial content of the folder in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion) in the config file. Mb some integration with `.gitignore` if present
+ - [x] Add flag to `init` (probably `new`, too) to take the initial content of the project folder as clean ignore list
 
 ### Other
  - [x] Remove casts to string where we can use path-like objects (related to a Python version as new ones receives path-like objects arguments while old ones aren't)
  - [x] We look for some snippets of strings in logs and output in a testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
- - [ ] Store an initial content of the folder in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion) in the config file. Mb some integration with `.gitignore` if present
  - [x] at some point check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI) (global `--check` command (as `--version`), also before execution of the full cycle (no sense to start if some tool doesn't exist))
- - [ ] DISCUSSION. Colored CLI logs, maybe (breaks zero-dependency principle though...)
+ - [ ] DISCUSSION. Colored CLI logs, maybe (3rd-party) (breaks zero-dependency principle though...)
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
  - [ ] DISCUSSION. The lib sometimes raising, sometimes returning the code and it is not consistent. Current decision making agent: common sense and the essence of the action. Would be great to always return a result code and raise the exceptions in the outer scope, if there is need to
- - [ ] count another `-v` as `-v` for the PlatformIO calls (also do it as a slider in the GUI settings window)
+ - [ ] count another `-v` as `-v` for the PlatformIO calls (also we can implement it as a slider in the GUI settings window)
  - [ ] Project name (path) can be reused so cannot be used as a unique identifier but so is `id(self)`? Probably it is better to use a path (human-readable) (but it also can be reused...)
  - [ ] DISCUSSION. Use `--start-editor` as a generic action to perform after the main operation (rename, of course)?
- - [ ] Search for `str(...)` calls to eliminate them where possible (i.e. unnecessary)
+ - [x] Search for `str(...)` calls to eliminate them where possible (i.e. unnecessary)
+ - [ ] `f"{STAGE_PATH.name}.ioc"` in tests, is it actually OK?

@@ -24,43 +24,6 @@ class TestCLI(CustomTestCase):
     function passing the arguments to it but sometimes even run as subprocess (to capture actual STDOUT/STDERR output)
     """
 
-    def test_clean(self):
-        for case in ['--quiet', 'yes', 'no']:
-            with self.subTest(case=case):
-                # Create files and folders
-                test_file = STAGE_PATH.joinpath('test.file')
-                test_dir = STAGE_PATH.joinpath('test.dir')
-                test_file.touch(exist_ok=False)
-                test_dir.mkdir(exist_ok=False)
-
-                # Clean ...
-                if case == '--quiet':
-                    return_code = stm32pio.cli.app.main(sys_argv=['clean', case, '-d', str(STAGE_PATH)],
-                                                        should_setup_logging=False)
-                else:
-                    with unittest.mock.patch('builtins.input', return_value=case):
-                        return_code = stm32pio.cli.app.main(sys_argv=['clean', '-d', str(STAGE_PATH)],
-                                                            should_setup_logging=False)
-
-                self.assertEqual(return_code, 0, msg="Non-zero return code")
-
-                # ... look for remaining items ...
-                if case == 'no':
-                    with self.subTest():
-                        self.assertTrue(test_file.is_file(), msg=f"{test_file} has been deleted")
-                    with self.subTest():
-                        self.assertTrue(test_dir.is_dir(), msg=f"{test_dir}/ has been deleted")
-                else:
-                    with self.subTest():
-                        self.assertFalse(test_file.is_file(), msg=f"{test_file} is still there")
-                    with self.subTest():
-                        self.assertFalse(test_dir.is_dir(), msg=f"{test_dir}/ is still there")
-
-                # ... and .ioc file should be preserved in any case
-                with self.subTest():
-                    self.assertTrue(STAGE_PATH.joinpath(f"{STAGE_PATH.name}.ioc").is_file(),
-                                    msg="Missing .ioc file")
-
     def test_new(self):
         """
         Successful build is the best indicator that all went right so we use '--with-build' option here
@@ -175,7 +138,7 @@ class TestCLI(CustomTestCase):
                         msg=f"{stm32pio.core.settings.config_file_name} file hasn't been created")
 
         config = configparser.ConfigParser(interpolation=None)
-        config.read(str(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name)))
+        config.read(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name))
         for section, parameters in stm32pio.core.settings.config_default.items():
             for option, value in parameters.items():
                 with self.subTest(section=section, option=option,

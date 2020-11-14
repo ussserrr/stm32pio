@@ -21,6 +21,13 @@ if TEST_FIXTURES_PATH is not None and TEST_CASE is not None:
 
 my_os = platform.system()
 
+# Values to match with on user input (both config and CLI) (use in conjunction with .lower() to ignore case)
+none_options = ['none', 'no', 'null', '0']
+no_options = ['n', 'no', 'false', '0']
+yes_options = ['y', 'yes', 'true', '1']
+
+config_file_name = 'stm32pio.ini'
+
 config_default = collections.OrderedDict(
     app={
         # (default is OK) How do you start Java from the command line? (edit if Java not in PATH). Set to 'None'
@@ -36,10 +43,6 @@ config_default = collections.OrderedDict(
         'cubemx_cmd':
             str(Path.home().joinpath("cubemx/STM32CubeMX.exe")) if my_os in ['Darwin', 'Linux'] else
             "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe" if my_os == 'Windows' else None
-    } if CI_ENV_VARIABLE is None else {
-        'java_cmd': 'java',
-        'platformio_cmd': 'platformio',
-        'cubemx_cmd': str(Path(os.getenv('STM32PIO_CUBEMX_CACHE_FOLDER')).joinpath('STM32CubeMX.exe'))
     },
     project={
         # (default is OK) See CubeMX user manual PDF (UM1718) to get other useful options
@@ -62,15 +65,22 @@ config_default = collections.OrderedDict(
             src_dir = Src
         ''') + patch_mixin,
 
-        # Runtime-determined values
         'board': '',
-        'ioc_file': ''  # required, the file name (not a full path)
+        'ioc_file': '',  # required, the file name (relative to the project path)
+
+        'cleanup_ignore': '',
+        'cleanup_use_gitignore': False  # if True, 'clean' command will be purging only files/folders listed in .gitignore
+                                        # (if present)
     }
 )
 
-none_options = ['none', 'no', 'null', '0']  # any of these mean the same when met in the config
-
-config_file_name = 'stm32pio.ini'
+# Do not distract the user with this s**t, take out from the main dict definition above
+if CI_ENV_VARIABLE is not None:
+    config_default['app'] = {
+        'java_cmd': 'java',
+        'platformio_cmd': 'platformio',
+        'cubemx_cmd': str(Path(os.getenv('STM32PIO_CUBEMX_CACHE_FOLDER')).joinpath('STM32CubeMX.exe'))
+    }
 
 # CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel'
 # was chosen, or CubeMX_version < ioc_file_version, etc.), we should analyze the actual output (STDOUT)

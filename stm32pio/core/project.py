@@ -98,7 +98,11 @@ class Stm32pio:
         self.ioc_file = self._find_ioc_file(explicit_file=ioc_file)
         self.config.set('project', 'ioc_file', self.ioc_file.name)  # save only the name of file to the config
 
-        if self.config.get('project', 'last_error', fallback=None):  # only if the config file already exist
+        if len(self.config.get('project', 'cleanup_ignore', fallback='')) == 0:
+            # By-default, we preserve only the .ioc file on cleanup
+            self.config.set('project', 'cleanup_ignore', self.ioc_file.name)
+
+        if len(self.config.get('project', 'last_error', fallback='')):  # only if the config file already exist
             self.config.set('project', 'last_error', '')
             self.config.save()
 
@@ -480,7 +484,7 @@ class Stm32pio:
             # Works unstable on some Windows 7 systems, but correct on Win10...
             # result = subprocess.run([editor_command, self.path], check=True)
             result = subprocess.run(f"{sanitized_input} {self.path}", shell=True, check=True,
-                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)  # TODO: pass pipes to logging
             self.logger.debug(result.stdout, extra={ 'from_subprocess': True })
 
             return result.returncode
@@ -489,21 +493,45 @@ class Stm32pio:
             return e.returncode
 
 
-    def clean(self) -> None:
+    def clean(self, quiet_on_cli: bool = True) -> None:
         """
-        Clean-up the project folder preserving only an '.ioc' file
+        Clean-up the project folder.
         """
 
-        for child in self.path.iterdir():
-            if child != self.ioc_file:
-                if child.is_dir():
-                    shutil.rmtree(child, ignore_errors=True)
-                    self.logger.debug(f"del {child}/")
-                elif child.is_file():
-                    child.unlink()
-                    self.logger.debug(f"del {child}")
+        if self.config.getboolean('project', 'cleanup_use_gitignore', fallback=False):
+            self.logger.info("'cleanup_use_gitignore' option is true, git will be used to perform the cleanup...")
+            # Remove files listed in .gitignore
+            args = ['git', 'clean', '-d', '--force', '-X']
+            if not quiet_on_cli:
+                args.append('--interactive')
+            if not self.logger.isEnabledFor(logging.DEBUG):
+                args.append('--quiet')
+            with stm32pio.core.logging.LogPipe(self.logger, logging.INFO) as log:
+                subprocess.run(args, check=True, cwd=str(self.path), stdout=log.pipe, stderr=log.pipe)  # TODO: str() - 3.6 compatibility
+            self.logger.info("Done", extra={ 'from_subprocess': True })
+        else:
+            removal_list = stm32pio.core.util.get_folder_contents(
+                self.path, ignore_list=self.config.get_ignore_list('project', 'cleanup_ignore'))
+            if len(removal_list):
+                if not quiet_on_cli:
+                    removal_str = '\n'.join(f'  {path.relative_to(self.path)}' for path in removal_list)
+                    while True:
+                        reply = input(f"These files/folders will be deleted:\n{removal_str}\nAre you sure? (y/n) ")
+                        if reply.lower() in stm32pio.core.settings.yes_options:
+                            break
+                        elif reply.lower() in stm32pio.core.settings.no_options:
+                            return
 
-        self.logger.info("project has been cleaned")
+                for entry in removal_list:
+                    if entry.is_dir():
+                        shutil.rmtree(entry)  # use shutil.rmtree() to delete non-empty directories
+                        self.logger.debug(f"del {entry.relative_to(self.path)}/")
+                    elif entry.is_file():
+                        entry.unlink()
+                        self.logger.debug(f"del {entry.relative_to(self.path)}")
+                self.logger.info("project has been cleaned")
+            else:
+                self.logger.info("no files/folders to remove")
 
 
     def validate_environment(self) -> stm32pio.core.validate.ToolsValidationResults:

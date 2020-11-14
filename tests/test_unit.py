@@ -4,8 +4,13 @@ import inspect
 import platform
 import subprocess
 import time
+import unittest.mock
 
+from functools import reduce
+from pathlib import Path
 # Provides test constants and definitions
+from typing import Mapping, Union
+
 from tests.common import *
 
 import stm32pio.core.settings
@@ -46,7 +51,7 @@ class TestUnit(CustomTestCase):
         self.assertTrue(STAGE_PATH.joinpath('platformio.ini').is_file(), msg="platformio.ini is not there")
 
         platformio_ini = configparser.ConfigParser(interpolation=None)
-        self.assertGreater(len(platformio_ini.read(str(STAGE_PATH.joinpath('platformio.ini')))), 0,
+        self.assertGreater(len(platformio_ini.read(STAGE_PATH.joinpath('platformio.ini'))), 0,
                            msg='platformio.ini is empty')
 
     def test_patch(self):
@@ -198,7 +203,7 @@ class TestUnit(CustomTestCase):
                         msg=f"{stm32pio.core.settings.config_file_name} file hasn't been created")
 
         config = configparser.ConfigParser(interpolation=None)
-        self.assertGreater(len(config.read(str(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name)))), 0,
+        self.assertGreater(len(config.read(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name))), 0,
                            msg="Config is empty")
         for section, parameters in stm32pio.core.settings.config_default.items():
             for option, value in parameters.items():
@@ -252,3 +257,123 @@ class TestUnit(CustomTestCase):
             platformio_result = next((result for result in result_should_fail if result.name == 'platformio_cmd'), None)
             self.assertIsNotNone(platformio_result, msg="PlatformIO validation results not found")
             self.assertFalse(platformio_result.succeed, msg="PlatformIO validation results should be False")
+
+    def test_clean(self):
+        def plant_fs_tree(path: Path, tree: Mapping[str, Union[str, Mapping]], exist_ok: bool = True):
+            for endpoint, content in tree.items():
+                if isinstance(content, collections.abc.Mapping):
+                    (path / endpoint).mkdir(exist_ok=exist_ok)
+                    plant_fs_tree(path / endpoint, content, exist_ok=exist_ok)
+                elif type(content) == str and len(content):
+                    (path / endpoint).write_text(content)
+                else:
+                    (path / endpoint).touch()
+
+        def flatten_tree(tree, root: Path = None):
+            tree_paths = []
+            for endpoint, content in tree.items():
+                tree_paths.append(Path(endpoint) if root is None else (root / endpoint))
+                if isinstance(content, collections.abc.Mapping):
+                    tree_paths.extend(flatten_tree(content, root=Path(endpoint) if root is None else (root / endpoint)))
+            return tree_paths
+
+        def tree_exists_fully(path: Path, tree: Mapping[str, Union[str, Mapping]]):
+            tree_paths = flatten_tree(tree, root=path)
+            actual_paths = list(path.rglob('*'))
+            return all(endpoint in actual_paths for endpoint in tree_paths)
+
+        def tree_not_exists_fully(path: Path, tree: Mapping[str, Union[str, Mapping]]):
+            tree_paths = flatten_tree(tree, root=path)
+            actual_paths = list(path.rglob('*'))
+            return all(endpoint not in actual_paths for endpoint in tree_paths)
+
+        test_tree = {
+            'root_file.txt': '',
+            'root_empty_folder': {},
+            'root_folder': {
+                'nested_folder': {
+                    'file_in_nested_folder_1.jpg': '',
+                    'file_in_nested_folder_2.png': ''
+                },
+                'nested_file.mp3': ''
+            }
+        }
+        test_tree_endpoints = flatten_tree(test_tree)
+
+        plant_fs_tree(STAGE_PATH, test_tree)
+        with self.subTest(msg="quiet"):
+            project = stm32pio.core.project.Stm32pio(STAGE_PATH)
+            project.clean()
+            self.assertTrue(tree_not_exists_fully(STAGE_PATH, test_tree), msg="Test tree hasn't been removed")
+            self.assertTrue(project.ioc_file.exists(), msg=".ios file wasn't preserved")
+
+        self.setUp()  # same actions we perform between test cases (external cleaning)
+        plant_fs_tree(STAGE_PATH, test_tree)
+        with self.subTest(msg="not quiet, respond yes"):
+            project = stm32pio.core.project.Stm32pio(STAGE_PATH)
+            with unittest.mock.patch('builtins.input', return_value=stm32pio.core.settings.yes_options[0]):
+                project.clean(quiet_on_cli=False)
+                input_prompt = input.call_args.args[0]
+                self.assertTrue(all(str(endpoint) in input_prompt for endpoint in test_tree_endpoints), msg="Paths for removal should be reported to the user")
+            self.assertTrue(tree_not_exists_fully(STAGE_PATH, test_tree), msg="Test tree hasn't been removed")
+            self.assertTrue(project.ioc_file.exists(), msg=".ios file wasn't preserved")
+
+        self.setUp()
+        plant_fs_tree(STAGE_PATH, test_tree)
+        with self.subTest(msg="not quiet, respond no"):
+            project = stm32pio.core.project.Stm32pio(STAGE_PATH)
+            with unittest.mock.patch('builtins.input', return_value=stm32pio.core.settings.no_options[0]):
+                project.clean(quiet_on_cli=False)
+            self.assertTrue(tree_exists_fully(STAGE_PATH, test_tree), msg="Test tree wasn't preserved")
+            self.assertTrue(project.ioc_file.exists(), msg=".ios file wasn't preserved")
+
+        self.setUp()
+        plant_fs_tree(STAGE_PATH, test_tree)
+        with self.subTest(msg="user's ignore list"):
+            ignore_list = [
+                f'{STAGE_PATH.name}.ioc',
+                'root_file.txt',
+                'this_path_doesnt_exist_yet',
+                'root_folder/nested_folder/file_in_nested_folder_1.jpg'
+            ]
+            ignore_list_unfolded = reduce(
+                lambda array, entry: array +  # accumulator
+                                     [Path(entry)] +  # include the entry itself cause it isn't among parents
+                                     [parent for parent in Path(entry).parents if parent != Path()],  # remove the '.' path
+                ignore_list, [])
+            project = stm32pio.core.project.Stm32pio(STAGE_PATH)
+            project.config.set('project', 'cleanup_ignore', '\n'.join(ignore_list))
+            project.clean()
+            for endpoint in test_tree_endpoints:
+                if endpoint in ignore_list_unfolded:
+                    self.assertTrue((STAGE_PATH / endpoint).exists(), msg="Files/folders from the ignore list should be preserved")
+                else:
+                    self.assertFalse((STAGE_PATH / endpoint).exists(), msg="Unnecessary files/folders hasn't been removed")
+
+        self.setUp()
+        plant_fs_tree(STAGE_PATH, test_tree)
+        STAGE_PATH.joinpath('.gitignore').write_text(inspect.cleandoc('''
+            # sample .gitignore
+            *.mp3
+        '''))
+        subprocess.run(['git', 'init'], cwd=str(STAGE_PATH), check=True)  # TODO: str() - 3.6 compatibility
+        with self.subTest(msg="use .gitignore"):
+            project = stm32pio.core.project.Stm32pio(STAGE_PATH)
+            project.config.set('project', 'cleanup_use_gitignore', 'yes')
+            project.clean()
+            for endpoint in test_tree_endpoints:
+                if endpoint == Path('root_folder/nested_file.mp3'):
+                    self.assertFalse((STAGE_PATH / endpoint).exists(), msg="Files/folders from the .gitignore should be removed")
+                else:
+                    self.assertTrue((STAGE_PATH / endpoint).exists(), msg="Files/folders managed by git should be preserved")
+
+        self.setUp()
+        plant_fs_tree(STAGE_PATH, test_tree)
+        with self.subTest(msg="save current content in ignore list"):
+            project = stm32pio.core.project.Stm32pio(STAGE_PATH)
+            project.config.save_content_as_ignore_list()
+            STAGE_PATH.joinpath('this_file_should_be_removed').touch()
+            project.clean()
+            self.assertTrue(tree_exists_fully(STAGE_PATH, test_tree), msg="Test tree should be preserved")
+            self.assertFalse(STAGE_PATH.joinpath('this_file_should_be_removed').exists(),
+                             msg="File added later should be removed")

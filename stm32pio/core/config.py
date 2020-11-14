@@ -4,7 +4,7 @@ import copy
 import io
 import logging
 import pathlib
-from typing import Mapping, Any, Union
+from typing import Mapping, Any, Union, List
 
 import stm32pio.core.util
 import stm32pio.core.settings
@@ -31,6 +31,8 @@ class Config(configparser.ConfigParser):
         super().__init__(interpolation=None)
 
         self.logger = logger
+        self.location = location
+        self.name = name
         self.path = location / name
 
         # Fill with default values ...
@@ -44,6 +46,23 @@ class Config(configparser.ConfigParser):
         # ... finally merge with the given in this session CLI parameters
         if runtime_parameters is not None and len(runtime_parameters):
             self.merge_with(runtime_parameters, reason="CLI keys")
+
+    def get_ignore_list(self, section: str, option: str, raw: bool = False) -> Union[str, List[pathlib.Path]]:
+        if raw:
+            return self.get(section, option, fallback='')
+        else:
+            ignore_list = []
+            for entry in filter(lambda line: len(line) != 0,  # non-empty lines only
+                                self.get(section, option, fallback='').splitlines()):
+                ignore_list.extend(self.location.glob(entry))
+            return ignore_list
+
+    def save_content_as_ignore_list(self):
+        self.set('project', 'cleanup_ignore',
+                 '\n'.join(str(path.relative_to(self.location)) for path in self.location.iterdir()))
+        self.save()
+        self.logger.info(
+            f"folder contents has been saved to the {self.name} [project] section as 'cleanup_ignore'")
 
     def _log_whats_changed(self, compared_to: Mapping[str, Mapping[str, Any]],
                            log_string: str = "these config parameters will be overridden", reason: str = None) -> None:
@@ -117,7 +136,7 @@ class Config(configparser.ConfigParser):
             with self.path.open(mode='w') as config_file:
                 self.write(config_file)
             if self.logger is not None:
-                self.logger.debug(f"{self.path.name} config file has been saved")
+                self.logger.debug(f"{self.name} config file has been saved")
             return 0
         except Exception as e:
             if self.logger is not None:

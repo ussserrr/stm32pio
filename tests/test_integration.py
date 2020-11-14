@@ -24,8 +24,8 @@ class TestIntegration(CustomTestCase):
         project_before = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         project_before.save_config()
 
-        new_path = f'{project_before.path}-moved'
-        shutil.move(str(project_before.path), new_path)
+        new_path = project_before.path.with_name(project_before.path.name + '-moved')
+        shutil.move(project_before.path, new_path)
 
         project_after = stm32pio.core.project.Stm32pio(new_path, parameters={'project': {'board': PROJECT_BOARD}})
         self.assertEqual(project_after.generate_code(), 0)

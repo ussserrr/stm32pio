@@ -46,13 +46,13 @@ def log_current_exception(logger: logging.Logger, show_traceback: bool = None, c
     exc_tb = ''.join(exc_full_str.splitlines(keepends=True)[:-1])
 
     if show_traceback:
-        logger.error(f"{exc_str}\n{exc_tb}")
+        logger.error(f"{exc_str}\n{exc_tb}", stacklevel=2)
     elif config is not None:
         config.save({ 'project': { 'last_error': f"{exc_str}\n{exc_tb}" } })
         logger.error(f"{exc_str}. Traceback has been saved to the {config.path.name}. It will be cleared on the next "
-                     "run")
+                     "run", stacklevel=2)
     else:
-        logger.error(exc_str)
+        logger.error(exc_str, stacklevel=2)
 
 
 class ProjectLoggerAdapter(logging.LoggerAdapter):

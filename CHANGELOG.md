@@ -299,6 +299,10 @@
  - New: validate environment API and CLI feature. Allows to quickly verify the tools specified in the config (+ corresponding test)
  - New: store the most recent occurred exception in the `last_error` config file parameter (currently CLI-only) (+ corresponding test)
  - New: log superseded config parameters on various types of merge (in DEBUG logging mode)
+ - New: add shorthands for CLI options (1-letter)
+ - New: ignore list option: specify files to ignore during the cleanup (hence new `clean()` method, tests)
+ - New: optionally use `.gitignore` file as a removal list (served by the git itself)
+ - New: API to store the current contents of the project folder as ignore list in the config file
  - Fixed: `clean` method doesn't look for the determined `.ioc` file but does it by itself which can cause some unwanted behavior (potential data loss)
  - Fixed: remove done TODOs from the TODO.md list
  - Fixed: GUI. Recursive layout warning in Settings window
@@ -318,5 +322,7 @@
  - Changed: pretty config printer (`__str__()` implementation, just `print(project.config)`, that's all)
  - Changed: revised TODOs list
  - Changed: remove `util.configparser_to_dict()` function (`ConfigParser` is already conforms with mapping protocol)
+ - Changed: improve global exceptions catching (more precise source function name)
+ - Changed: takeout valid user response options to `settings.py`
  - Changed: GUI. Remove `go_to_this` option for the `addListItem` method (instead invoke on the list model)
  - Changed: GUI. Implicitly pass the parent to the project constructor in `addListItem` method
