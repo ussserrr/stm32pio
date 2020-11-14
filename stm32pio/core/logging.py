@@ -46,21 +46,21 @@ def log_current_exception(logger: logging.Logger, show_traceback: bool = None, c
     exc_tb = ''.join(exc_full_str.splitlines(keepends=True)[:-1])
 
     if show_traceback:
-        logger.error(f"{exc_str}\n{exc_tb}", stacklevel=2)
+        logger.error(f"{exc_str}\n{exc_tb}")
     elif config is not None:
         config.save({ 'project': { 'last_error': f"{exc_str}\n{exc_tb}" } })
         logger.error(f"{exc_str}. Traceback has been saved to the {config.path.name}. It will be cleared on the next "
-                     "run", stacklevel=2)
+                     "run")
     else:
-        logger.error(exc_str, stacklevel=2)
+        logger.error(exc_str)
 
 
 class ProjectLoggerAdapter(logging.LoggerAdapter):
     """
     Use this as a logger for every project:
 
-        self.logger = stm32pio.util.ProjectLoggerAdapter(logging.getLogger('some_singleton_projects_logger'),
-                                                         { 'project_id': id(self) })
+        project.logger = stm32pio.util.ProjectLoggerAdapter(logging.getLogger('some_singleton_logger_for_all_projects'),
+                                                            { 'project_id': id(project) })
 
     It will automatically mix in 'project_id' (and any other property) to every LogRecord (whether you supply 'extra' in
     your log call or not)
@@ -129,8 +129,8 @@ class DispatchingFormatter(logging.Formatter):
             self.general = general
         else:
             warnings.warn("'general' argument for DispatchingFormatter was not provided. It contains formatters for "
-                          "all the logging events except special ones and should be a dict with verbosity levels keys "
-                          "and logging.Formatter values")
+                          "all logging events except special ones and should be a dict with verbosity levels keys and "
+                          "logging.Formatter values")
             self.general = {}
 
         if special is not None:
@@ -147,8 +147,9 @@ class DispatchingFormatter(logging.Formatter):
             return self.general.get(verbosity)
 
     def format(self, record: logging.LogRecord) -> str:
-        """Overridden method"""
-        # Allows to specify a verbosity level on the per-record basis, not only globally
+        """
+        Overridden method. Allows to specify a verbosity level on the per-record basis, not only globally
+        """
         formatter = self.find_formatter_for(record,
                                             record.verbosity if hasattr(record, 'verbosity') else self.verbosity)
         if formatter is not None:
