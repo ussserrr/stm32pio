@@ -90,7 +90,7 @@ class TestCLI(CustomTestCase):
         methods = dir(stm32pio.core.project.Stm32pio) + ['main']
 
         with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.NORMAL):
-            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', STAGE_PATH],
+            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(STAGE_PATH)],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
 
             self.assertEqual(result.returncode, 0, msg="Non-zero return code")
@@ -107,7 +107,7 @@ class TestCLI(CustomTestCase):
             self.assertNotIn('Starting STM32CubeMX', result.stderr, msg="STM32CubeMX has printed its logs")
 
         with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.VERBOSE):
-            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new', '-d', STAGE_PATH, '-b',
+            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new', '-d', str(STAGE_PATH), '-b',
                                      PROJECT_BOARD], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
 
             self.assertEqual(result.returncode, 0, msg="Non-zero return code")
@@ -130,7 +130,7 @@ class TestCLI(CustomTestCase):
         """
         Check for the config creation and parameters presence
         """
-        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', STAGE_PATH, '-b', PROJECT_BOARD],
+        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(STAGE_PATH), '-b', PROJECT_BOARD],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
 

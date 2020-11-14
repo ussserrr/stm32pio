@@ -305,11 +305,11 @@
  - New: API to store the current contents of the project folder as ignore list in the config file
  - Fixed: `clean` method doesn't look for the determined `.ioc` file but does it by itself which can cause some unwanted behavior (potential data loss)
  - Fixed: remove done TODOs from the TODO.md list
- - Fixed: GUI. Recursive layout warning in Settings window
  - Fixed: remove forgotten TODOs
  - Fixed: update embedding example to the current API
  - Fixed: `setup.cfg` PySide2 supported version
  - Fixed: `setup.cfg` PyPA parsing issues
+ - Fixed: GUI. Recursive layout warning in Settings window
  - Fixed: GUI. Remove `ProjectID` parameter for the `initialized` signal to get rid of annoying Shiboken overflow error
  - Changed: spawn project-state-related code to the `state.py` module
  - Changed: spawn logging-related code to the `logging.py` module
@@ -322,7 +322,6 @@
  - Changed: pretty config printer (`__str__()` implementation, just `print(project.config)`, that's all)
  - Changed: revised TODOs list
  - Changed: remove `util.configparser_to_dict()` function (`ConfigParser` is already conforms with mapping protocol)
- - Changed: improve global exceptions catching (more precise source function name)
  - Changed: takeout valid user response options to `settings.py`
  - Changed: GUI. Remove `go_to_this` option for the `addListItem` method (instead invoke on the list model)
  - Changed: GUI. Implicitly pass the parent to the project constructor in `addListItem` method

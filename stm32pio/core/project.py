@@ -305,7 +305,7 @@ class Stm32pio:
         except Exception:
             self.logger.warning("'platformio.ini' file is already exist and incorrect")
 
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'project', 'init', '--project-dir', self.path,
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'project', 'init', '--project-dir', str(self.path),
                        '--board', self.config.get('project', 'board'), '--project-option', 'framework=stm32cube']
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')

@@ -1,6 +1,6 @@
 # stm32pio
 
-[![Build Status](https://dev.azure.com/andrei42008/stm32pio/_apis/build/status/ussserrr.stm32pio?branchName=dev)](https://dev.azure.com/andrei42008/stm32pio/_build/latest?definitionId=1&branchName=dev)
+[![Build Status](https://dev.azure.com/andrei42008/stm32pio/_apis/build/status/ussserrr.stm32pio?branchName=dev)](https://dev.azure.com/andrei42008/stm32pio/_build/latest?definitionId=1&branchName=master)
 
 Small cross-platform Python app that can create and update [PlatformIO](https://platformio.org) projects from the [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html) `.ioc` files.
 

@@ -79,14 +79,14 @@
  - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (`shell=True` or a list of args (split a string))
  - [x] Maybe log about which parameters has superseded which
  - [x] Pretty printer for the config
+ - [ ] Mark some parameters as unnecessary and do not save them to config unless explicitly stated (it can now be implemented more easily thanks to the `Config` subclass, I guess) (some DB-like schema)
  - [ ] Store editor in the config?
- - [ ] Mark some parameters as unnecessary and do not save them to config unless explicitly stated (it can now be implemented more easily thanks to the `Config` subclass, I guess)
- - [ ] Getters for some data types (e.g. `get_ignore_list()`)
+ - [x] Getters for some data types (e.g. `get_ignore_list()`)
  - [x] Store an initial content of the folder in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion) in the config file. Mb some integration with `.gitignore` if present
  - [x] Add flag to `init` (probably `new`, too) to take the initial content of the project folder as clean ignore list
 
 ### Other
- - [x] Remove casts to string where we can use path-like objects (related to a Python version as new ones receives path-like objects arguments while old ones aren't)
+ - [ ] Remove casts to string where we can use path-like objects (seems like Python 3.6 on Windows is pulling down)
  - [x] We look for some snippets of strings in logs and output in a testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
  - [x] at some point check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI) (global `--check` command (as `--version`), also before execution of the full cycle (no sense to start if some tool doesn't exist))
  - [ ] DISCUSSION. Colored CLI logs, maybe (3rd-party) (breaks zero-dependency principle though...)

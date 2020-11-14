@@ -344,28 +344,28 @@ class TestUnit(CustomTestCase):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             project.config.set('project', 'cleanup_ignore', '\n'.join(ignore_list))
             project.clean()
-            for endpoint in test_tree_endpoints:
-                if endpoint in ignore_list_unfolded:
-                    self.assertTrue((STAGE_PATH / endpoint).exists(), msg="Files/folders from the ignore list should be preserved")
+            for endpoint in [STAGE_PATH / entry for entry in test_tree_endpoints]:
+                if endpoint.relative_to(STAGE_PATH) in ignore_list_unfolded:
+                    self.assertTrue(endpoint.exists(), msg="Files/folders from the ignore list should be preserved")
                 else:
-                    self.assertFalse((STAGE_PATH / endpoint).exists(), msg="Unnecessary files/folders hasn't been removed")
+                    self.assertFalse(endpoint.exists(), msg="Unnecessary files/folders hasn't been removed")
 
         self.setUp()
+        subprocess.run(['git', 'init'], cwd=str(STAGE_PATH), check=True)  # TODO: str() - 3.6 compatibility
         plant_fs_tree(STAGE_PATH, test_tree)
         STAGE_PATH.joinpath('.gitignore').write_text(inspect.cleandoc('''
             # sample .gitignore
             *.mp3
         '''))
-        subprocess.run(['git', 'init'], cwd=str(STAGE_PATH), check=True)  # TODO: str() - 3.6 compatibility
         with self.subTest(msg="use .gitignore"):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             project.config.set('project', 'cleanup_use_gitignore', 'yes')
             project.clean()
-            for endpoint in test_tree_endpoints:
-                if endpoint == Path('root_folder/nested_file.mp3'):
-                    self.assertFalse((STAGE_PATH / endpoint).exists(), msg="Files/folders from the .gitignore should be removed")
+            for endpoint in [STAGE_PATH / entry for entry in test_tree_endpoints]:
+                if endpoint.relative_to(STAGE_PATH) == Path('root_folder/nested_file.mp3'):
+                    self.assertFalse(endpoint.exists(), msg="Files/folders from the .gitignore should be removed")
                 else:
-                    self.assertTrue((STAGE_PATH / endpoint).exists(), msg="Files/folders managed by git should be preserved")
+                    self.assertTrue(endpoint.exists(), msg="Files/folders managed by git should be preserved")
 
         self.setUp()
         plant_fs_tree(STAGE_PATH, test_tree)

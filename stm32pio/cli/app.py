@@ -84,12 +84,12 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     return root_parser.parse_args(args)
 
 
-def setup_logging(args_verbose_counter: int = 0, dummy: bool = False) -> logging.Logger:
+def setup_logging(verbose: int = 0, dummy: bool = False) -> logging.Logger:
     """
-    Configure some root logger. The corresponding adapters for every project will be dependent on this.
+    Configure and return some root logger. The corresponding adapters for every project will be dependent on this.
 
     Args:
-        args_verbose_counter: verbosity level (currently only 2 levels are supported: NORMAL, VERBOSE)
+        verbose: verbosity counter (currently only 2 levels are supported: NORMAL, VERBOSE)
         dummy: create a NullHandler logger if true
 
     Returns:
@@ -100,11 +100,10 @@ def setup_logging(args_verbose_counter: int = 0, dummy: bool = False) -> logging
         logger.addHandler(logging.NullHandler())
     else:
         logger = logging.getLogger('stm32pio')
-        logger.setLevel(logging.DEBUG if args_verbose_counter else logging.INFO)
+        logger.setLevel(logging.DEBUG if verbose else logging.INFO)
         handler = logging.StreamHandler()
         formatter = stm32pio.core.logging.DispatchingFormatter(
-            verbosity=stm32pio.core.logging.Verbosity.VERBOSE if args_verbose_counter else
-                stm32pio.core.logging.Verbosity.NORMAL,
+            verbosity=stm32pio.core.logging.Verbosity.VERBOSE if verbose else stm32pio.core.logging.Verbosity.NORMAL,
             general={
                 stm32pio.core.logging.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
                 stm32pio.core.logging.Verbosity.VERBOSE: logging.Formatter(
@@ -144,7 +143,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
         import stm32pio.gui.app as gui_app
         return gui_app.main(sys_argv=gui_args).exec_()
     elif args is not None and args.subcommand is not None:
-        logger = setup_logging(args_verbose_counter=args.verbose, dummy=not should_setup_logging)
+        logger = setup_logging(verbose=args.verbose, dummy=not should_setup_logging)
     else:
         print("\nNo arguments were given, exiting...")
         return 0
