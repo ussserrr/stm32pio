@@ -85,7 +85,7 @@ if CI_ENV_VARIABLE is not None:
 # CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel'
 # was chosen, or CubeMX_version < ioc_file_version, etc.), we should analyze the actual output (STDOUT)
 cubemx_str_indicating_success = 'Code succesfully generated'
-cubemx_str_indicating_error = '[ERROR]'
+cubemx_str_indicating_error = 'Exception in code generation'  # TODO: or line "KO"
 
 # Longest name (not necessarily a method so a little bit tricky...)
 # log_fieldwidth_function = max([len(member) for member in dir(stm32pio.lib.Stm32pio)]) + 1

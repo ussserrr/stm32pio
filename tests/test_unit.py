@@ -291,11 +291,11 @@ class TestUnit(CustomTestCase):
             'root_file.txt': '',
             'root_empty_folder': {},
             'root_folder': {
+                'nested_file.mp3': '',
                 'nested_folder': {
                     'file_in_nested_folder_1.jpg': '',
                     'file_in_nested_folder_2.png': ''
-                },
-                'nested_file.mp3': ''
+                }
             }
         }
         test_tree_endpoints = flatten_tree(test_tree)
@@ -314,7 +314,9 @@ class TestUnit(CustomTestCase):
             with unittest.mock.patch('builtins.input', return_value=stm32pio.core.settings.yes_options[0]):
                 project.clean(quiet_on_cli=False)
                 input_prompt = input.call_args.args[0]
-                self.assertTrue(all(str(endpoint) in input_prompt for endpoint in test_tree_endpoints), msg="Paths for removal should be reported to the user")
+                # Check only for a name as the path separator is different for UNIX/Win
+                self.assertTrue(all(endpoint.name in input_prompt for endpoint in test_tree_endpoints),
+                                msg="Paths for removal should be reported to the user")
             self.assertTrue(tree_not_exists_fully(STAGE_PATH, test_tree), msg="Test tree hasn't been removed")
             self.assertTrue(project.ioc_file.exists(), msg=".ios file wasn't preserved")
 
@@ -337,9 +339,10 @@ class TestUnit(CustomTestCase):
                 'root_folder/nested_folder/file_in_nested_folder_1.jpg'
             ]
             ignore_list_unfolded = reduce(
-                lambda array, entry: array +  # accumulator
-                                     [Path(entry)] +  # include the entry itself cause it isn't among parents
-                                     [parent for parent in Path(entry).parents if parent != Path()],  # remove the '.' path
+                lambda array, entry:
+                    array +  # accumulator
+                    [Path(entry)] +  # include the entry itself cause it isn't among parents
+                    [parent for parent in Path(entry).parents if parent != Path()],  # remove the '.' path
                 ignore_list, [])
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             project.config.set('project', 'cleanup_ignore', '\n'.join(ignore_list))
@@ -362,7 +365,7 @@ class TestUnit(CustomTestCase):
             project.config.set('project', 'cleanup_use_gitignore', 'yes')
             project.clean()
             for endpoint in [STAGE_PATH / entry for entry in test_tree_endpoints]:
-                if endpoint.relative_to(STAGE_PATH) == Path('root_folder/nested_file.mp3'):
+                if endpoint.relative_to(STAGE_PATH) == Path('root_folder').joinpath('nested_file.mp3'):
                     self.assertFalse(endpoint.exists(), msg="Files/folders from the .gitignore should be removed")
                 else:
                     self.assertTrue(endpoint.exists(), msg="Files/folders managed by git should be preserved")

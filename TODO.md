@@ -15,6 +15,7 @@
  - [ ] Write in README about why we use an INI config format (because it should be familiar to the PlatformIO user). Also consider to migrate to some other (more feature-rich) format (JSON, etc.)
  - [ ] CI/test-related code in the `settings.py` is probably not good, should find the workaround
  - [ ] Config README description (a little bit too many parameters now)
+ - [ ] See on GitHub what people looking for the most (what files) and adjust this parts of the repo
 
 
 ## GUI version
@@ -67,13 +68,13 @@
 ### Control spawn subprocesses
  - [ ] maybe migrate to async/await approach in the future (return some kind of a "remote controller" to control the running action)
  - [ ] Kill subprocesses if there is no output have appeared for some timeout (i.e. hung)
- 
+
 ### CubeMX
  - [ ] Use CubeMX options such as `project couplefilesbyip <0|1>` and `project toolchain <toolchain>` or ...
  - [ ] ... parse an `.ioc` file and edit the parameters in-place if necessary
  - [ ] Analyze `.ioc` file for the wrong framework/parameters (validation continues...)
  - [ ] Deal with CubeMX requests about software package and CubeMX versions migrations (seems like the only way is to set them first in `.ioc` file, no appropriate CLI keys)
- 
+
 ### Config
  - [x] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode and repeat this action). And, in general, we should show the error reason right off
  - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (`shell=True` or a list of args (split a string))
@@ -97,3 +98,8 @@
  - [ ] DISCUSSION. Use `--start-editor` as a generic action to perform after the main operation (rename, of course)?
  - [x] Search for `str(...)` calls to eliminate them where possible (i.e. unnecessary)
  - [ ] `f"{STAGE_PATH.name}.ioc"` in tests, is it actually OK?
+ - [ ] Use `logger.exception()`
+ - [ ] Take a look to the `dataclass` feature and find where we can apply it (3.7+)
+ - [ ] Support equality comparison for `Project` (`__eq__()`) and get rid of `p1.path == p2.path`
+ - [ ] DISCUSSION. Config file help on the CLI? Comments in generated INI?
+ - [ ] Check with some static analyzer (mypy)
