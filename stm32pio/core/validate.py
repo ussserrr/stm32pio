@@ -25,6 +25,7 @@ class ToolValidator:
             required: is this parameter mandatory?
             logger: optional logging.Logger instance to indicate the progress
         """
+        # TODO: dataclass can be used (https://stackoverflow.com/questions/1389180/automatically-initialize-instance-variables)
         self.name = name
         self.command = command
         self.runner = runner
@@ -34,8 +35,8 @@ class ToolValidator:
     def _run(self, command):
         """More like a _macro_ function to reduce a code repeating instead of a _real_ standalone method"""
         process, process_output = self.runner(command)
-        self.succeed = not process.returncode
-        if process.returncode:
+        self.succeed = process.returncode == 0
+        if process.returncode != 0:
             self.error = Exception(process_output)
 
     def validate(self):
@@ -43,6 +44,7 @@ class ToolValidator:
 
         if self.logger is not None:
             self.logger.info(f"checking '{self.name}'...")
+
         try:
             if self.required:
                 if self.command:

@@ -103,3 +103,4 @@
  - [ ] Support equality comparison for `Project` (`__eq__()`) and get rid of `p1.path == p2.path`
  - [ ] DISCUSSION. Config file help on the CLI? Comments in generated INI?
  - [ ] Check with some static analyzer (mypy)
+ - [ ] Test for names with spaces (everywhere)

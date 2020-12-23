@@ -29,7 +29,7 @@ class TestCLI(CustomTestCase):
         Successful build is the best indicator that all went right so we use '--with-build' option here
         """
         return_code = stm32pio.cli.app.main(
-            sys_argv=['new', '-d', str(STAGE_PATH), '-b', PROJECT_BOARD, '--with-build'],
+            sys_argv=['new', '--directory', str(STAGE_PATH), '--board', PROJECT_BOARD, '--with-build'],
             should_setup_logging=False)
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
@@ -37,11 +37,12 @@ class TestCLI(CustomTestCase):
         self.assertTrue(STAGE_PATH.joinpath(f"{STAGE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
 
     def test_generate(self):
-        return_code = stm32pio.cli.app.main(sys_argv=['generate', '-d', str(STAGE_PATH)], should_setup_logging=False)
+        return_code = stm32pio.cli.app.main(sys_argv=['generate', '--directory', str(STAGE_PATH)],
+                                            should_setup_logging=False)
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         for directory in ['Inc', 'Src']:
-            with self.subTest():
+            with self.subTest(directory=directory):
                 self.assertTrue(STAGE_PATH.joinpath(directory).is_dir(), msg=f"Missing '{directory}'")
                 self.assertNotEqual(len(list(STAGE_PATH.joinpath(directory).iterdir())), 0,
                                     msg=f"'{directory}' is empty")
@@ -56,7 +57,7 @@ class TestCLI(CustomTestCase):
         with self.subTest(error="Incorrect path"):
             path_not_exist = pathlib.Path('path_some_uniq_name/does/not/exist')
             with self.assertLogs(level='ERROR') as logs:
-                return_code = stm32pio.cli.app.main(sys_argv=['init', '-d', str(path_not_exist)],
+                return_code = stm32pio.cli.app.main(sys_argv=['init', '--directory', str(path_not_exist)],
                                                     should_setup_logging=True)
                 self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
                 # Actual text varies for different OSes and system languages so we check only for a part of the string
@@ -67,7 +68,7 @@ class TestCLI(CustomTestCase):
             dir_with_no_ioc_file = STAGE_PATH.joinpath('dir.with.no.ioc.file')
             dir_with_no_ioc_file.mkdir(exist_ok=False)
             with self.assertLogs(level='ERROR') as logs:
-                return_code = stm32pio.cli.app.main(sys_argv=['init', '-d', str(dir_with_no_ioc_file)],
+                return_code = stm32pio.cli.app.main(sys_argv=['init', '--directory', str(dir_with_no_ioc_file)],
                                                     should_setup_logging=True)
                 self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
                 self.assertTrue(next((True for msg in logs.output if FileNotFoundError.__name__ in msg), False),
@@ -90,7 +91,7 @@ class TestCLI(CustomTestCase):
         methods = dir(stm32pio.core.project.Stm32pio) + ['main']
 
         with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.NORMAL):
-            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '-d', str(STAGE_PATH)],
+            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '--directory', str(STAGE_PATH)],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
 
             self.assertEqual(result.returncode, 0, msg="Non-zero return code")
@@ -107,8 +108,10 @@ class TestCLI(CustomTestCase):
             self.assertNotIn('Starting STM32CubeMX', result.stderr, msg="STM32CubeMX has printed its logs")
 
         with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.VERBOSE):
-            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new', '-d', str(STAGE_PATH), '-b',
-                                     PROJECT_BOARD], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+            result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new',
+                                     '--directory', str(STAGE_PATH),
+                                     '--board', PROJECT_BOARD],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
 
             self.assertEqual(result.returncode, 0, msg="Non-zero return code")
             # stderr and not stdout contains the actual output (by default for the logging module)
@@ -130,7 +133,9 @@ class TestCLI(CustomTestCase):
         """
         Check for the config creation and parameters presence
         """
-        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init', '-d', str(STAGE_PATH), '-b', PROJECT_BOARD],
+        result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init',
+                                 '--directory', str(STAGE_PATH),
+                                 '--board', PROJECT_BOARD],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
 
@@ -154,7 +159,8 @@ class TestCLI(CustomTestCase):
 
         buffer_stdout = io.StringIO()
         with contextlib.redirect_stdout(buffer_stdout), contextlib.redirect_stderr(None):
-            return_code = stm32pio.cli.app.main(sys_argv=['status', '-d', str(STAGE_PATH)], should_setup_logging=False)
+            return_code = stm32pio.cli.app.main(sys_argv=['status', '--directory', str(STAGE_PATH)],
+                                                should_setup_logging=False)
 
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
@@ -175,7 +181,7 @@ class TestCLI(CustomTestCase):
     def test_save_last_error_in_config(self):
         """The app should retain the last error occurred and clear it on the next successful run"""
 
-        # Create and save a deliberately invalid config...
+        # Create and save an intentionally invalid config...
         config_with_invalid_tool = stm32pio.core.config.Config(STAGE_PATH, runtime_parameters={
             'app': {
                 'java_cmd': 'incorrect_java_command'
@@ -185,7 +191,8 @@ class TestCLI(CustomTestCase):
 
         # ...with this config the following command should fail...
         with self.subTest(msg="Register the error"):
-            return_code = stm32pio.cli.app.main(sys_argv=['generate', '-d', str(STAGE_PATH)], should_setup_logging=False)
+            return_code = stm32pio.cli.app.main(sys_argv=['generate', '--directory', str(STAGE_PATH)],
+                                                should_setup_logging=False)
             self.assertNotEqual(return_code, 0, msg="Return code should be non-zero")
 
             # ...and write an error to the config
@@ -200,7 +207,8 @@ class TestCLI(CustomTestCase):
 
         # Then make an ordinary successful run...
         with self.subTest(msg="Clear the error"):
-            return_code = stm32pio.cli.app.main(sys_argv=['init', '-d', str(STAGE_PATH)], should_setup_logging=False)
+            return_code = stm32pio.cli.app.main(sys_argv=['init', '--directory', str(STAGE_PATH)],
+                                                should_setup_logging=False)
             self.assertEqual(return_code, 0, msg="Non-zero return code")
 
             # ...and see for the disappeared error message

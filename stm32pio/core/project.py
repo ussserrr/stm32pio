@@ -91,6 +91,9 @@ class Stm32pio:
         if path.is_file() and path.suffix == '.ioc':  # if .ioc file was supplied instead of the directory
             ioc_file = path
             path = path.parent
+        elif not path.is_dir():
+            raise Exception(f"the supplied project path {path} is not a directory. It should be a directory with an "
+                            ".ioc file or an .ioc file itself")
         self.path = path
 
         self.config = stm32pio.core.config.Config(self.path, runtime_parameters=parameters, logger=self.logger)
@@ -191,10 +194,10 @@ class Stm32pio:
                 if len(candidates) == 0:  # TODO: good candidate for the new Python 3.8 assignment expression feature :)
                     raise FileNotFoundError("CubeMX project .ioc file")
                 elif len(candidates) == 1:
-                    self.logger.debug(f"{candidates[0].name} is selected")
+                    self.logger.debug(f"'{candidates[0].name}' is selected")
                     result_file = candidates[0]
                 else:
-                    self.logger.warning(f"there are multiple .ioc files, {candidates[0].name} is selected")
+                    self.logger.warning(f"there are multiple .ioc files, '{candidates[0].name}' is selected")
                     result_file = candidates[0]
 
         # Check for the file correctness
@@ -257,8 +260,9 @@ class Stm32pio:
         self.logger.info("starting to generate a code from the CubeMX .ioc file...")
 
         cubemx_script_template = string.Template(self.config.get('project', 'cubemx_script_content'))
-        cubemx_script_content = cubemx_script_template.substitute(ioc_file_absolute_path=self.ioc_file,
-                                                                  project_dir_absolute_path=self.path)
+        # It's important to wrap paths into quotation marks as they can contain spaces
+        cubemx_script_content = cubemx_script_template.substitute(ioc_file_absolute_path=f'"{self.ioc_file}"',
+                                                                  project_dir_absolute_path=f'"{self.path}"')
         result, result_output = self._cubemx_execute_script(cubemx_script_content)
 
         error_msg = "code generation error"
@@ -305,8 +309,10 @@ class Stm32pio:
         except Exception:
             self.logger.warning("'platformio.ini' file is already exist and incorrect")
 
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'project', 'init', '--project-dir', str(self.path),
-                       '--board', self.config.get('project', 'board'), '--project-option', 'framework=stm32cube']
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'project', 'init',
+                       '--project-dir', str(self.path),
+                       '--board', self.config.get('project', 'board'),
+                       '--project-option', 'framework=stm32cube']
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
@@ -447,7 +453,7 @@ class Stm32pio:
 
         self.logger.info("starting PlatformIO project build...")
 
-        command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '-d', str(self.path)]
+        command_arr = [self.config.get('app', 'platformio_cmd'), 'run', '--project-dir', str(self.path)]
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
@@ -481,11 +487,12 @@ class Stm32pio:
 
         self.logger.info(f"starting an editor '{sanitized_input}'...")
         try:
-            # Works unstable on some Windows 7 systems, but correct on Win10...
-            # result = subprocess.run([editor_command, self.path], check=True)
-            result = subprocess.run(f"{sanitized_input} {self.path}", shell=True, check=True,
-                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)  # TODO: pass pipes to logging
-            self.logger.debug(result.stdout, extra={ 'from_subprocess': True })
+            with stm32pio.core.logging.LogPipe(self.logger, logging.DEBUG) as log:
+                # Works unstable on some Windows 7 systems, but correct on Win10...
+                # result = subprocess.run([editor_command, self.path], check=True)
+                result = subprocess.run(f'{sanitized_input} "{self.path}"', shell=True, check=True,
+                                        stdout=log.pipe, stderr=log.pipe)
+                self.logger.debug(result.stdout, extra={ 'from_subprocess': True })
 
             return result.returncode
         except subprocess.CalledProcessError as e:
@@ -525,10 +532,10 @@ class Stm32pio:
                 for entry in removal_list:
                     if entry.is_dir():
                         shutil.rmtree(entry)  # use shutil.rmtree() to delete non-empty directories
-                        self.logger.debug(f"del {entry.relative_to(self.path)}/")
+                        self.logger.debug(f'del "{entry.relative_to(self.path)}"/')
                     elif entry.is_file():
                         entry.unlink()
-                        self.logger.debug(f"del {entry.relative_to(self.path)}")
+                        self.logger.debug(f'del "{entry.relative_to(self.path)}"')
                 self.logger.info("project has been cleaned")
             else:
                 self.logger.info("no files/folders to remove")

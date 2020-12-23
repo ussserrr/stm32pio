@@ -2,15 +2,16 @@ import collections
 import configparser
 import inspect
 import platform
+import string
 import subprocess
 import time
 import unittest.mock
 
 from functools import reduce
 from pathlib import Path
-# Provides test constants and definitions
 from typing import Mapping, Union
 
+# Provides test constants and definitions
 from tests.common import *
 
 import stm32pio.core.settings
@@ -145,15 +146,18 @@ class TestUnit(CustomTestCase):
             }
         }
 
+        # Look for the command presence in the system so we test only installed editors
+        if platform.system() == 'Windows':
+            command_template = string.Template("where $editor /q")
+        else:
+            command_template = string.Template("command -v $editor")
+
         for editor, editor_process_names in editors.items():
-            # Look for the command presence in the system so we test only installed editors
-            if platform.system() == 'Windows':
-                command_str = f"where {editor} /q"
-            else:
-                command_str = f"command -v {editor}"
-            editor_exists = False
-            if subprocess.run(command_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode == 0:
+            if subprocess.run(command_template.substitute(editor=editor), shell=True,
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
                 editor_exists = True
+            else:
+                editor_exists = False
 
             if editor_exists:
                 with self.subTest(command=editor, name=editor_process_names[platform.system()]):
@@ -289,12 +293,12 @@ class TestUnit(CustomTestCase):
 
         test_tree = {
             'root_file.txt': '',
-            'root_empty_folder': {},
+            'root empty folder': {},
             'root_folder': {
                 'nested_file.mp3': '',
                 'nested_folder': {
                     'file_in_nested_folder_1.jpg': '',
-                    'file_in_nested_folder_2.png': ''
+                    'file in nested folder 2.png': ''
                 }
             }
         }

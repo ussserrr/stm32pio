@@ -52,7 +52,7 @@ except ModuleNotFoundError:
     import stm32pio.cli.app
 
 
-ProjectID = type(id(object))
+ProjectID = type(id(object))  # Int
 
 
 class BuffersDispatchingHandler(logging.Handler):
@@ -485,7 +485,8 @@ class ProjectsList(QAbstractListModel):
 
         Logic explanation: At a given time some projects (e.g., when we add a bunch of projects, recently added ones)
         can be not instantiated yet so we cannot extract their project.path property and need to check before comparing.
-        In this case, simply evaluate strings. Also, samefile will even raise, if the given path doesn't exist.
+        In this case, simply evaluate strings. Also, samefile will even raise, if the given path doesn't exist and
+        that's exactly what we want.
         """
         for list_item in self.projects:
             try:

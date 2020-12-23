@@ -74,7 +74,7 @@ config_default = collections.OrderedDict(
     }
 )
 
-# Do not distract the user with this s**t, take out from the main dict definition above
+# Do not distract the user with this CI s**t, take out from the main dict definition above
 if CI_ENV_VARIABLE is not None:
     config_default['app'] = {
         'java_cmd': 'java',
