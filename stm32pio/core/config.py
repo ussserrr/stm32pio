@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 import configparser
 import copy
 import io
@@ -140,7 +140,8 @@ class Config(configparser.ConfigParser):
             return 0
         except Exception as e:
             if self.logger is not None:
-                self.logger.warning(f"cannot save the config: {e}", exc_info=self.logger.isEnabledFor(logging.DEBUG))
+                self.logger.warning(f"cannot save the config: {e}", exc_info=
+                                    self.logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level))
             return -1
 
     def __str__(self) -> str:

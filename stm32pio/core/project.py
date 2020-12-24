@@ -429,7 +429,8 @@ class Stm32pio:
             shutil.rmtree(self.path.joinpath('include'))
             self.logger.debug("'include' folder has been removed")
         except Exception:
-            self.logger.info("cannot delete 'include' folder", exc_info=self.logger.isEnabledFor(logging.DEBUG))
+            self.logger.info("cannot delete 'include' folder",
+                             exc_info=self.logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level))
 
         # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
         if not self.path.joinpath('SRC').is_dir():
@@ -437,7 +438,8 @@ class Stm32pio:
                 shutil.rmtree(self.path.joinpath('src'))
                 self.logger.debug("'src' folder has been removed")
             except Exception:
-                self.logger.info("cannot delete 'src' folder", exc_info=self.logger.isEnabledFor(logging.DEBUG))
+                self.logger.info("cannot delete 'src' folder", exc_info=
+                                 self.logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level))
 
         self.logger.info("project has been patched")
 
@@ -492,7 +494,7 @@ class Stm32pio:
                 # result = subprocess.run([editor_command, self.path], check=True)
                 result = subprocess.run(f'{sanitized_input} "{self.path}"', shell=True, check=True,
                                         stdout=log.pipe, stderr=log.pipe)
-                self.logger.debug(result.stdout, extra={ 'from_subprocess': True })
+            self.logger.debug(result.stdout, extra={ 'from_subprocess': True })
 
             return result.returncode
         except subprocess.CalledProcessError as e:

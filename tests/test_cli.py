@@ -34,7 +34,7 @@ class TestCLI(CustomTestCase):
         self.assertEqual(return_code, 0, msg="Non-zero return code")
 
         # .ioc file should be preserved
-        self.assertTrue(STAGE_PATH.joinpath(f"{STAGE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
+        self.assertTrue(STAGE_PATH.joinpath(PROJECT_IOC_FILENAME).is_file(), msg="Missing .ioc file")
 
     def test_generate(self):
         return_code = stm32pio.cli.app.main(sys_argv=['generate', '--directory', str(STAGE_PATH)],
@@ -48,7 +48,7 @@ class TestCLI(CustomTestCase):
                                     msg=f"'{directory}' is empty")
 
         # .ioc file should be preserved
-        self.assertTrue(STAGE_PATH.joinpath(f"{STAGE_PATH.name}.ioc").is_file(), msg="Missing .ioc file")
+        self.assertTrue(STAGE_PATH.joinpath(PROJECT_IOC_FILENAME).is_file(), msg="Missing .ioc file")
 
     def test_should_log_error(self):
         """

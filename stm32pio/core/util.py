@@ -2,7 +2,7 @@
 Some auxiliary entities not falling into other categories
 """
 
-import collections
+import collections.abc
 import copy
 import json
 import pathlib
@@ -46,7 +46,6 @@ def get_version() -> str:
 
 
 _pio_boards_cache: List[str] = []
-_pio_boards_cache_lifetime: float = 5.0
 _pio_boards_fetched_at: float = 0
 
 def get_platformio_boards() -> List[str]:
@@ -58,10 +57,11 @@ def get_platformio_boards() -> List[str]:
     So it MAY take a long time to execute.
     """
 
-    global _pio_boards_fetched_at, _pio_boards_cache, _pio_boards_cache_lifetime
+    global _pio_boards_fetched_at, _pio_boards_cache
 
     current_time = time.time()
-    if (len(_pio_boards_cache) == 0) or (current_time - _pio_boards_fetched_at > _pio_boards_cache_lifetime):
+    if (len(_pio_boards_cache) == 0) or\
+       (current_time - _pio_boards_fetched_at >= stm32pio.core.settings.pio_boards_cache_lifetime):
         # Windows 7, as usual, correctly works only with shell=True...
         result = subprocess.run(f"{stm32pio.core.settings.config_default['app']['platformio_cmd']} boards "
                                 f"--json-output stm32cube", encoding='utf-8', shell=True, stdout=subprocess.PIPE,
@@ -86,9 +86,12 @@ def cleanup_mapping(mapping: Mapping[str, Any]) -> dict:
     return cleaned
 
 
-def get_folder_contents(path: pathlib.Path, pattern: str = '*', ignore_list: List[pathlib.Path] = None) -> List[pathlib.Path]:
+def get_folder_contents(
+    path: pathlib.Path,
+    pattern: str = '*',
+    ignore_list: List[pathlib.Path] = None
+) -> List[pathlib.Path]:
     """
-
     Note: this is "naive", straightforward and non-efficient solution (probably, both for time and memory consumption).
     The algorithm behind can (but not necessarily should) definitely be improved
 

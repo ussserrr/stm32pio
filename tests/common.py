@@ -32,9 +32,9 @@ import stm32pio.cli.app
 CASES_ROOT = Path(os.environ.get('STM32PIO_TEST_FIXTURES', default=Path(__file__).parent / 'fixtures')).resolve(strict=True)
 os.environ['STM32PIO_TEST_FIXTURES'] = str(CASES_ROOT)
 
-CASE = os.environ.get('STM32PIO_TEST_CASE', default='nucleo f031k6')
+CASE = os.environ.get('STM32PIO_TEST_CASE', default='nucleo_f031k6')
 PROJECT_PATH = CASES_ROOT.joinpath(CASE).resolve(strict=True)
-PROJECT_BOARD = 'nucleo_f031k6'  # currently (PlatformIO board == folder name)
+PROJECT_BOARD = CASE  # currently (PlatformIO board == folder name)
 os.environ['STM32PIO_TEST_CASE'] = CASE
 
 if next(PROJECT_PATH.glob('*.ioc'), False):  # TODO: walrus

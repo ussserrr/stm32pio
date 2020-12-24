@@ -8,14 +8,17 @@
  - [ ] UML diagrams (core, GUI back- and front-ends, thread flows, events, etc.)
  - [ ] In the future, probably use https://setuptools.readthedocs.io/en/latest/setuptools.html#accessing-data-files-at-runtime `importlib.resources` as a standard API to access non-Python files inside Python packages (such as `.qml`)
  - [ ] Use some features of newer Pythons after dropping the support for 3.6 (and so on)
- - [ ] Generate code docs (help user to understand an internal mechanics, e.g. for embedding). Say, just for public API (main project, `cli.app.main()`, logging). Can be uploaded to the GitHub Wiki. Currently we struggle to even track the API changes (e.g. for semver). API is some code endpoints and entire CLI set, I suppose...
+ - [ ] Generate code docs (help user to understand an internal mechanics, e.g. for embedding). Say, just for public API (main project, `cli.app.main()`, logging). Can be uploaded to the GitHub Wiki. Currently, we struggle to even track the API changes (e.g. for semver). API is some code endpoints and entire CLI set, I suppose...
  - [ ] Build, install and only then test the app
  - [ ] Templates for CI?
- - [ ] Remade this TODOs list as a GitHub issues/project/milestones? Use labels to mimic DISCUSSION ones and so on
- - [ ] Write in README about why we use an INI config format (because it should be familiar to the PlatformIO user). Also consider to migrate to some other (more feature-rich) format (JSON, etc.)
+ - [ ] Migrate CI to GitHub actions?
+ - [ ] Remade this TODO list as a GitHub issues/project/milestones. Use labels to mimic DISCUSSION ones and so on (UPD: GitHub now has its own "discussions" feature actually)
+ - [ ] Write in the README about why we use an INI config format (because it should be familiar to the PlatformIO user). Also consider migrating to some other (more feature-rich) format (JSON, etc.)
  - [ ] CI/test-related code in the `settings.py` is probably not good, should find the workaround
- - [ ] Config README description (a little bit too many parameters now)
+ - [ ] Config README description (a little too many parameters now)
  - [ ] See on GitHub what people looking for the most (what files) and adjust this parts of the repo
+ - [ ] Collect all Python 3.7+ TODOs, notes, etc. to form some kind of resume of what can be done to take advantages of new language/lib features while dropping the 3.6 support
+ - [ ] Implement some _optional_ global config (e.g. `~/.stm32pio`) where the users can specify their paths/commands of tools. Maybe integrate with the validation feature
 
 
 ## GUI version
@@ -55,18 +58,18 @@
  - [ ] Add multiple folders on "Add" button
  - [ ] Do not store the state in the list delegate. Save it in the model, also widgets will be using it so the code will be cleaner
  - [ ] Setup QML logging proxy (QML's `console.log()` functions family to the Python `logging`) for all platforms (not only Windows)
- - [ ] Interface for the validation feature
+ - [ ] Interface for the validation feature (and other that have been implemented in CLI yet GUI lacks)
 
 
 ## Core library and CLI
 
 ### PlatformIO board
  - [ ] When updating the project (`generate` command), check for boards match
- - [ ] Check board (no sense to go further on 'new' if the board in config.ini is not correct)
- - [ ] If `--board` has not been supplied try to get it from the `platformio.ini` (if present)
+ - [ ] Check board (no sense to go further on 'new' if the board in the config.ini is not correct)
+ - [ ] If `--board` has not been supplied, try to get it from the `platformio.ini` (if present)
 
 ### Control spawn subprocesses
- - [ ] maybe migrate to async/await approach in the future (return some kind of a "remote controller" to control the running action)
+ - [ ] maybe migrate to async/await approach in the future (return some kind of "remote controller" to control the running action)
  - [ ] Kill subprocesses if there is no output have appeared for some timeout (i.e. hung)
 
 ### CubeMX
@@ -78,29 +81,28 @@
 ### Config
  - [x] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode and repeat this action). And, in general, we should show the error reason right off
  - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (`shell=True` or a list of args (split a string))
- - [x] Maybe log about which parameters has superseded which
+ - [x] Maybe log about which parameters have superseded which
  - [x] Pretty printer for the config
  - [ ] Mark some parameters as unnecessary and do not save them to config unless explicitly stated (it can now be implemented more easily thanks to the `Config` subclass, I guess) (some DB-like schema)
  - [ ] Store editor in the config?
  - [x] Getters for some data types (e.g. `get_ignore_list()`)
  - [x] Store an initial content of the folder in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion) in the config file. Mb some integration with `.gitignore` if present
- - [x] Add flag to `init` (probably `new`, too) to take the initial content of the project folder as clean ignore list
+ - [x] Add a flag to `init` (probably `new`, too) to take the initial content of the project folder as clean ignore list
 
 ### Other
- - [ ] Remove casts to string where we can use path-like objects (seems like Python 3.6 on Windows is pulling down)
- - [x] We look for some snippets of strings in logs and output in a testing code but we hard-code them and this is not good, probably (e.g. 'DEBUG')
+ - [ ] Remove casts to string where we can use path-like objects (seems like Python 3.6 on Windows is delaying this)
+ - [x] We look for some snippets of strings in logs and output in a testing code, but we hard-code them and this is not good, probably (e.g. 'DEBUG')
  - [x] at some point check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI) (global `--check` command (as `--version`), also before execution of the full cycle (no sense to start if some tool doesn't exist))
  - [ ] DISCUSSION. Colored CLI logs, maybe (3rd-party) (breaks zero-dependency principle though...)
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
- - [ ] DISCUSSION. The lib sometimes raising, sometimes returning the code and it is not consistent. Current decision making agent: common sense and the essence of the action. Would be great to always return a result code and raise the exceptions in the outer scope, if there is need to
- - [ ] count another `-v` as `-v` for the PlatformIO calls (also we can implement it as a slider in the GUI settings window)
- - [ ] Project name (path) can be reused so cannot be used as a unique identifier but so is `id(self)`? Probably it is better to use a path (human-readable) (but it also can be reused...)
+ - [ ] DISCUSSION. The lib sometimes raising, sometimes returning the code and it is not consistent. Current decision-making agent: common sense and the essence of the action. Would be great to always return a result code and raise the exceptions in the outer scope, if there is need to
+ - [ ] count another `-v` as `-v` for the PlatformIO calls (also we can implement it as a (vertical) slider in the GUI settings window (remember Windows UAC panel?))
+ - [ ] DISCUSSION. Project name (path) can be reused so cannot be used as a unique identifier but so is `id(self)`? Probably it is better to use a path (human-readable) (but it also can be reused...)
  - [ ] DISCUSSION. Use `--start-editor` as a generic action to perform after the main operation (rename, of course)?
  - [x] Search for `str(...)` calls to eliminate them where possible (i.e. unnecessary)
- - [ ] `f"{STAGE_PATH.name}.ioc"` in tests, is it actually OK?
- - [ ] Use `logger.exception()`
+ - [x] `f"{STAGE_PATH.name}.ioc"` in tests, is it actually OK? No
  - [ ] Take a look to the `dataclass` feature and find where we can apply it (3.7+)
- - [ ] Support equality comparison for `Project` (`__eq__()`) and get rid of `p1.path == p2.path`
+ - [ ] DISCUSSION. Support equality comparison for `Project` (`__eq__()`) and get rid of `p1.path.samefile(p2.path)`. It's actually a more complicated topic than it seems, e.g. what are _equal_ projects? Path is not the only component of the project despite being the primary one, what about the config content though? It can be different for the same path at different points of time (when config were read after some period)
  - [ ] DISCUSSION. Config file help on the CLI? Comments in generated INI?
  - [ ] Check with some static analyzer (mypy)
- - [ ] Test for names with spaces (everywhere)
+ - [x] Test for names with spaces (everywhere) (#21)

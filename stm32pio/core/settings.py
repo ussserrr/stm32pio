@@ -1,5 +1,6 @@
 import collections
 import inspect
+import logging
 import os
 from pathlib import Path
 import platform
@@ -90,3 +91,7 @@ cubemx_str_indicating_error = 'Exception in code generation'  # TODO: or line "K
 # Longest name (not necessarily a method so a little bit tricky...)
 # log_fieldwidth_function = max([len(member) for member in dir(stm32pio.lib.Stm32pio)]) + 1
 log_fieldwidth_function = 20
+
+show_traceback_threshold_level: int = logging.DEBUG  # when log some error and need to print the traceback
+
+pio_boards_cache_lifetime: float = 5.0  # in seconds

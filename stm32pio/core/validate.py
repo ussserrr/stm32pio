@@ -61,7 +61,6 @@ class ToolValidator:
                 else:
                     self.succeed = False
                     self.error = Exception(f"'{self.name}' not set (should be a valid command or None)")
-
         except Exception as e:
             self.succeed = False
             self.error = e

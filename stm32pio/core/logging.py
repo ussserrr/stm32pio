@@ -1,3 +1,8 @@
+"""
+Almost all output of the app that somehow informs a user is flowing through the logging machine allowing us to customize
+and redirect it as we want. This module consists of such helpful classes and functions.
+"""
+
 import contextlib
 import enum
 import logging
@@ -8,6 +13,7 @@ import warnings
 from typing import Any, MutableMapping, Tuple, Mapping, Optional
 
 from stm32pio.core.config import Config
+from stm32pio.core.settings import show_traceback_threshold_level
 
 
 module_logger = logging.getLogger(__name__)  # this module logger
@@ -22,9 +28,7 @@ logging_levels = {  # for exposing the levels to the GUI
 }
 
 
-show_traceback_threshold_level: int = logging.DEBUG
-
-def log_current_exception(logger: logging.Logger, show_traceback: bool = None, config: Config = None):
+def log_current_exception(logger: logging.Logger, show_traceback: bool = None, config: Config = None) -> None:
     """
     Print format is:
 
@@ -33,7 +37,15 @@ def log_current_exception(logger: logging.Logger, show_traceback: bool = None, c
 
     We do not explicitly retrieve an exception info via sys.exc_info() as it immediately stores a reference to the
     current Python frame and/or variables causing some possible weird errors (objects are not GC'ed) and memory leaks.
-    See https://cosmicpercolator.com/2016/01/13/exception-leaks-in-python-2-and-3/ for more information
+    See https://cosmicpercolator.com/2016/01/13/exception-leaks-in-python-2-and-3/ for more information.
+
+    Args:
+        logger: the logging.Logger (or compatible) instance to use
+        show_traceback: whether print the traceback or not. Ignored if the config is given (will output it there anyway)
+        config: stm32pio Config instance to save. The traceback will be written to its corresponding INI file
+
+    Returns:
+        None
     """
 
     if show_traceback is None:
@@ -45,14 +57,19 @@ def log_current_exception(logger: logging.Logger, show_traceback: bool = None, c
         exc_str = exc_str[len('Exception: '):]  # meaningless information
     exc_tb = ''.join(exc_full_str.splitlines(keepends=True)[:-1])
 
-    if show_traceback:
-        logger.error(f"{exc_str}\n{exc_tb}")
-    elif config is not None:
-        config.save({ 'project': { 'last_error': f"{exc_str}\n{exc_tb}" } })
-        logger.error(f"{exc_str}. Traceback has been saved to the {config.path.name}. It will be cleared on the next "
-                     "run")
-    else:
+    if config is not None:
         logger.error(exc_str)
+        retcode = config.save({'project': {'last_error': f"{exc_str}\n{exc_tb}"}})
+        if retcode == 0:
+            logger.info(f"Traceback has been saved to the {config.path.name}. It will be cleared on the next successful"
+                        "run")
+        else:
+            logger.warning(f"Traceback has not been saved to the {config.path.name}")
+    else:
+        if show_traceback:
+            logger.error(f"{exc_str}\n{exc_tb}")
+        else:
+            logger.error(exc_str)
 
 
 class ProjectLoggerAdapter(logging.LoggerAdapter):
