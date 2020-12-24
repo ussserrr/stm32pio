@@ -10,15 +10,20 @@
  - [ ] Use some features of newer Pythons after dropping the support for 3.6 (and so on)
  - [ ] Generate code docs (help user to understand an internal mechanics, e.g. for embedding). Say, just for public API (main project, `cli.app.main()`, logging). Can be uploaded to the GitHub Wiki. Currently, we struggle to even track the API changes (e.g. for semver). API is some code endpoints and entire CLI set, I suppose...
  - [ ] Build, install and only then test the app
- - [ ] Templates for CI?
- - [ ] Migrate CI to GitHub actions?
  - [ ] Remade this TODO list as a GitHub issues/project/milestones. Use labels to mimic DISCUSSION ones and so on (UPD: GitHub now has its own "discussions" feature actually)
  - [ ] Write in the README about why we use an INI config format (because it should be familiar to the PlatformIO user). Also consider migrating to some other (more feature-rich) format (JSON, etc.)
- - [ ] CI/test-related code in the `settings.py` is probably not good, should find the workaround
  - [ ] Config README description (a little too many parameters now)
  - [ ] See on GitHub what people looking for the most (what files) and adjust this parts of the repo
  - [ ] Collect all Python 3.7+ TODOs, notes, etc. to form some kind of resume of what can be done to take advantages of new language/lib features while dropping the 3.6 support
  - [ ] Implement some _optional_ global config (e.g. `~/.stm32pio`) where the users can specify their paths/commands of tools. Maybe integrate with the validation feature
+
+
+## CI
+ - [ ] CI/test-related code in the `settings.py` is probably not good, should find the workaround
+ - [ ] Fail of not all tests have been passed
+ - [x] Add Python 3.9 runner
+ - [ ] Templates for CI?
+ - [ ] Migrate CI to GitHub actions?
 
 
 ## GUI version
@@ -106,3 +111,7 @@
  - [ ] DISCUSSION. Config file help on the CLI? Comments in generated INI?
  - [ ] Check with some static analyzer (mypy)
  - [x] Test for names with spaces (everywhere) (#21)
+ - [ ] Check `subprocess.PIPE`/`subprocess.DEVNULL` relations
+ - [ ] Set `git` command in settings (config). There are a little too many options now, should consider hide them unless explicitly set
+ - [ ] Edit INI config from CLI. NO
+ - [ ] Public API backward compatibility testing (core lib + CLI, I guess)

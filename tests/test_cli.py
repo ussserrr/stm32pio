@@ -4,7 +4,6 @@ import io
 import pathlib
 import re
 import subprocess
-import unittest.mock
 
 # Provides test constants and definitions
 from tests.common import *
@@ -135,8 +134,7 @@ class TestCLI(CustomTestCase):
         """
         result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'init',
                                  '--directory', str(STAGE_PATH),
-                                 '--board', PROJECT_BOARD],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                 '--board', PROJECT_BOARD])
         self.assertEqual(result.returncode, 0, msg="Non-zero return code")
 
         self.assertTrue(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name).is_file(),

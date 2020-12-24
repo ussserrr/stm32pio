@@ -504,7 +504,14 @@ class Stm32pio:
 
     def clean(self, quiet_on_cli: bool = True) -> None:
         """
-        Clean-up the project folder.
+        Clean-up the project folder. The method uses whether its own algorithm or can delegate the task to the git (`git
+        clean` command). This behavior is controlled by the project config's `cleanup_use_gitignore` parameter. Note
+        that the results may not be as you initially expected with `git clean`, refer to its docs for clarification. For
+        example, with a fresh new repository you actually need to run `git add --all` first otherwise nothing will be
+        removed by the git.
+
+        Args:
+            quiet_on_cli: should the function ask a user before actually removing any file/folder
         """
 
         if self.config.getboolean('project', 'cleanup_use_gitignore', fallback=False):

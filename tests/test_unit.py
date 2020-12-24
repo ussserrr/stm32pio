@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 import configparser
 import inspect
 import platform
@@ -153,8 +153,7 @@ class TestUnit(CustomTestCase):
             command_template = string.Template("command -v $editor")
 
         for editor, editor_process_names in editors.items():
-            if subprocess.run(command_template.substitute(editor=editor), shell=True,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+            if subprocess.run(command_template.substitute(editor=editor), shell=True).returncode == 0:
                 editor_exists = True
             else:
                 editor_exists = False
@@ -170,8 +169,7 @@ class TestUnit(CustomTestCase):
                     else:
                         command_arr = ['ps', '-A']
                     # "encoding='utf-8'" is for "a bytes-like object is required, not 'str'" in "assertIn"
-                    result = subprocess.run(command_arr, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                            encoding='utf-8')
+                    result = subprocess.run(command_arr, stdout=subprocess.PIPE, encoding='utf-8')
                     # TODO: or, for Python 3.7 and above:
                     # result = subprocess.run(command_arr, capture_output=True, encoding='utf-8')
                     self.assertIn(editor_process_names[platform.system()], result.stdout)
@@ -317,7 +315,8 @@ class TestUnit(CustomTestCase):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             with unittest.mock.patch('builtins.input', return_value=stm32pio.core.settings.yes_options[0]):
                 project.clean(quiet_on_cli=False)
-                input_prompt = input.call_args.args[0]
+                input_args, input_kwargs = input.call_args  # input() function was called with these arguments
+                input_prompt = input_args[0]
                 # Check only for a name as the path separator is different for UNIX/Win
                 self.assertTrue(all(endpoint.name in input_prompt for endpoint in test_tree_endpoints),
                                 msg="Paths for removal should be reported to the user")
@@ -366,13 +365,20 @@ class TestUnit(CustomTestCase):
         '''))
         with self.subTest(msg="use .gitignore"):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
+            # This is important, otherwise git won't clean anything
+            subprocess.run(['git', 'add', '--all'], cwd=str(STAGE_PATH), check=True)  # TODO: str() - 3.6 compatibility
             project.config.set('project', 'cleanup_use_gitignore', 'yes')
             project.clean()
             for endpoint in [STAGE_PATH / entry for entry in test_tree_endpoints]:
                 if endpoint.relative_to(STAGE_PATH) == Path('root_folder').joinpath('nested_file.mp3'):
                     self.assertFalse(endpoint.exists(), msg="Files/folders from the .gitignore should be removed")
                 else:
-                    self.assertTrue(endpoint.exists(), msg="Files/folders managed by git should be preserved")
+                    self.assertTrue(endpoint.exists(), msg="Files/folders tracked by git should be preserved")
+
+        # TODO: nasty hack for Windows, otherwise it may not delete all the temp files (probably one of these
+        #  https://bugs.python.org/issue40143 bugs)
+        if platform.system() == 'Windows':
+            subprocess.run(f'rd /s /q "{STAGE_PATH}"', shell=True, check=True)
 
         self.setUp()
         plant_fs_tree(STAGE_PATH, test_tree)

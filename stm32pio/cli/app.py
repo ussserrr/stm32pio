@@ -53,7 +53,7 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
                                        help="generate CubeMX code, create PlatformIO project, glue them together")
     parser_status = subparsers.add_parser('status', help="get the description of the current project state")
     parser_clean = subparsers.add_parser('clean',
-                                         help="clean-up the project (delete ALL content of 'path' except an .ioc file)")
+                                         help="clean-up the project (delete ALL content of 'path' except an .ioc file)")  # TODO
     parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. All arguments will "
                                                    "be passed forward, see its own --help for more information")
     parser_validate = subparsers.add_parser('validate', help="verify current environment based on the config values")
