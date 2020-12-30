@@ -1,6 +1,11 @@
 """
-Almost all output of the app that somehow informs a user is flowing through the logging machine allowing us to customize
-and redirect it as we want. This module consists of such helpful classes and functions.
+Logging is an important part of the application because almost all of its output is flowing through the logging Python
+library in some way or another. It is an intended behavior allowing us not just quickly customize the output shape but
+also redirect it to different "sinks" in many possible combinations. It was developed mostly during the GUI milestone
+to provide some sleek way of piping the text application output to the GUI components while preserving the backwards
+compatibility with the CLI API.
+
+So this module contains several entities helping with common logging problems that we faced during the development.
 """
 
 import contextlib

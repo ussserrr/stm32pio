@@ -1,3 +1,7 @@
+"""
+Entities helping the main class validate some command line tools.
+"""
+
 import logging
 import subprocess
 from typing import Optional, Callable, Tuple, List
@@ -6,8 +10,8 @@ import stm32pio.core.settings
 
 
 class ToolValidator:
-    """Verify some command line tool"""
 
+    # Properties-results of validation. These will be set after run
     succeed: bool = None
     text: str = None  # some optional additional description of the tool state
     error: Exception = None  # optional exception in case some error happened
@@ -22,7 +26,8 @@ class ToolValidator:
             name: what we're verifying?
             command: optional argument to pass to the runner
             runner: function to execute to determine the validated thing is correct
-            required: is this parameter mandatory?
+            required: is this parameter mandatory? If this is true the tool will be considered succeeded
+                      even if it is not set
             logger: optional logging.Logger instance to indicate the progress
         """
         # TODO: dataclass can be used (https://stackoverflow.com/questions/1389180/automatically-initialize-instance-variables)
@@ -33,11 +38,11 @@ class ToolValidator:
         self.logger = logger
 
     def _run(self, command):
-        """More like a _macro_ function to reduce a code repeating instead of a _real_ standalone method"""
-        process, process_output = self.runner(command)
-        self.succeed = process.returncode == 0
-        if process.returncode != 0:
-            self.error = Exception(process_output)
+        """_macro_ function to reduce a code repetition"""
+        completed_process, std_output = self.runner(command)
+        self.succeed = completed_process.returncode == 0
+        if completed_process.returncode != 0:
+            self.error = Exception(std_output)
 
     def validate(self):
         """Start the validation using collected information (properties). Return itself for further usage"""
@@ -76,7 +81,7 @@ class ToolsValidationResults(List[ToolValidator]):
         return all(tool.succeed for tool in self)
 
     def __str__(self):
-        """Format the results of contained members (basic report and extended if needed)"""
+        """Format the results of contained members (basic report and extended if present)"""
 
         basic_report = ''
         for tool in self:

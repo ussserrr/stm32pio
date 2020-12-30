@@ -5,7 +5,7 @@
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Create VSCode plugin
- - [ ] UML diagrams (core, GUI back- and front-ends, thread flows, events, etc.)
+ - [ ] UML diagrams (core, GUI back- and front-ends, thread flows, events, etc.). Maybe automated
  - [ ] In the future, probably use https://setuptools.readthedocs.io/en/latest/setuptools.html#accessing-data-files-at-runtime `importlib.resources` as a standard API to access non-Python files inside Python packages (such as `.qml`)
  - [ ] Use some features of newer Pythons after dropping the support for 3.6 (and so on)
  - [ ] Generate code docs (help user to understand an internal mechanics, e.g. for embedding). Say, just for public API (main project, `cli.app.main()`, logging). Can be uploaded to the GitHub Wiki. Currently, we struggle to even track the API changes (e.g. for semver). API is some code endpoints and entire CLI set, I suppose...
@@ -16,6 +16,9 @@
  - [ ] See on GitHub what people looking for the most (what files) and adjust this parts of the repo
  - [ ] Collect all Python 3.7+ TODOs, notes, etc. to form some kind of resume of what can be done to take advantages of new language/lib features while dropping the 3.6 support
  - [ ] Implement some _optional_ global config (e.g. `~/.stm32pio`) where the users can specify their paths/commands of tools. Maybe integrate with the validation feature
+ - [ ] setuptools now migrating to PEP-517 finally, see its docs
+ - [ ] Check do we actually need `wheel` package to be installed prior `pip install stm32pio`. Can we add it to dependencies and be sure it will be retrieved before any other?
+ - [ ] Adapt Google style guides or some another one (comments, docstrings, etc.)...
 
 
 ## CI
@@ -24,6 +27,7 @@
  - [x] Add Python 3.9 runner
  - [ ] Templates for CI?
  - [ ] Migrate CI to GitHub actions?
+ - [ ] Use `setup.cfg` to add CI extra with all its dependencies (pyyaml, pytest, etc.)
 
 
 ## GUI version
@@ -94,6 +98,9 @@
  - [x] Store an initial content of the folder in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion) in the config file. Mb some integration with `.gitignore` if present
  - [x] Add a flag to `init` (probably `new`, too) to take the initial content of the project folder as clean ignore list
 
+### Tests
+ - [ ] Closely audit the test suite (e.g. CLI tests doesn't verify ALL available commands because some of them will be considered redundant in the presence of unit tests and so on)
+
 ### Other
  - [ ] Remove casts to string where we can use path-like objects (seems like Python 3.6 on Windows is delaying this)
  - [x] We look for some snippets of strings in logs and output in a testing code, but we hard-code them and this is not good, probably (e.g. 'DEBUG')
@@ -113,5 +120,10 @@
  - [x] Test for names with spaces (everywhere) (#21)
  - [ ] Check `subprocess.PIPE`/`subprocess.DEVNULL` relations
  - [ ] Set `git` command in settings (config). There are a little too many options now, should consider hide them unless explicitly set
- - [ ] Edit INI config from CLI. NO
+ - [ ] Edit INI config from CLI. NO! This task is "out of scope" for this app and any `set` command will probably be confusing for the user. Just type `editor stm32pio.ini`
  - [ ] Public API backward compatibility testing (core lib + CLI, I guess)
+ - [ ] If we output config "logs" (in debug mode) we should print them more beautiful (some tables or so). Probably should consider external dependency or optional CLI tool (if present then ...)
+ - [ ] `instance_options` is kind of ugly...
+ - [ ] download missing CubeMX software packages (F0, F1, etc.) using temp script
+ - [ ] what if some parameters missing in the config file? Check the behavior
+ - [ ] `platformio_ini_is_patched` is actually not so robust. For example, some property can contain both our and user-defined values and still technically be considered as "patched". Maybe should use `in` for checking instead of the strict equality

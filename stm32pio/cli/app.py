@@ -52,8 +52,8 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     parser_new = subparsers.add_parser('new',
                                        help="generate CubeMX code, create PlatformIO project, glue them together")
     parser_status = subparsers.add_parser('status', help="get the description of the current project state")
-    parser_clean = subparsers.add_parser('clean',
-                                         help="clean-up the project (delete ALL content of 'path' except an .ioc file)")  # TODO
+    parser_clean = subparsers.add_parser('clean', help="clean-up the project (by default, it will ask you about the "
+                                                       "files to delete)")
     parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. All arguments will "
                                                    "be passed forward, see its own --help for more information")
     parser_validate = subparsers.add_parser('validate', help="verify current environment based on the config values")
@@ -212,7 +212,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
             else:
                 project.clean(quiet_on_cli=args.quiet)
 
-    # Library is designed to throw the exception in bad cases so we catch here globally
+    # Global errors catching. Core library is designed to throw the exception in cases when there is no sense to
+    # proceed. Of course this also suppose to handle any unexpected behavior, too
     except Exception:
         stm32pio.core.logging.log_current_exception(
             logger, config=project.config if (project is not None and hasattr(project, 'config')) else None)

@@ -1,5 +1,5 @@
 """
-Some auxiliary entities not falling into other categories
+Some auxiliary entities not falling into the other categories
 """
 
 import collections.abc
@@ -11,14 +11,14 @@ import sys
 import time
 from typing import Any, List, Mapping
 
-import stm32pio.core.settings
+from stm32pio.core.settings import pio_boards_cache_lifetime, config_default
 
 
 def _get_version_from_scm() -> str:
     try:
         import setuptools_scm  # setuptools_scm is the dev-only dependency
     except ImportError:
-        return 'Portable (not-installed). See git tag'
+        return "Portable (not-installed). See git tag"
     else:
         # Calculate the version in real-time from the Git repo state
         return setuptools_scm.get_version(root='../..', relative_to=__file__)
@@ -46,34 +46,38 @@ def get_version() -> str:
 
 
 _pio_boards_cache: List[str] = []
-_pio_boards_fetched_at: float = 0
+_pio_boards_cache_fetched_at: float = 0
 
 def get_platformio_boards() -> List[str]:
     """
-    Obtain the PlatformIO boards list. As we interested only in STM32 ones, cut off all of the others. Additionally,
-    establish a short-time "cache" to prevent the overflooding with requests to subprocess.
+    Obtain the PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the others. Additionally,
+    establish a short-time "cache" to prevent the over-flooding with requests to subprocess.
 
-    IMPORTANT NOTE: PlatformIO can go to the Internet from time to time when it decides that its cache is out of date.
-    So it MAY take a long time to execute.
+    IMPORTANT NOTE: PlatformIO can go to the Internet from time to time when it decides that its own cache is out of
+    date. So it may take a long time to execute.
     """
 
-    global _pio_boards_fetched_at, _pio_boards_cache
-
+    global _pio_boards_cache_fetched_at, _pio_boards_cache
+    cache_is_empty = len(_pio_boards_cache) == 0
     current_time = time.time()
-    if (len(_pio_boards_cache) == 0) or\
-       (current_time - _pio_boards_fetched_at >= stm32pio.core.settings.pio_boards_cache_lifetime):
-        # Windows 7, as usual, correctly works only with shell=True...
-        result = subprocess.run(f"{stm32pio.core.settings.config_default['app']['platformio_cmd']} boards "
-                                f"--json-output stm32cube", encoding='utf-8', shell=True, stdout=subprocess.PIPE,
-                                check=True)
-        _pio_boards_cache = [board['id'] for board in json.loads(result.stdout)]
-        _pio_boards_fetched_at = current_time
+    cache_is_outdated = current_time - _pio_boards_cache_fetched_at >= pio_boards_cache_lifetime
 
+    if cache_is_empty or cache_is_outdated:
+        # Windows 7, as usual, correctly works only with shell=True...
+        # TODO: should use default 'platformio_cmd' only when one wasn't provided
+        completed_process = subprocess.run(
+            f"{config_default['app']['platformio_cmd']} boards --json-output stm32cube",
+            encoding='utf-8', shell=True, stdout=subprocess.PIPE, check=True)
+        _pio_boards_cache = [board['id'] for board in json.loads(completed_process.stdout)]
+        _pio_boards_cache_fetched_at = current_time
+
+    # Caller can mutate the array and damage our cache so we give it a copy (as the values are strings it is equivalent
+    # to the deep copy of this list)
     return copy.copy(_pio_boards_cache)
 
 
 def cleanup_mapping(mapping: Mapping[str, Any]) -> dict:
-    """Recursively copy non-empty values to the new dictionary. Return this new dict"""
+    """Return a deep copy of the given mapping excluding None and empty string values"""
 
     cleaned = {}
 
@@ -86,22 +90,24 @@ def cleanup_mapping(mapping: Mapping[str, Any]) -> dict:
     return cleaned
 
 
-def get_folder_contents(
-    path: pathlib.Path,
-    pattern: str = '*',
-    ignore_list: List[pathlib.Path] = None
-) -> List[pathlib.Path]:
+def get_folder_contents(path: pathlib.Path, pattern: str = '*',
+                        ignore_list: List[pathlib.Path] = None) -> List[pathlib.Path]:
     """
-    Note: this is "naive", straightforward and non-efficient solution (probably, both for time and memory consumption).
-    The algorithm behind can (but not necessarily should) definitely be improved
+    Return all endpoints inside the given directory (recursively). If specified, paths from the ignore_list will be
+    excluded. The resulting array is fully "unfolded" meaning every folder will be expanded, so both it and its children
+    will be included into the list. Conversely, the ignore_list is treated in the opposite way so for every folder met
+    both it and its children will be ignored completely.
+
+    Note: this is a "naive", straightforward and non-efficient solution (probably, both for time and memory
+    consumption). The algorithm behind can (but not necessarily should) definitely be improved.
 
     Args:
-        path:
-        pattern:
-        ignore_list:
+        path: root directory
+        pattern: optional glob-style pattern string to use. Default one will pass all
+        ignore_list: optional list of pathlib Paths to ignore (see the full description)
 
     Returns:
-
+        list of pathlib Paths
     """
 
     folder_contents = []

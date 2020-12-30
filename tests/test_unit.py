@@ -367,7 +367,7 @@ class TestUnit(CustomTestCase):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             # This is important, otherwise git won't clean anything
             subprocess.run(['git', 'add', '--all'], cwd=str(STAGE_PATH), check=True)  # TODO: str() - 3.6 compatibility
-            project.config.set('project', 'cleanup_use_gitignore', 'yes')
+            project.config.set('project', 'cleanup_use_git', 'yes')
             project.clean()
             for endpoint in [STAGE_PATH / entry for entry in test_tree_endpoints]:
                 if endpoint.relative_to(STAGE_PATH) == Path('root_folder').joinpath('nested_file.mp3'):

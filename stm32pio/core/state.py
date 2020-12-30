@@ -1,3 +1,8 @@
+"""
+State of the project in terms of business logic. It defines the sequence of some typical life-cycle stages a project can
+sit in.
+"""
+
 import collections
 import enum
 
@@ -16,9 +21,9 @@ _stages_string_representations = {
 class ProjectStage(enum.IntEnum):
     """
     Codes indicating a project state at the moment. Should be the sequence of incrementing integers to be suited for
-    state determining algorithm. Starts from 1
+    state determining algorithm. Starts from 1.
 
-    Hint: Files/folders to be present on every project state:
+    Hint: Files/folders to be present on every project state (more or less, just for reference):
         UNDEFINED: use this state to indicate none of the states below. Also, when we do not have any .ioc file the
                    Stm32pio class instance cannot be created (constructor raises an exception)
         EMPTY: ['project.ioc']

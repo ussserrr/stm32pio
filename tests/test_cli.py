@@ -25,7 +25,7 @@ class TestCLI(CustomTestCase):
 
     def test_new(self):
         """
-        Successful build is the best indicator that all went right so we use '--with-build' option here
+        Successful build is the best indicator that all went well so we use '--with-build' option here
         """
         return_code = stm32pio.cli.app.main(
             sys_argv=['new', '--directory', str(STAGE_PATH), '--board', PROJECT_BOARD, '--with-build'],

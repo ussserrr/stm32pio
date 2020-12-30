@@ -13,9 +13,7 @@ The cross-platform GUI version of the stm32pio. It wraps the core library functi
 
 ## Install and run
 
-The app requires PySide2 5.14+ package. It should be available in all major package managers including pip, apt, brew and so on.
-
-**WARNING:** PySide2 5.15 at the moment has a bug making the Add/Remove buttons not active (https://bugreports.qt.io/browse/QTBUG-85130).
+The app requires PySide2 of versions 5.14.x or 5.15.2+ (early 5.15 versions has a bug making the Add/Remove buttons not active (https://bugreports.qt.io/browse/QTBUG-85130)) package. It should be available in all major package managers including pip, apt, brew and so on.
 
 The convenient way to install is via `pip` specifying `extras` option:
 ```shell script

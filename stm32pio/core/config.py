@@ -1,3 +1,9 @@
+"""
+Config entity suitable for a usage in conjunction with the main Stm32pio class.
+
+Not to be confused with the settings.py module!
+"""
+
 import collections.abc
 import configparser
 import copy
@@ -11,22 +17,27 @@ import stm32pio.core.settings
 
 
 class Config(configparser.ConfigParser):
+    """
+    This is basically a ConfigParser "on steroids" that can be tweaked even more later, actually. It supplements the
+    parent with such features as additional getters/setters (ignore list), pretty printer, smart merging and more.
+    """
+
     def __init__(self, location: pathlib.Path, name: str = stm32pio.core.settings.config_file_name,
                  defaults: Mapping[str, Mapping[str, Any]] = stm32pio.core.settings.config_default,
                  runtime_parameters: Mapping[str, Mapping[str, Any]] = None, logger: logging.Logger = None):
         """
-        Prepare ConfigParser config for the project. Order (priorities) of getting values (masking) (i.e. higher levels
+        Prepare config for the project. Order (priorities) of values retrieval (masking) (i.e. higher levels
         overwrites lower but only if a value is non-empty):
 
             default dict (settings module)  =>  config file stm32pio.ini  =>  user-given (runtime) values
                                                                               (via CLI or another way)
 
         Args:
-            location: path to folder which contain (or should contain) the config file
+            location: path to the folder which contain (or should contain in the future) the config file
             name: file name of the config
             defaults: mapping with the default values for the config (see schema above)
             runtime_parameters: another mapping to write (see schema above)
-            logger: optional logging.Logger instance
+            logger: optional logging.Logger instance (or compatible one)
         """
         super().__init__(interpolation=None)
 
@@ -38,7 +49,7 @@ class Config(configparser.ConfigParser):
         # Fill with default values ...
         self.read_dict(copy.deepcopy(defaults))
 
-        # ... then merge with user's config file (if exist) values ...
+        # ... then merge with the user's config file values (if exist)...
         if self.logger is not None:
             self.logger.debug(f"searching for {name}...")
         self.merge_with(self.path, reason="compared to default")
@@ -48,6 +59,7 @@ class Config(configparser.ConfigParser):
             self.merge_with(runtime_parameters, reason="CLI keys")
 
     def get_ignore_list(self, section: str, option: str, raw: bool = False) -> Union[str, List[pathlib.Path]]:
+        """Custom getter based on the ConfigParser API"""
         if raw:
             return self.get(section, option, fallback='')
         else:
@@ -58,6 +70,10 @@ class Config(configparser.ConfigParser):
             return ignore_list
 
     def save_content_as_ignore_list(self):
+        """
+        Set all siblings of the config file path (non-recursively) to the [project]cleanup_ignore key and
+        save the entire config file
+        """
         self.set('project', 'cleanup_ignore',
                  '\n'.join(str(path.relative_to(self.location)) for path in self.location.iterdir()))
         self.save()
@@ -95,7 +111,14 @@ class Config(configparser.ConfigParser):
     def merge_with(self, another: Union[pathlib.Path, Mapping[str, Mapping[str, Any]]], reason: str = None) -> None:
         """
         Merge itself with some external thing. It is safe because the empty given values will not overwrite existing
-        ones
+        ones.
+
+        Args:
+            another: whether Path or Mapping (in the same form as the config)
+            reason: optional short description. This lays nicely with the logging (if enabled)
+
+        Raises:
+            TypeError: on incompatible input argument (see above)
         """
         if isinstance(another, pathlib.Path):
             temp_config = configparser.ConfigParser(interpolation=None)

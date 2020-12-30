@@ -634,7 +634,7 @@ ApplicationWindow {
                                         }
                                         Connections {
                                             target: board
-                                            onFocusChanged: {
+                                            function onFocusChanged() {
                                                 if (!board.focus) {
                                                     if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
                                                         runCheckBox.checked = false;
