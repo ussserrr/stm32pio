@@ -47,6 +47,7 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     parser_init = subparsers.add_parser('init',
                                         help="create config .ini file to check and tweak parameters before proceeding")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
+    parser_pio_init = subparsers.add_parser('pio_init', help="create new compatible PlatformIO project")
     parser_patch = subparsers.add_parser('patch',
                                          help="tweak the project so the CubeMX and PlatformIO could work together")
     parser_new = subparsers.add_parser('new',
@@ -54,17 +55,17 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     parser_status = subparsers.add_parser('status', help="get the description of the current project state")
     parser_clean = subparsers.add_parser('clean', help="clean-up the project (by default, it will ask you about the "
                                                        "files to delete)")
+    parser_validate = subparsers.add_parser('validate', help="verify current environment based on the config values")
     parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. All arguments will "
                                                    "be passed forward, see its own --help for more information")
-    parser_validate = subparsers.add_parser('validate', help="verify current environment based on the config values")
 
     # Common subparsers options
-    for parser in [parser_init, parser_generate, parser_patch, parser_new, parser_status, parser_validate, parser_clean,
-                   parser_gui]:
+    for parser in [parser_init, parser_generate, parser_pio_init, parser_patch, parser_new, parser_status,
+                   parser_validate, parser_clean, parser_gui]:
         parser.add_argument('-d', '--directory', dest='path', default=pathlib.Path.cwd(),
                             help="path to the project (current directory, if not given)")
-    for parser in [parser_init, parser_new, parser_gui]:
-        parser.add_argument('-b', '--board', dest='board', default='', help="PlatformIO name of the board")
+    for parser in [parser_init, parser_pio_init, parser_new, parser_gui]:
+        parser.add_argument('-b', '--board', dest='board', default='', help="PlatformIO identifier of the board")
     for parser in [parser_init, parser_generate, parser_new]:
         parser.add_argument('-e', '--start-editor', dest='editor',
                             help="use specified editor to open the PlatformIO project (e.g. subl, code, atom, etc.)")
@@ -72,8 +73,7 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
         parser.add_argument('-c', '--with-build', action='store_true', help="build the project after generation")
     for parser in [parser_init, parser_clean, parser_new]:
         parser.add_argument('-s', '--store-content', action='store_true',
-                            help="save current folder contents as a cleanup ignore list")
-
+                            help="save current folder contents as a cleanup ignore list and exit")
     parser_clean.add_argument('-q', '--quiet', action='store_true',
                               help="suppress the caution about the content removal (be sure of what you are doing!)")
 
@@ -173,6 +173,11 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 project.build()
             if args.editor:
                 project.start_editor(args.editor)
+
+        elif args.subcommand == 'pio_init':
+            project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
+                                                     instance_options={'save_on_destruction': True})
+            project.pio_init()
 
         elif args.subcommand == 'patch':
             project = stm32pio.core.project.Stm32pio(args.path)

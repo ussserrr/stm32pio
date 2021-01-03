@@ -25,12 +25,11 @@ config_default = collections.OrderedDict(  # guarantees printing to the file in 
         # (string) if in your setup the CubeMX can be invoked straightforwardly
         'java_cmd': 'java',
 
-        # TODO: paths with spaces works well on all platforms but also need to be able to run it like "python -m platformio"
         # (default is OK) How do you start PlatformIO from the command line? (edit if not in PATH, if you use PlatformIO
         # IDE check https://docs.platformio.org/en/latest/installation.html#install-shell-commands)
+        # ("python -m platformio" isn't supported yet)
         'platformio_cmd': 'platformio',
 
-        # TODO: after the internal CubeMX update .exe extension disappearing, at least on macOS (fuuuuu...)
         # (default is OK) Trying to guess the STM32CubeMX location. STM actually had changed the installation path
         # several times already. Note that STM32CubeMX will be invoked as 'java -jar CUBEMX'
         'cubemx_cmd':
@@ -74,7 +73,7 @@ yes_options = ['y', 'yes', 'true', '1']
 # CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel'
 # was chosen, or CubeMX_version < ioc_file_version, etc.), we should analyze the actual output (STDOUT)
 cubemx_str_indicating_success = 'Code succesfully generated'
-cubemx_str_indicating_error = 'Exception in code generation'  # TODO: or line "KO"
+cubemx_str_indicating_error = 'Exception in code generation'  # final line "KO" is also a good sign of an error
 
 # Longest name (not necessarily a method so a little bit tricky...)
 # log_fieldwidth_function = max([len(member) for member in dir(stm32pio.lib.Stm32pio)]) + 1

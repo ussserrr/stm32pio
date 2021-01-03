@@ -12,8 +12,8 @@
  - [ ] Build, install and only then test the app
  - [ ] Remade this TODO list as a GitHub issues/project/milestones. Use labels to mimic DISCUSSION ones and so on (UPD: GitHub now has its own "discussions" feature actually)
  - [ ] Write in the README about why we use an INI config format (because it should be familiar to the PlatformIO user). Also consider migrating to some other (more feature-rich) format (JSON, etc.)
- - [ ] Config README description (a little too many parameters now)
- - [ ] See on GitHub what people looking for the most (what files) and adjust this parts of the repo
+ - [x] Config README description (a little too many parameters now)
+ - [ ] See on GitHub what people looking for the most (what files) and adjust those parts of the repo
  - [ ] Collect all Python 3.7+ TODOs, notes, etc. to form some kind of resume of what can be done to take advantages of new language/lib features while dropping the 3.6 support
  - [ ] Implement some _optional_ global config (e.g. `~/.stm32pio`) where the users can specify their paths/commands of tools. Maybe integrate with the validation feature
  - [ ] setuptools now migrating to PEP-517 finally, see its docs
@@ -22,11 +22,20 @@
 
 
 ## CI
+ - [ ] Lock ALL tools' versions per a commit! CubeMX F0 framework, PlatformIO and its build tools & libraries versions (use templates, variables and cache). Every build is dependent on:
+    - PlatformIO
+    - PlatformIO packages
+    - CubeMX
+    - CubeMX packages
+    - PySide2
+    - Python
+    - Win/Mac/UNIX
  - [ ] CI/test-related code in the `settings.py` is probably not good, should find the workaround
  - [ ] Fail of not all tests have been passed
  - [x] Add Python 3.9 runner
+ - [x] Add Windows 7 runner (we support it, right?) (doesn't exist in Azure)
  - [ ] Templates for CI?
- - [ ] Migrate CI to GitHub actions?
+ - [ ] Migrate to GitHub actions?
  - [ ] Use `setup.cfg` to add CI extra with all its dependencies (pyyaml, pytest, etc.)
 
 
@@ -114,16 +123,20 @@
  - [x] Search for `str(...)` calls to eliminate them where possible (i.e. unnecessary)
  - [x] `f"{STAGE_PATH.name}.ioc"` in tests, is it actually OK? No
  - [ ] Take a look to the `dataclass` feature and find where we can apply it (3.7+)
- - [ ] DISCUSSION. Support equality comparison for `Project` (`__eq__()`) and get rid of `p1.path.samefile(p2.path)`. It's actually a more complicated topic than it seems, e.g. what are _equal_ projects? Path is not the only component of the project despite being the primary one, what about the config content though? It can be different for the same path at different points of time (when config were read after some period)
- - [ ] DISCUSSION. Config file help on the CLI? Comments in generated INI?
- - [ ] Check with some static analyzer (mypy)
+ - [x] DISCUSSION. Support equality comparison for `Project` (`__eq__()`) and get rid of `p1.path.samefile(p2.path)`. It's actually a more complicated topic than it seems, e.g. what are _equal_ projects? Path is not the only component of the project despite being the primary one, what about the config content though? It can be different for the same path at different points of time (when config were read after some period). Not needed at the moment
+ - [x] DISCUSSION. Config file help on the CLI? Comments in generated INI? Described in dedicated docs
+ - [ ] Check with some static analyzer (mypy) (actually, PyCharm is already doing it)
  - [x] Test for names with spaces (everywhere) (#21)
- - [ ] Check `subprocess.PIPE`/`subprocess.DEVNULL` relations
+ - [x] Check `subprocess.PIPE`/`subprocess.DEVNULL` relations
  - [ ] Set `git` command in settings (config). There are a little too many options now, should consider hide them unless explicitly set
  - [ ] Edit INI config from CLI. NO! This task is "out of scope" for this app and any `set` command will probably be confusing for the user. Just type `editor stm32pio.ini`
  - [ ] Public API backward compatibility testing (core lib + CLI, I guess)
- - [ ] If we output config "logs" (in debug mode) we should print them more beautiful (some tables or so). Probably should consider external dependency or optional CLI tool (if present then ...)
- - [ ] `instance_options` is kind of ugly...
+ - [ ] If we output config "diffs" (in debug mode) we should print them more beautiful (some tables or so). Probably should consider external dependency or optional CLI tool (if present then ...)
+ - [ ] Project' `instance_options` is kind of ugly...
  - [ ] download missing CubeMX software packages (F0, F1, etc.) using temp script
  - [ ] what if some parameters missing in the config file? Check the behavior
- - [ ] `platformio_ini_is_patched` is actually not so robust. For example, some property can contain both our and user-defined values and still technically be considered as "patched". Maybe should use `in` for checking instead of the strict equality
+ - [ ] `platformio_ini_is_patched` is actually not so reliable. For example, some property can contain both our and user-defined values and still technically be considered as "patched". Maybe should use `in` for checking instead of the strict equality
+ - [ ] Be able to set the `platformio_cmd` in config to `python -m platformio` (convert to list and concat where used)
+ - [x] Add `pio_init` to CLI
+ - [ ] Automatically add the `stm32pio.ini` and artifacts to git
+ - [ ] Convert the embedding example to an IPython notebook (or smth like this)

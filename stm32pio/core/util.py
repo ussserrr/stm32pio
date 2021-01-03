@@ -48,7 +48,7 @@ def get_version() -> str:
 _pio_boards_cache: List[str] = []
 _pio_boards_cache_fetched_at: float = 0
 
-def get_platformio_boards() -> List[str]:
+def get_platformio_boards(platformio_cmd: str = config_default['app']['platformio_cmd']) -> List[str]:
     """
     Obtain the PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the others. Additionally,
     establish a short-time "cache" to prevent the over-flooding with requests to subprocess.
@@ -64,9 +64,8 @@ def get_platformio_boards() -> List[str]:
 
     if cache_is_empty or cache_is_outdated:
         # Windows 7, as usual, correctly works only with shell=True...
-        # TODO: should use default 'platformio_cmd' only when one wasn't provided
         completed_process = subprocess.run(
-            f"{config_default['app']['platformio_cmd']} boards --json-output stm32cube",
+            f"{platformio_cmd} boards --json-output stm32cube",
             encoding='utf-8', shell=True, stdout=subprocess.PIPE, check=True)
         _pio_boards_cache = [board['id'] for board in json.loads(completed_process.stdout)]
         _pio_boards_cache_fetched_at = current_time

@@ -29,8 +29,8 @@ class Config(configparser.ConfigParser):
         Prepare config for the project. Order (priorities) of values retrieval (masking) (i.e. higher levels
         overwrites lower but only if a value is non-empty):
 
-            default dict (settings module)  =>  config file stm32pio.ini  =>  user-given (runtime) values
-                                                                              (via CLI or another way)
+            default dict (settings.py module)  =>  config file stm32pio.ini  =>  user-given (runtime) values
+                                                                                 (via CLI or another way)
 
         Args:
             location: path to the folder which contain (or should contain in the future) the config file

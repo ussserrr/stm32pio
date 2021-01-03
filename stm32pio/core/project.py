@@ -323,7 +323,7 @@ class Stm32pio:
 
         try:
             if len(self.platformio_ini_config.sections()):
-                self.logger.warning("'platformio.ini' file is already exist")
+                self.logger.warning("'platformio.ini' file already exist")
             # else: file is empty (PlatformIO should overwrite it)
         except FileNotFoundError:
             pass  # no file
@@ -337,7 +337,6 @@ class Stm32pio:
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
-        # TODO: this should be under the LogPipe too, right?
         completed_process = subprocess.run(command_arr, encoding='utf-8',
                                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
@@ -516,7 +515,7 @@ class Stm32pio:
                 # Works unstable on some Windows 7 systems, but correct on Win10...
                 # result = subprocess.run([editor_command, self.path], check=True)
                 completed_process = subprocess.run(f'{sanitized_input} "{self.path}"', shell=True, check=True,
-                                        stdout=log.pipe, stderr=log.pipe)
+                                                   stdout=log.pipe, stderr=log.pipe)
             self.logger.debug(completed_process.stdout, extra={ 'from_subprocess': True })
 
             return completed_process.returncode
@@ -546,7 +545,8 @@ class Stm32pio:
             if not self.logger.isEnabledFor(logging.DEBUG):
                 args.append('--quiet')
             with stm32pio.core.logging.LogPipe(self.logger, logging.INFO) as log:
-                subprocess.run(args, check=True, cwd=str(self.path), stdout=log.pipe, stderr=log.pipe)  # TODO: str() - 3.6 compatibility
+                # TODO: str(self.path) - 3.6 compatibility
+                subprocess.run(args, check=True, cwd=str(self.path), stdout=log.pipe, stderr=log.pipe)
             self.logger.info("Done", extra={ 'from_subprocess': True })
         else:
             removal_list = stm32pio.core.util.get_folder_contents(
@@ -590,6 +590,9 @@ class Stm32pio:
                 completed_process = subprocess.run([platformio_cmd], stdout=log.pipe, stderr=log.pipe)
                 std_output = log.value
             return completed_process, std_output
+
+        if not self.config.path.exists():
+            self.logger.warning("config file not found. Validation will be performed against the runtime configuration")
 
         return stm32pio.core.validate.ToolsValidationResults(
             stm32pio.core.validate.ToolValidator(

@@ -783,6 +783,7 @@ def main(sys_argv: List[str] = None):
     # them before the projects list is restored, so we start a dedicated loading thread. We actually can add other
     # start-up operations here if there will be a need to. Use the same Worker class to spawn the thread at the pool
     def loading():
+        # TODO: this uses default platformio command but it may not exist
         boards = ['None'] + stm32pio.core.util.get_platformio_boards()
         boards_model.setStringList(boards)
 

@@ -37,7 +37,7 @@ PROJECT_PATH = CASES_ROOT.joinpath(CASE).resolve(strict=True)
 PROJECT_BOARD = CASE  # currently (PlatformIO board == folder name)
 os.environ['STM32PIO_TEST_CASE'] = CASE
 
-if next(PROJECT_PATH.glob('*.ioc'), False):  # TODO: walrus
+if next(PROJECT_PATH.glob('*.ioc'), False):  # TODO: Python 3.8 walrus
     PROJECT_IOC_FILENAME = next(PROJECT_PATH.glob('*.ioc')).name
 else:
     raise FileNotFoundError(f"No .ioc file is present for '{PROJECT_PATH.name}' test case")

@@ -375,8 +375,8 @@ class TestUnit(CustomTestCase):
                 else:
                     self.assertTrue(endpoint.exists(), msg="Files/folders tracked by git should be preserved")
 
-        # TODO: nasty hack for Windows, otherwise it may not delete all the temp files (probably one of these
-        #  https://bugs.python.org/issue40143 bugs)
+        # Nasty hack for Windows, otherwise it may not delete all the temp files
+        # (https://github.com/ussserrr/stm32pio/issues/23)
         if platform.system() == 'Windows':
             subprocess.run(f'rd /s /q "{STAGE_PATH}"', shell=True, check=True)
 
