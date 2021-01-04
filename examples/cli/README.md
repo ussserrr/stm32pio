@@ -1,11 +1,11 @@
 # Command line interface usage
 
-1. Run the CubeMX, choose an MCU/board, make all desired tweaks
-2. Select the `Project Manager -> Project` tab, specify a "Project Name", choose "Other Toolchains (GPDSC)". In the `Code Generator` tab check "Copy only the necessary library files" and "Generate periphery initialization as a pair of '.c/.h' files per peripheral" options
+1. Run the CubeMX, choose an MCU/board, make all desired tweaks.
+2. Select the `Project Manager -> Project` tab, specify a "Project Name", choose "Other Toolchains (GPDSC)". In the `Code Generator` tab check "Copy only the necessary library files" and "Generate periphery initialization as a pair of '.c/.h' files per peripheral" options.
 
 ![Code Generator tab](/examples/cli/tab_CodeGenerator.png)
 
-3. Back in the first tab (Project) copy the "Toolchain Folder Location" string. Save the project
+3. Back in the first tab (Project) copy the "Toolchain Folder Location" string. Save the project.
 
 ![Project tab](/examples/cli/tab_Project.png)
 
@@ -15,7 +15,7 @@
    ```shell script
    $ stm32pio new -d path/to/project/ -b nucleo_f031k6 --start-editor=code --with-build
    ```
-   to trigger the code generation, compile the project and start the VSCode editor with the folder opened (last 2 options are given as an example and they are not required). Make sure you have all the tools in PATH (`java` (or set its path in `stm32pio.ini`), `platformio`, `python`, editor). You can use a slightly shorter syntax if you are already located in the project directory:
+   to trigger the code generation, compile the project and start the VSCode editor with the folder opened (last 2 options are given as an example and not required). Make sure you have all the tools in PATH (`java`, `platformio`, `python`, editor) (or set them in `stm32pio.ini`). You can use a slightly shorter syntax if you are already located in the project directory:
    ```shell script
    path/to/project/ $   stm32pio new -b nucleo_f031k6
    ```

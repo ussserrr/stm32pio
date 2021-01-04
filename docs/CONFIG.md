@@ -17,6 +17,21 @@ Right-hand values takes precedence over the left (arrows showing the merging ord
 Note: this is not an only source of the program settings but more like a "public" subset of them. As you can see above, there is also the `settings.py` module controlling internal parameters.
 
 
+## Table of contents
+> - [`app` section](#app-section)
+>   - [`java_cmd`](#java_cmd)
+>   - [`platformio_cmd`](#platformio_cmd)
+>   - [`cubemx_cmd`](#cubemx_cmd)
+> - [`project` section](#project-section)
+>   - [`cubemx_script_content`](#cubemx_script_content)
+>   - [`platformio_ini_patch_content`](#platformio_ini_patch_content)
+>   - [`board`](#board)
+>   - [`ioc_file`](#ioc_file)
+>   - [`cleanup_ignore`](#cleanup_ignore)
+>   - [`cleanup_use_git`](#cleanup_use_git)
+>   - [`last_error`](#last_error)
+
+
 ## `app` section
 Specify commands of the corresponding tools if they are present in your PATH env variable (e.g. `java`, `platformio`). Alternatively, provide an absolute path (e.g. `C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe`). If the path contains whitespaces, do not escape them manually, this will be done automatically.
 

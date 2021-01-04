@@ -12,13 +12,13 @@
  - [ ] Build, install and only then test the app
  - [ ] Remade this TODO list as a GitHub issues/project/milestones. Use labels to mimic DISCUSSION ones and so on (UPD: GitHub now has its own "discussions" feature actually)
  - [ ] Write in the README about why we use an INI config format (because it should be familiar to the PlatformIO user). Also consider migrating to some other (more feature-rich) format (JSON, etc.)
- - [x] Config README description (a little too many parameters now)
  - [ ] See on GitHub what people looking for the most (what files) and adjust those parts of the repo
  - [ ] Collect all Python 3.7+ TODOs, notes, etc. to form some kind of resume of what can be done to take advantages of new language/lib features while dropping the 3.6 support
  - [ ] Implement some _optional_ global config (e.g. `~/.stm32pio`) where the users can specify their paths/commands of tools. Maybe integrate with the validation feature
  - [ ] setuptools now migrating to PEP-517 finally, see its docs
  - [ ] Check do we actually need `wheel` package to be installed prior `pip install stm32pio`. Can we add it to dependencies and be sure it will be retrieved before any other?
- - [ ] Adapt Google style guides or some another one (comments, docstrings, etc.)...
+ - [ ] Adopt Google style guides (https://google.github.io/styleguide/pyguide.html), or some another one (comments, docstrings, etc.)...
+ - [ ] Probably still should move docs to GitHub Wiki...
 
 
 ## CI
@@ -32,8 +32,6 @@
     - Win/Mac/UNIX
  - [ ] CI/test-related code in the `settings.py` is probably not good, should find the workaround
  - [ ] Fail of not all tests have been passed
- - [x] Add Python 3.9 runner
- - [x] Add Windows 7 runner (we support it, right?) (doesn't exist in Azure)
  - [ ] Templates for CI?
  - [ ] Migrate to GitHub actions?
  - [ ] Use `setup.cfg` to add CI extra with all its dependencies (pyyaml, pytest, etc.)
@@ -97,34 +95,23 @@
  - [ ] Deal with CubeMX requests about software package and CubeMX versions migrations (seems like the only way is to set them first in `.ioc` file, no appropriate CLI keys)
 
 ### Config
- - [x] Mb store the last occurred exception traceback in .ini file and show on some CLI command (so we don't necessarily need to turn on the verbose mode and repeat this action). And, in general, we should show the error reason right off
  - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (`shell=True` or a list of args (split a string))
- - [x] Maybe log about which parameters have superseded which
- - [x] Pretty printer for the config
  - [ ] Mark some parameters as unnecessary and do not save them to config unless explicitly stated (it can now be implemented more easily thanks to the `Config` subclass, I guess) (some DB-like schema)
- - [ ] Store editor in the config?
- - [x] Getters for some data types (e.g. `get_ignore_list()`)
- - [x] Store an initial content of the folder in .ini config and ignore it on clean-up process. Allow the user to modify such list (i.e. list of exclusion) in the config file. Mb some integration with `.gitignore` if present
- - [x] Add a flag to `init` (probably `new`, too) to take the initial content of the project folder as clean ignore list
+ - [ ] Store an editor in the config?
 
 ### Tests
  - [ ] Closely audit the test suite (e.g. CLI tests doesn't verify ALL available commands because some of them will be considered redundant in the presence of unit tests and so on)
 
 ### Other
  - [ ] Remove casts to string where we can use path-like objects (seems like Python 3.6 on Windows is delaying this)
- - [x] We look for some snippets of strings in logs and output in a testing code, but we hard-code them and this is not good, probably (e.g. 'DEBUG')
- - [x] at some point check for all tools (CubeMX, ...) to be present in the system (both CLI and GUI) (global `--check` command (as `--version`), also before execution of the full cycle (no sense to start if some tool doesn't exist))
  - [ ] DISCUSSION. Colored CLI logs, maybe (3rd-party) (breaks zero-dependency principle though...)
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).
  - [ ] DISCUSSION. The lib sometimes raising, sometimes returning the code and it is not consistent. Current decision-making agent: common sense and the essence of the action. Would be great to always return a result code and raise the exceptions in the outer scope, if there is need to
  - [ ] count another `-v` as `-v` for the PlatformIO calls (also we can implement it as a (vertical) slider in the GUI settings window (remember Windows UAC panel?))
  - [ ] DISCUSSION. Project name (path) can be reused so cannot be used as a unique identifier but so is `id(self)`? Probably it is better to use a path (human-readable) (but it also can be reused...)
  - [ ] DISCUSSION. Use `--start-editor` as a generic action to perform after the main operation (rename, of course)?
- - [x] Search for `str(...)` calls to eliminate them where possible (i.e. unnecessary)
- - [x] `f"{STAGE_PATH.name}.ioc"` in tests, is it actually OK? No
  - [ ] Take a look to the `dataclass` feature and find where we can apply it (3.7+)
  - [x] DISCUSSION. Support equality comparison for `Project` (`__eq__()`) and get rid of `p1.path.samefile(p2.path)`. It's actually a more complicated topic than it seems, e.g. what are _equal_ projects? Path is not the only component of the project despite being the primary one, what about the config content though? It can be different for the same path at different points of time (when config were read after some period). Not needed at the moment
- - [x] DISCUSSION. Config file help on the CLI? Comments in generated INI? Described in dedicated docs
  - [ ] Check with some static analyzer (mypy) (actually, PyCharm is already doing it)
  - [x] Test for names with spaces (everywhere) (#21)
  - [x] Check `subprocess.PIPE`/`subprocess.DEVNULL` relations

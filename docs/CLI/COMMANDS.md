@@ -1,9 +1,23 @@
 # CLI API
-This file describing all operations available from the command line interface version of the application. You can also use an applicable to any command `-h/--help` key to refer to its short description at any time. All the commands below can be run in the verbose mode with the `-v/--verbose` key given and will print some additional debug information. It is useful for errors tracking. Please supply the verbose output when submitting an issue/question about the stm32pio.
+This file is describing all operations available from the command line interface version of the application. You can also use an applicable to any command `-h/--help` key to refer to its short description at any time. All the commands below can be run in the verbose mode with the `-v/--verbose` key given and will print some additional debug information. It is useful for errors tracking. Please supply the verbose output when submitting an issue/question about the stm32pio.
+
+## Table of contents
+> - [Project life-cycle](#project-life-cycle)
+>   - [`init`](#init)
+>   - [`generate`](#generate)
+>   - [`pio_init`](#pio_init)
+>   - [`patch`](#patch)
+>   - [`new`](#new)
+> - [Utils](#utils)
+>   - [`clean`](#clean)
+>   - [`status`](#status)
+>   - [`validate`](#validate)
+>   - [`gui`](#gui)
+> - [Options](#options)
 
 
 ## Project life-cycle
-These commands summarize the stm32pio goal – managing of the project combining STM32CubeMX and PlatformIO. The real-life example can be found [here](TODO), it shows a typical use case (with screenshots).
+These commands summarize the stm32pio goal – managing of the project combining STM32CubeMX and PlatformIO. The real-life example can be found [here](/examples/cli), it shows a typical use case (with screenshots).
 
 ### `init`
 This will initialize a fresh new project creating `stm32pio.ini` config where you can review and tweak any parameters if necessary. Normally, the latter shouldn't be a case, it is only needed, for example, if tools are installed somewhat different on your machine (e.g. `platformio` is not in the PATH environment variable).
@@ -20,7 +34,7 @@ This will start the CubeMX for you and tell it to run the code generation agains
  - "Generate periphery initialization as a pair of '.c/.h' files per peripheral" should be set to `True` (`ProjectManager.CoupleFile=true` in the `.ioc` file)
  - "Other Toolchains (GPDSC)" for the toolchain (`ProjectManager.TargetToolchain=Other Toolchains (GPDSC)` in the `.ioc` file)
 
-Look at the [example](TODO) to see how they can be set.
+Look at the [example](/examples/cli) to see how they can be set.
 #### Expected output
 ✅ `Inc/`
 ✅ `Src/`
@@ -54,6 +68,8 @@ Fulfill the complete run for the project passing it through all of the stages ab
 #### Expected output
 All of the above (+ optional build artifacts, if the corresponding option was given).
 
+There is no dedicated "build" command because this task can be done through the `--with-build` option (see below) or completely by PlatformIO itself (`pio run`).
+
 
 ## Utils
 
@@ -79,7 +95,11 @@ Config file. In case it doesn't exist, the default config will be tested althoug
 Terminal output.
 
 ### `gui`
-Start the GUI version of the application. All arguments given will be passed forward. See [](TODO) for more information.
+Start the GUI version of the application. All arguments given will be passed forward. See [its own docs](/docs/GUI) for more information.
+#### Prerequisites
+GUI dependencies installed (PySide2).
+#### Expected output
+None (GUI window appears).
 
 
 ## Options
@@ -87,17 +107,29 @@ Although every main command listed above has its own set of available options, s
 
 ### `-d/--directory PATH`
 Pass the project folder. Alternatively, the `.ioc` file itself can be specified. Despite this being the fundamental identifier, you can omit it entirely in your commands calls. In this case the current working directory will be assumed as the project's one. Basically like for git, PlatformIO and many other CLI tools.
+#### Default
+Current working directory.
 
 ### `-b/--board`
 PlatformIO identifier of the board. In other words, pick the "ID" column of the `platformio boards` command output.
+#### Default
+None.
 
 ### `-e/--start-editor`
 Many of the code/text editors (both CLI and GUI ones) can be started from the terminal, e.g. VSCode – by the `code` command, Sublime – `subl` and so on. The second CLI argument is often the desired folder path to open so using the formula `[EDITOR] [PATH]` we can satisfy most of the conforming editors. Furthermore, it can actually be used as a generic post-action hook as long the arguments' formula is suitable.
+#### Default
+None.
 
 ### `-c/--with-build`
 Build the project in the end. See `new` command description.
+#### Default
+False.
 
 ### `clean` options
 `-s/--store-content` – get the current content of the project folder, save it to the `cleanup_ignore` config option and exit.
 
+**Default**: False.
+
 `-q/--quiet` – suppress the prompt about the files/folders to delete. Be careful, it is recommended to use this option only after the first successful removal.
+
+**Default**: True.

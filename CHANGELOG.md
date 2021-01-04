@@ -296,32 +296,41 @@
  - Changed: use newer `platformio project init` command, use verbose versions of CLI arguments
 
 ## ver 2.1.0
- - New: validate environment API and CLI feature. Allows to quickly verify the tools specified in the config (+ corresponding test)
- - New: store the most recent occurred exception in the `last_error` config file parameter (currently CLI-only) (+ corresponding test)
- - New: log superseded config parameters on various types of merge (in DEBUG logging mode)
- - New: add shorthands for CLI options (1-letter)
- - New: ignore list option: specify files to ignore during the cleanup (hence new `clean()` method, tests)
- - New: optionally use `.gitignore` file as a removal list (served by the git itself)
- - New: API to store the current contents of the project folder as ignore list in the config file
- - Fixed: `clean` method doesn't look for the determined `.ioc` file but does it by itself which can cause some unwanted behavior (potential data loss)
- - Fixed: remove done TODOs from the TODO.md list
- - Fixed: remove forgotten TODOs
- - Fixed: update embedding example to the current API
- - Fixed: `setup.cfg` PySide2 supported version
- - Fixed: `setup.cfg` PyPA parsing issues
+ - New: "validate environment" API. Allows to quickly verify tools specified in the config (+ corresponding test). Currently, implemented only for the CLI version
+ - New: store the most recent exception in the `last_error` config file parameter (currently CLI-only) (+ corresponding test)
+ - New: add shorthands for all CLI options (single-letters, e.g. `-c/--with-build`)
+ - New: ignore list settings API: specify files/folders/patterns to ignore during the cleanup (hence, new `clean()` method, tests)
+ - New: alternatively, use `git clean` as a removal tool
+ - New: API to store the current project folder' content as ignore list in the config file
+ - New: CONTRIBUTING.md guide (more like developing notes actually)
+ - New: COMMANDS.md reference
+ - New: CONFIG.md reference
+ - New: project config reference (a little too many parameters now)
+ - New: Python 3.9 CI runner
+ - New: log when the config is merging with another one (DEBUG verbosity level)
+ - New: handle filenames with whitespaces (both tools/project files) (#21)
+ - Fixed: `clean()` method doesn't look for the determined `.ioc` file but does it by itself which can cause some unwanted behavior (potential data loss)
+ - Fixed: remove done/forgotten TODOs
+ - Fixed: update embedding example to match the current API
+ - Fixed: `setup.cfg`: specify supported PySide2 version
+ - Fixed: `setup.cfg`: PyPA parsing issues
  - Fixed: GUI. Recursive layout warning in Settings window
- - Fixed: GUI. Remove `ProjectID` parameter for the `initialized` signal to get rid of annoying Shiboken overflow error
+ - Fixed: GUI. Remove the `ProjectID` parameter for the `initialized` signal to get rid of the annoying Shiboken overflow error
+ - Changed: bump up CubeMX, packages, test `.ioc` file, PlatformIO versions (both for local and CI builds)
+ - Changed: a completely revised documentation/examples/TODOs structure
  - Changed: spawn project-state-related code to the `state.py` module
  - Changed: spawn logging-related code to the `logging.py` module
  - Changed: separate config from the main class (new `config.py` module)
  - Changed: rename `lib.py` -> `project.py` module
- - Changed: move possible config None options to the `settings` module
- - Changed: separate CubeMX invoking code (new project's private `_cubemx_execute_script` method)
+ - Changed: move available config "None" options to the `settings` module (`none_options`)
+ - Changed: separate CubeMX invoking code (new project's private `_cubemx_execute_script()` method)
  - Changed: edit output behavior in case of occurred error in the `generate_code()` function
  - Changed: do not cast strings where we can use path-like objects
  - Changed: pretty config printer (`__str__()` implementation, just `print(project.config)`, that's all)
- - Changed: revised TODOs list
  - Changed: remove `util.configparser_to_dict()` function (`ConfigParser` is already conforms with mapping protocol)
- - Changed: takeout valid user response options to `settings.py`
+ - Changed: takeout valid user response options to `settings.py` (`yes_options`/`no_options`)
+ - Changed: group and move CI-related code in the `settings.py`
+ - Changed: remove `f"{STAGE_PATH.name}.ioc"` occurrences in tests
+ - Changed: move `test_clean()` to unit tests
  - Changed: GUI. Remove `go_to_this` option for the `addListItem` method (instead invoke on the list model)
  - Changed: GUI. Implicitly pass the parent to the project constructor in `addListItem` method

@@ -33,7 +33,8 @@ The [GUI version](/docs/GUI/README.md) is available, too (please, read this main
 
 ## Requirements:
 **OS:** macOS, Linux, Windows 7-10
-**Python:** Python 3.6+
+
+**Python:** 3.6+
 
 The app introduces zero dependencies by itself. Of course, you need to have all the necessary tools installed in order to perform the operations:
   - STM32CubeMX with the desired downloaded frameworks (F0, F1, etc.). All recent versions are fine
