@@ -85,16 +85,18 @@ ApplicationWindow {
                 Layout.preferredWidth: 140
                 text: 'Notifications'
             }
-            CheckBox {
-                id: notifications
-                leftPadding: -3
-            }
-            Item { Layout.preferredWidth: 140 }  // spacer
-            Text {
-                Layout.preferredWidth: 250  // TODO: a cause of "Detected recursive rearrange. Aborting after two iterations"
-                wrapMode: Text.Wrap
-                color: 'dimgray'
-                text: "Get messages about completed project actions when the app is in the background"
+            Column {
+                Layout.preferredWidth: 250
+                CheckBox {
+                    id: notifications
+                    leftPadding: -3
+                }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    color: 'dimgray'
+                    text: "Get messages about completed project actions when the app is in the background"
+                }
             }
 
             Text {
@@ -103,10 +105,11 @@ ApplicationWindow {
                 topPadding: 30
                 bottomPadding: 10
                 wrapMode: Text.Wrap
-                text: 'To clear ALL app settings including the list of added projects click "Reset" then restart the app'
+                text: `To clear ALL app settings including the list of added projects click "Reset" then restart the app`
             }
         }
         // Set UI values there so they are always reflect the actual parameters
+        // TODO: maybe map the data to the corresponding widgets automatically
         onVisibleChanged: {
             if (visible) {
                 editor.text = settings.get('editor');
@@ -301,12 +304,12 @@ ApplicationWindow {
                             DelegateModel.inPersistedItems = 1;
                         }
                         sourceComponent: RowLayout {
-                            property bool initLoading: true  // initial waiting for the backend-side
+                            property bool initOrLoading: true  // initial waiting for the backend-side
                             readonly property ProjectListItem project: projectsModel.get(index)
                             Connections {
                                 target: project
                                 function onInitialized() {
-                                    initLoading = false;
+                                    initOrLoading = false;
 
                                     // Appropriately highlight an item depending on its initialization result
                                     const state = project.state;
@@ -394,11 +397,11 @@ ApplicationWindow {
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredWidth: parent.height
                                 Layout.preferredHeight: parent.height
-                                visible: parent.initLoading  // initial binding
+                                visible: parent.initOrLoading  // initial binding
 
                                 BusyIndicator {
                                     // Important note: if you toggle visibility frequently better use 'visible'
-                                    // instead of 'running' for stable visual appearance
+                                    // instead of 'running' for a stable visual appearance
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                 }
@@ -465,7 +468,7 @@ ApplicationWindow {
 
         /*
            Main workspace. StackLayout's Repeater component seamlessly uses the same projects model (showing one -
-           current - project per screen) as the list so all data is synchronized without any additional effort.
+           current - project per screen) as the list so all data is synchronized without any additional effort
         */
         StackLayout {
             id: projectsWorkspaceView
@@ -546,6 +549,7 @@ ApplicationWindow {
                                 } else {
                                     const config = project.config;
                                     if (Object.keys(config['project']).length && !config['project']['board']) {
+                                        // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
                                         project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
                                                          'project creation. You can set it in "stm32pio.ini" file in the project directory',
                                                          Logging.WARNING);
@@ -630,7 +634,7 @@ ApplicationWindow {
                                         }
                                         Connections {
                                             target: board
-                                            onFocusChanged: {
+                                            function onFocusChanged() {
                                                 if (!board.focus) {
                                                     if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
                                                         runCheckBox.checked = false;
@@ -665,6 +669,7 @@ ApplicationWindow {
                                             }
                                         }]);
                                         if (board.editText === board.textAt(0)) {
+                                            // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
                                             project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
                                                              'project creation. You can set it in "stm32pio.ini" file in the project directory',
                                                              Logging.WARNING);
@@ -739,6 +744,7 @@ ApplicationWindow {
                                             name: 'Initialize'
                                             stageRepresented: 'INITIALIZED'  // the project stage this button is representing
                                             action: 'save_config'
+                                            // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
                                             tooltip: "Saves the current configuration to the config file <b>stm32pio.ini</b>"
                                         }
                                         ListElement {

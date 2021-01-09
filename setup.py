@@ -9,4 +9,4 @@ To upload to PyPI:
 
 import setuptools
 
-setuptools.setup(use_scm_version=True)
+setuptools.setup(use_scm_version=True)  # use_scm_version option can be placed only in an old-school setup.py atm...

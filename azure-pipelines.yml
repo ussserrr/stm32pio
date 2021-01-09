@@ -1,11 +1,3 @@
-# Python package
-# Create and test a Python package on multiple Python versions.
-# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/python
-
-# TODO: Lock ALL tools versions per commit! CubeMX F0 framework, PlatformIO and its build tools & libraries versions
-#        (use templates, variables and cache)
-
 trigger:
 - master
 - dev
@@ -35,6 +27,8 @@ stages:
               python.version: '3.7'
             Python38:
               python.version: '3.8'
+            Python39:
+              python.version: '3.9'
         steps:
         - task: UsePythonVersion@0
           inputs:
@@ -116,6 +110,8 @@ stages:
               python.version: '3.7'
             Python38:
               python.version: '3.8'
+            Python39:
+              python.version: '3.9'
         steps:
         - task: UsePythonVersion@0
           inputs:
@@ -179,6 +175,8 @@ stages:
               python.version: '3.7'
             Python38:
               python.version: '3.8'
+            Python39:
+              python.version: '3.9'
         steps:
         - task: UsePythonVersion@0
           inputs:

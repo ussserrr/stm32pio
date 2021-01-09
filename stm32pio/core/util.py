@@ -1,33 +1,24 @@
 """
-Some auxiliary entities not falling into other categories
+Some auxiliary entities not falling into the other categories
 """
 
-import collections
-import configparser
-import contextlib
+import collections.abc
 import copy
-import enum
 import json
-import logging
-import os
+import pathlib
 import subprocess
 import sys
-import threading
 import time
-import traceback
-import warnings
-from typing import Any, List, Mapping, MutableMapping, Tuple, Optional
+from typing import Any, List, Mapping
 
-import stm32pio.core.settings
-
-module_logger = logging.getLogger(__name__)  # this file logger
+from stm32pio.core.settings import pio_boards_cache_lifetime, config_default
 
 
 def _get_version_from_scm() -> str:
     try:
         import setuptools_scm  # setuptools_scm is the dev-only dependency
     except ImportError:
-        return 'Portable (not-installed). See git tag'
+        return "Portable (not-installed). See git tag"
     else:
         # Calculate the version in real-time from the Git repo state
         return setuptools_scm.get_version(root='../..', relative_to=__file__)
@@ -54,235 +45,89 @@ def get_version() -> str:
             return stm32pio.core.version.version
 
 
-logging_levels = {  # for exposing the levels to the GUI
-    logging.getLevelName(logging.CRITICAL): logging.CRITICAL,
-    logging.getLevelName(logging.ERROR): logging.ERROR,
-    logging.getLevelName(logging.WARNING): logging.WARNING,
-    logging.getLevelName(logging.INFO): logging.INFO,
-    logging.getLevelName(logging.DEBUG): logging.DEBUG,
-    logging.getLevelName(logging.NOTSET): logging.NOTSET
-}
-
-
-def log_current_exception(logger: logging.Logger, show_traceback_threshold_level: int = logging.DEBUG):
-    """
-    Print format is:
-
-        ExceptionName: message
-        [optional] traceback
-
-    We do not explicitly retrieve an exception info via sys.exc_info() as it immediately stores a reference to the
-    current Python frame and/or variables causing some possible weird errors (objects are not GC'ed) and memory leaks.
-    See https://cosmicpercolator.com/2016/01/13/exception-leaks-in-python-2-and-3/ for more information
-    """
-    exc_full_str = traceback.format_exc()
-    exc_str = exc_full_str.splitlines()[-1]
-    if exc_str.startswith('Exception') and not logger.isEnabledFor(show_traceback_threshold_level):
-        exc_str = exc_str[len('Exception: '):]  # meaningless information
-    exc_tb = ''.join(exc_full_str.splitlines(keepends=True)[:-1])
-    logger.error(f'{exc_str}\n{exc_tb}' if logger.isEnabledFor(show_traceback_threshold_level) else exc_str)
-
-
-class ProjectLoggerAdapter(logging.LoggerAdapter):
-    """
-    Use this as a logger for every project:
-
-        self.logger = stm32pio.util.ProjectLoggerAdapter(logging.getLogger('some_singleton_projects_logger'),
-                                                         { 'project_id': id(self) })
-
-    It will automatically mix in 'project_id' (and any other property) to every LogRecord (whether you supply 'extra' in
-    your log call or not)
-    """
-    def process(self, msg: Any, kwargs: MutableMapping[str, Any]) -> Tuple[Any, MutableMapping[str, Any]]:
-        """Inject context data (both from the adapter and the log call)"""
-        if 'extra' in kwargs:
-            kwargs['extra'].update(self.extra)
-        else:
-            kwargs['extra'] = self.extra
-        return msg, kwargs
-
-
-# Currently available verbosity levels. Verbosity determines how every LogRecord will be formatted (regardless its
-# logging level)
-@enum.unique
-class Verbosity(enum.IntEnum):
-    NORMAL = enum.auto()
-    VERBOSE = enum.auto()
-
-
-# Do not add or remove any information from the message and simply pass it "as-is"
-as_is_formatter = logging.Formatter('%(message)s')
-
-
-class DispatchingFormatter(logging.Formatter):
-    """
-    The wrapper around the ordinary logging.Formatter allowing to have multiple formatters for different purposes.
-    General arguments schema:
-
-        {
-            verbosity=Verbosity.NORMAL,
-            general={
-                Verbosity.NORMAL: logging.Formatter(...)
-                Verbosity.VERBOSE: logging.Formatter(...)
-                ...
-            },
-            special={
-                'case_1': {
-                    Verbosity.NORMAL: logging.Formatter(...)
-                    ...
-                },
-                ...
-            }
-        }
-    """
-
-    # Mapping of logging formatters for "special". Currently, only "from_subprocess" is defined. It's good to hide such
-    # implementation details as much as possible though they are still tweakable from the outer code
-    special_formatters = {
-        'from_subprocess': {
-            level: as_is_formatter for level in Verbosity
-        }
-    }
-
-    def __init__(self, *args, general: Mapping[Verbosity, logging.Formatter] = None,
-                 special: Mapping[str, Mapping[Verbosity, logging.Formatter]] = None,
-                 verbosity: Verbosity = Verbosity.NORMAL, **kwargs):
-
-        super().__init__(*args, **kwargs)  # will be '%(message)s' if no arguments were given
-
-        self.verbosity = verbosity
-        self._warn_was_shown = False
-
-        if general is not None:
-            self.general = general
-        else:
-            warnings.warn("'general' argument for DispatchingFormatter was not provided. It contains formatters for "
-                          "all the logging events except special ones and should be a dict with verbosity levels keys "
-                          "and logging.Formatter values")
-            self.general = {}
-
-        if special is not None:
-            self.special = special
-        else:
-            self.special = DispatchingFormatter.special_formatters  # use defaults
-
-
-    def find_formatter_for(self, record: logging.LogRecord, verbosity: Verbosity) -> Optional[logging.Formatter]:
-        """Determine and return the appropriate formatter"""
-        special_formatter = next((self.special[case] for case in self.special.keys() if hasattr(record, case)), None)
-        if special_formatter is not None:
-            return special_formatter.get(verbosity)
-        else:
-            return self.general.get(verbosity)
-
-
-    def format(self, record: logging.LogRecord) -> str:
-        """Overridden method"""
-        # Allows to specify a verbosity level on the per-record basis, not only globally
-        formatter = self.find_formatter_for(record,
-                                            record.verbosity if hasattr(record, 'verbosity') else self.verbosity)
-        if formatter is not None:
-            return formatter.format(record)
-        else:
-            if not self._warn_was_shown:
-                self._warn_was_shown = True
-                module_logger.warning("No formatter found, use default one hereinafter")
-            return super().format(record)
-
-
-
-class LogPipeRC:
-    """Small class suitable for passing to the caller when the LogPipe context manager is invoked"""
-    value = ''  # string accumulating all incoming messages
-
-    def __init__(self, fd: int):
-        self.pipe = fd  # writable half of os.pipe
-
-
-class LogPipe(threading.Thread, contextlib.AbstractContextManager):
-    """
-    The thread combined with a context manager to provide a nice way to temporarily redirect something's stream output
-    into the logging module. One straightforward application is to suppress subprocess STDOUT and/or STDERR streams and
-    wrap them into the logging mechanism as it is now for any other message in your app. Also, store the incoming
-    messages in the string for using it after an execution
-    """
-
-    def __init__(self, logger: logging.Logger, level: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.logger = logger
-        self.level = level
-
-        self.fd_read, self.fd_write = os.pipe()  # create 2 ends of the pipe and setup the reading one
-        self.pipe_reader = os.fdopen(self.fd_read)
-
-        self.rc = LogPipeRC(self.fd_write)  # RC stands for "remote control"
-
-    def __enter__(self) -> LogPipeRC:
-        """
-        Activate the thread and return the consuming end of the pipe so the invoking code can use it to feed its
-        messages from now on
-        """
-        self.start()
-        return self.rc
-
-    def run(self):
-        """
-        Routine of the thread, logging everything
-        """
-        for line in iter(self.pipe_reader.readline, ''):  # stops the iterator when empty string will occur
-            self.rc.value += line  # accumulate the string
-            self.logger.log(self.level, line.strip('\n'), extra={ 'from_subprocess': True })  # mark the message origin
-        self.pipe_reader.close()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        The exception will be passed forward, if present, so we don't need to do something with that. The following
-        tear-down process will be done anyway
-        """
-        os.close(self.fd_write)
-
-
 _pio_boards_cache: List[str] = []
-_pio_boards_cache_lifetime: float = 5.0
-_pio_boards_fetched_at: float = 0
+_pio_boards_cache_fetched_at: float = 0
 
-def get_platformio_boards() -> List[str]:
+def get_platformio_boards(platformio_cmd: str = config_default['app']['platformio_cmd']) -> List[str]:
     """
-    Obtain the PlatformIO boards list. As we interested only in STM32 ones, cut off all of the others. Additionally,
-    establish a short-time "cache" to prevent the overflooding with requests to subprocess.
+    Obtain the PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the others. Additionally,
+    establish a short-time "cache" to prevent the over-flooding with requests to subprocess.
 
-    IMPORTANT NOTE: PlatformIO can go to the Internet from time to time when it decides that its cache is out of date.
-    So it MAY take a long time to execute.
+    IMPORTANT NOTE: PlatformIO can go to the Internet from time to time when it decides that its own cache is out of
+    date. So it may take a long time to execute.
     """
 
-    global _pio_boards_fetched_at, _pio_boards_cache, _pio_boards_cache_lifetime
-
+    global _pio_boards_cache_fetched_at, _pio_boards_cache
+    cache_is_empty = len(_pio_boards_cache) == 0
     current_time = time.time()
-    if len(_pio_boards_cache) == 0 or (current_time - _pio_boards_fetched_at > _pio_boards_cache_lifetime):
-        # Windows 7, as usual, correctly works only with shell=True...
-        result = subprocess.run(f"{stm32pio.core.settings.config_default['app']['platformio_cmd']} boards "
-                                f"--json-output stm32cube", encoding='utf-8', shell=True, stdout=subprocess.PIPE,
-                                check=True)
-        _pio_boards_cache = [board['id'] for board in json.loads(result.stdout)]
-        _pio_boards_fetched_at = current_time
+    cache_is_outdated = current_time - _pio_boards_cache_fetched_at >= pio_boards_cache_lifetime
 
+    if cache_is_empty or cache_is_outdated:
+        # Windows 7, as usual, correctly works only with shell=True...
+        completed_process = subprocess.run(
+            f"{platformio_cmd} boards --json-output stm32cube",
+            encoding='utf-8', shell=True, stdout=subprocess.PIPE, check=True)
+        _pio_boards_cache = [board['id'] for board in json.loads(completed_process.stdout)]
+        _pio_boards_cache_fetched_at = current_time
+
+    # Caller can mutate the array and damage our cache so we give it a copy (as the values are strings it is equivalent
+    # to the deep copy of this list)
     return copy.copy(_pio_boards_cache)
 
 
-def cleanup_dict(mapping: Mapping[str, Any]) -> dict:
-    """Recursively copy non-empty values to the new dictionary. Return this new dict"""
+def cleanup_mapping(mapping: Mapping[str, Any]) -> dict:
+    """Return a deep copy of the given mapping excluding None and empty string values"""
+
     cleaned = {}
 
     for key, value in mapping.items():
         if isinstance(value, collections.abc.Mapping):
-            cleaned[key] = cleanup_dict(value)
+            cleaned[key] = cleanup_mapping(value)
         elif value is not None and value != '':
             cleaned[key] = value
 
     return cleaned
 
 
-def configparser_to_dict(config: configparser.ConfigParser) -> dict:
-    """Convert configparser.ConfigParser instance to a dictionary"""
-    return {section: {key: value for key, value in config.items(section)} for section in config.sections()}
+def get_folder_contents(path: pathlib.Path, pattern: str = '*',
+                        ignore_list: List[pathlib.Path] = None) -> List[pathlib.Path]:
+    """
+    Return all endpoints inside the given directory (recursively). If specified, paths from the ignore_list will be
+    excluded. The resulting array is fully "unfolded" meaning every folder will be expanded, so both it and its children
+    will be included into the list. Conversely, the ignore_list is treated in the opposite way so for every folder met
+    both it and its children will be ignored completely.
+
+    Note: this is a "naive", straightforward and non-efficient solution (probably, both for time and memory
+    consumption). The algorithm behind can (but not necessarily should) definitely be improved.
+
+    Args:
+        path: root directory
+        pattern: optional glob-style pattern string to use. Default one will pass all
+        ignore_list: optional list of pathlib Paths to ignore (see the full description)
+
+    Returns:
+        list of pathlib Paths
+    """
+
+    folder_contents = []
+
+    if ignore_list is not None:
+        ignore_list = sorted(ignore_list)
+    else:
+        ignore_list = []
+
+    for child in sorted(path.rglob(pattern)):  # all files and folders, recursively
+
+        # Check such cases:
+        #   1) current child:        a/b/
+        #      ignore list entry:    a/b/c/d.txt
+        #
+        #   2) current child:        a/b/c/d.txt
+        #      ignore list entry:    a/b/
+        is_root_of_another = next(
+            (True for entry in ignore_list if (child in entry.parents) or (entry in child.parents)), False)
+
+        if (child not in ignore_list) and (not is_root_of_another):
+            folder_contents.append(child)
+
+    return folder_contents

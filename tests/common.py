@@ -19,11 +19,14 @@ This will not cover subprocess calls, though. To get them covered too, use pytes
 
 import inspect
 import os
-from pathlib import Path
 import shutil
 import sys
 import tempfile
 import unittest
+
+from pathlib import Path
+
+import stm32pio.cli.app
 
 
 CASES_ROOT = Path(os.environ.get('STM32PIO_TEST_FIXTURES', default=Path(__file__).parent / 'fixtures')).resolve(strict=True)
@@ -34,14 +37,10 @@ PROJECT_PATH = CASES_ROOT.joinpath(CASE).resolve(strict=True)
 PROJECT_BOARD = CASE  # currently (PlatformIO board == folder name)
 os.environ['STM32PIO_TEST_CASE'] = CASE
 
-
-import stm32pio.cli.app
-
-
-if not next(PROJECT_PATH.glob('*.ioc'), False):
-    raise FileNotFoundError(f"No .ioc file is present for '{PROJECT_PATH.name}' test case")
-else:
+if next(PROJECT_PATH.glob('*.ioc'), False):  # TODO: Python 3.8 walrus
     PROJECT_IOC_FILENAME = next(PROJECT_PATH.glob('*.ioc')).name
+else:
+    raise FileNotFoundError(f"No .ioc file is present for '{PROJECT_PATH.name}' test case")
 print(PROJECT_IOC_FILENAME)
 
 # Instantiate a temporary folder on every test suite run. It is used across all the tests and is deleted on shutdown

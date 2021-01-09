@@ -6,8 +6,9 @@ import shutil
 # Provides test constants and definitions
 from tests.common import *
 
-import stm32pio.core.lib
 import stm32pio.core.settings
+import stm32pio.core.project
+import stm32pio.core.state
 
 
 class TestIntegration(CustomTestCase):
@@ -20,13 +21,13 @@ class TestIntegration(CustomTestCase):
         Test the portability of projects: they should stay totally valid after moving to another path (same as renaming
         the parent part of the path). If we will not meet any exceptions, we should consider the test passed
         """
-        project_before = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project_before = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         project_before.save_config()
 
-        new_path = f'{project_before.path}-moved'
-        shutil.move(str(project_before.path), new_path)
+        new_path = project_before.path.with_name(project_before.path.name + '-moved')
+        shutil.move(project_before.path, new_path)
 
-        project_after = stm32pio.core.lib.Stm32pio(new_path, parameters={'project': {'board': PROJECT_BOARD}})
+        project_after = stm32pio.core.project.Stm32pio(new_path, parameters={'project': {'board': PROJECT_BOARD}})
         self.assertEqual(project_after.generate_code(), 0)
         self.assertEqual(project_after.pio_init(), 0)
         self.assertEqual(project_after.patch(), None)
@@ -58,7 +59,7 @@ class TestIntegration(CustomTestCase):
 
         # On project creation we should interpret the CLI-provided values as superseding to the saved ones and
         # saved ones, in turn, as superseding to the default ones (BUT only non-empty values)
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, instance_options={'save_on_destruction': True}, parameters={
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, instance_options={'save_on_destruction': True}, parameters={
             'app': {
                 'cubemx_cmd': ''
             },
@@ -72,7 +73,7 @@ class TestIntegration(CustomTestCase):
 
         # Parse the resulting stm32pio.ini via the configparser to see
         saved_config = configparser.ConfigParser(interpolation=None)
-        saved_config.read(str(STAGE_PATH.joinpath('stm32pio.ini')))
+        saved_config.read(STAGE_PATH.joinpath(stm32pio.core.settings.config_file_name))
 
         with self.subTest(msg="User's .INI parameter has not been prioritized over the default one"):
             self.assertEqual(config_parameter_user_value,
@@ -86,7 +87,7 @@ class TestIntegration(CustomTestCase):
         """
         Initialize a new project and try to build it
         """
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
         project.generate_code()
         project.pio_init()
         project.patch()
@@ -98,7 +99,7 @@ class TestIntegration(CustomTestCase):
         Simulate a new project creation, its changing and CubeMX code re-generation (for example, after adding new
         hardware features and some new files by a user)
         """
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
 
         # Generate a new project ...
         project.generate_code()
@@ -132,20 +133,20 @@ class TestIntegration(CustomTestCase):
         Go through the sequence of states emulating the real-life project lifecycle
         """
 
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
 
-        for method, expected_stage in [(None, stm32pio.core.lib.ProjectStage.EMPTY),
-                                       ('save_config', stm32pio.core.lib.ProjectStage.INITIALIZED),
-                                       ('generate_code', stm32pio.core.lib.ProjectStage.GENERATED),
-                                       ('pio_init', stm32pio.core.lib.ProjectStage.PIO_INITIALIZED),
-                                       ('patch', stm32pio.core.lib.ProjectStage.PATCHED),
-                                       ('build', stm32pio.core.lib.ProjectStage.BUILT),
-                                       ('clean', stm32pio.core.lib.ProjectStage.EMPTY),
-                                       ('pio_init', stm32pio.core.lib.ProjectStage.UNDEFINED)]:
+        for method, expected_stage in [(None, stm32pio.core.state.ProjectStage.EMPTY),
+                                       ('save_config', stm32pio.core.state.ProjectStage.INITIALIZED),
+                                       ('generate_code', stm32pio.core.state.ProjectStage.GENERATED),
+                                       ('pio_init', stm32pio.core.state.ProjectStage.PIO_INITIALIZED),
+                                       ('patch', stm32pio.core.state.ProjectStage.PATCHED),
+                                       ('build', stm32pio.core.state.ProjectStage.BUILT),
+                                       ('clean', stm32pio.core.state.ProjectStage.EMPTY),
+                                       ('pio_init', stm32pio.core.state.ProjectStage.UNDEFINED)]:
             if method is not None:
                 getattr(project, method)()
             self.assertEqual(project.state.current_stage, expected_stage)
-            if expected_stage != stm32pio.core.lib.ProjectStage.UNDEFINED:
+            if expected_stage != stm32pio.core.state.ProjectStage.UNDEFINED:
                 self.assertTrue(project.state.is_consistent)
             else:
                 # Should be UNDEFINED when the project is messed up (pio_init() after clean())
@@ -166,7 +167,7 @@ class TestIntegration(CustomTestCase):
             self.assertTrue(all(item in STAGE_PATH.iterdir() for item in [users_file, users_dir]))
             self.assertIn(users_file_content, users_file.read_text())
 
-        project = stm32pio.core.lib.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, parameters={'project': {'board': PROJECT_BOARD}})
 
         for method in ['save_config', 'generate_code', 'pio_init', 'patch', 'build']:
             getattr(project, method)()

@@ -273,7 +273,7 @@
  - Changed: make `platformio_ini_is_patched` a property instead of function
  - Changed: improved in-code docs
 
-## ver 2.0.0
+## ver 2.0.0 (28.10.20)
  - New: introducing CI/CD via Azure Pipelines. I tried to make as "general" system as possible with isolated environments, reproducible builds, etc. Due to a number of such a different tools in use and scattered infrastructure around them this task is very complex and the current configuration is far from ideal though
  - New: new project structure. All packages (core, CLI, GUI) are consolidated under the common `stm32pio` Python _namespace_
  - New: app version is completely removed from the repo and is "computed" at build-time from the VCS (GIT) current tag (using [setuptools_scm](https://github.com/pypa/setuptools_scm)). At run-time the version obtaining process depends: for newer Python it can be retrieved from a package metadata, for older one there is an auto-generated `version.py` file with a value stored in it
@@ -294,3 +294,44 @@
  - Changed: remove board absence warning in `Stm32pio` constructor (this should be done outside)
  - Changed: take out to the `settings.py` a strings that we looked for to determine successful CubeMX code generation
  - Changed: use newer `platformio project init` command, use verbose versions of CLI arguments
+
+## ver 2.1.0
+ - New: "validate environment" API. Allows to quickly verify tools specified in the config (+ corresponding test). Currently, implemented only for the CLI version
+ - New: store the most recent exception in the `last_error` config file parameter (currently CLI-only) (+ corresponding test)
+ - New: add shorthands for all CLI options (single-letters, e.g. `-c/--with-build`)
+ - New: ignore list settings API: specify files/folders/patterns to ignore during the cleanup (hence, new `clean()` method, tests)
+ - New: alternatively, use `git clean` as a removal tool
+ - New: API to store the current project folder' content as ignore list in the config file
+ - New: CONTRIBUTING.md guide (more like developing notes actually)
+ - New: COMMANDS.md reference
+ - New: CONFIG.md reference
+ - New: project config reference (a little too many parameters now)
+ - New: Python 3.9 CI runner
+ - New: log when the config is merging with another one (DEBUG verbosity level)
+ - New: handle filenames with whitespaces (both tools/project files) (#21)
+ - Fixed: `clean()` method doesn't look for the determined `.ioc` file but does it by itself which can cause some unwanted behavior (potential data loss)
+ - Fixed: remove done/forgotten TODOs
+ - Fixed: update embedding example to match the current API
+ - Fixed: `setup.cfg`: specify supported PySide2 version
+ - Fixed: `setup.cfg`: PyPA parsing issues
+ - Fixed: revert default CubeMX paths that seems more widespread among users
+ - Fixed: GUI. Recursive layout warning in Settings window
+ - Fixed: GUI. Remove the `ProjectID` parameter for the `initialized` signal to get rid of the annoying Shiboken overflow error
+ - Changed: bump up CubeMX, packages, test `.ioc` file, PlatformIO versions (both for local and CI builds)
+ - Changed: a completely revised documentation/examples/TODOs structure
+ - Changed: spawn project-state-related code to the `state.py` module
+ - Changed: spawn logging-related code to the `logging.py` module
+ - Changed: separate config from the main class (new `config.py` module)
+ - Changed: rename `lib.py` -> `project.py` module
+ - Changed: move available config "None" options to the `settings` module (`none_options`)
+ - Changed: separate CubeMX invoking code (new project's private `_cubemx_execute_script()` method)
+ - Changed: edit output behavior in case of occurred error in the `generate_code()` function
+ - Changed: do not cast strings where we can use path-like objects
+ - Changed: pretty config printer (`__str__()` implementation, just `print(project.config)`, that's all)
+ - Changed: remove `util.configparser_to_dict()` function (`ConfigParser` is already conforms with mapping protocol)
+ - Changed: takeout valid user response options to `settings.py` (`yes_options`/`no_options`)
+ - Changed: group and move CI-related code in the `settings.py`
+ - Changed: remove `f"{STAGE_PATH.name}.ioc"` occurrences in tests
+ - Changed: move `test_clean()` to unit tests
+ - Changed: GUI. Remove `go_to_this` option for the `addListItem` method (instead invoke on the list model)
+ - Changed: GUI. Implicitly pass the parent to the project constructor in `addListItem` method

@@ -10,12 +10,14 @@ from typing import Optional, List
 
 try:
     import stm32pio.core.settings
-    import stm32pio.core.lib
+    import stm32pio.core.logging
+    import stm32pio.core.project
     import stm32pio.core.util
 except ModuleNotFoundError:
     sys.path.append(str(pathlib.Path(sys.path[0]).parent.parent))  # hack to be able to run the app as 'python app.py'
     import stm32pio.core.settings
-    import stm32pio.core.lib
+    import stm32pio.core.logging
+    import stm32pio.core.project
     import stm32pio.core.util
 
 
@@ -45,28 +47,33 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     parser_init = subparsers.add_parser('init',
                                         help="create config .ini file to check and tweak parameters before proceeding")
     parser_generate = subparsers.add_parser('generate', help="generate CubeMX code only")
+    parser_pio_init = subparsers.add_parser('pio_init', help="create new compatible PlatformIO project")
     parser_patch = subparsers.add_parser('patch',
                                          help="tweak the project so the CubeMX and PlatformIO could work together")
     parser_new = subparsers.add_parser('new',
                                        help="generate CubeMX code, create PlatformIO project, glue them together")
     parser_status = subparsers.add_parser('status', help="get the description of the current project state")
-    parser_clean = subparsers.add_parser('clean',
-                                         help="clean-up the project (delete ALL content of 'path' except an .ioc file)")
+    parser_clean = subparsers.add_parser('clean', help="clean-up the project (by default, it will ask you about the "
+                                                       "files to delete)")
+    parser_validate = subparsers.add_parser('validate', help="verify current environment based on the config values")
     parser_gui = subparsers.add_parser('gui', help="start the graphical version of the application. All arguments will "
                                                    "be passed forward, see its own --help for more information")
 
     # Common subparsers options
-    for parser in [parser_init, parser_generate, parser_patch, parser_new, parser_status, parser_clean, parser_gui]:
+    for parser in [parser_init, parser_generate, parser_pio_init, parser_patch, parser_new, parser_status,
+                   parser_validate, parser_clean, parser_gui]:
         parser.add_argument('-d', '--directory', dest='path', default=pathlib.Path.cwd(),
                             help="path to the project (current directory, if not given)")
-    for parser in [parser_init, parser_new, parser_gui]:
-        parser.add_argument('-b', '--board', dest='board', default='', help="PlatformIO name of the board")
+    for parser in [parser_init, parser_pio_init, parser_new, parser_gui]:
+        parser.add_argument('-b', '--board', dest='board', default='', help="PlatformIO identifier of the board")
     for parser in [parser_init, parser_generate, parser_new]:
-        parser.add_argument('--start-editor', dest='editor',
+        parser.add_argument('-e', '--start-editor', dest='editor',
                             help="use specified editor to open the PlatformIO project (e.g. subl, code, atom, etc.)")
     for parser in [parser_generate, parser_new]:
-        parser.add_argument('--with-build', action='store_true', help="build the project after generation")
-
+        parser.add_argument('-c', '--with-build', action='store_true', help="build the project after generation")
+    for parser in [parser_init, parser_clean, parser_new]:
+        parser.add_argument('-s', '--store-content', action='store_true',
+                            help="save current folder contents as a cleanup ignore list and exit")
     parser_clean.add_argument('-q', '--quiet', action='store_true',
                               help="suppress the caution about the content removal (be sure of what you are doing!)")
 
@@ -77,12 +84,12 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     return root_parser.parse_args(args)
 
 
-def setup_logging(args_verbose_counter: int = 0, dummy: bool = False) -> logging.Logger:
+def setup_logging(verbose: int = 0, dummy: bool = False) -> logging.Logger:
     """
-    Configure some root logger. The corresponding adapters for every project will be dependent on this.
+    Configure and return some root logger. The corresponding adapters for every project will be dependent on this.
 
     Args:
-        args_verbose_counter: verbosity level (currently only 2 levels are supported: NORMAL, VERBOSE)
+        verbose: verbosity counter (currently only 2 levels are supported: NORMAL, VERBOSE)
         dummy: create a NullHandler logger if true
 
     Returns:
@@ -93,14 +100,13 @@ def setup_logging(args_verbose_counter: int = 0, dummy: bool = False) -> logging
         logger.addHandler(logging.NullHandler())
     else:
         logger = logging.getLogger('stm32pio')
-        logger.setLevel(logging.DEBUG if args_verbose_counter else logging.INFO)
+        logger.setLevel(logging.DEBUG if verbose else logging.INFO)
         handler = logging.StreamHandler()
-        formatter = stm32pio.core.util.DispatchingFormatter(
-            verbosity=stm32pio.core.util.Verbosity.VERBOSE if args_verbose_counter else
-                stm32pio.core.util.Verbosity.NORMAL,
+        formatter = stm32pio.core.logging.DispatchingFormatter(
+            verbosity=stm32pio.core.logging.Verbosity.VERBOSE if verbose else stm32pio.core.logging.Verbosity.NORMAL,
             general={
-                stm32pio.core.util.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
-                stm32pio.core.util.Verbosity.VERBOSE: logging.Formatter(
+                stm32pio.core.logging.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
+                stm32pio.core.logging.Verbosity.VERBOSE: logging.Formatter(
                     f"%(levelname)-8s %(funcName)-{stm32pio.core.settings.log_fieldwidth_function}s %(message)s")
             })
         handler.setFormatter(formatter)
@@ -137,41 +143,54 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
         import stm32pio.gui.app as gui_app
         return gui_app.main(sys_argv=gui_args).exec_()
     elif args is not None and args.subcommand is not None:
-        logger = setup_logging(args_verbose_counter=args.verbose, dummy=not should_setup_logging)
+        logger = setup_logging(verbose=args.verbose, dummy=not should_setup_logging)
     else:
         print("\nNo arguments were given, exiting...")
         return 0
 
+    project = None
+
     # Main routine
     try:
         if args.subcommand == 'init':
-            project = stm32pio.core.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
-                                                 instance_options={'save_on_destruction': True})
+            project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
+                                                     instance_options={'save_on_destruction': True})
+            if args.store_content:
+                project.config.save_content_as_ignore_list()
             if project.config.get('project', 'board') == '':
                 logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
                                "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
                                "identifier")
-            logger.info("project has been initialized. You can now edit stm32pio.ini config file")
+            logger.info(f"project has been initialized. You can now edit {stm32pio.core.settings.config_file_name} "
+                        "config file")
             if args.editor:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'generate':
-            project = stm32pio.core.lib.Stm32pio(args.path)
+            project = stm32pio.core.project.Stm32pio(args.path)
             project.generate_code()
             if args.with_build:
                 project.build()
             if args.editor:
                 project.start_editor(args.editor)
 
+        elif args.subcommand == 'pio_init':
+            project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
+                                                     instance_options={'save_on_destruction': True})
+            project.pio_init()
+
         elif args.subcommand == 'patch':
-            project = stm32pio.core.lib.Stm32pio(args.path)
+            project = stm32pio.core.project.Stm32pio(args.path)
             project.patch()
 
         elif args.subcommand == 'new':
-            project = stm32pio.core.lib.Stm32pio(args.path, parameters={'project': {'board': args.board}},
-                                                 instance_options={'save_on_destruction': True})
+            project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
+                                                     instance_options={'save_on_destruction': True})
+            if args.store_content:
+                project.config.save_content_as_ignore_list()
             if project.config.get('project', 'board') == '':
-                logger.info("project has been initialized. You can now edit stm32pio.ini config file")
+                logger.info(f"project has been initialized. You can now edit {stm32pio.core.settings.config_file_name} "
+                            "config file")
                 raise Exception("PlatformIO board identifier is not specified, it is needed for PlatformIO project "
                                 "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
                                 "identifier")
@@ -184,27 +203,25 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 project.start_editor(args.editor)
 
         elif args.subcommand == 'status':
-            project = stm32pio.core.lib.Stm32pio(args.path)
+            project = stm32pio.core.project.Stm32pio(args.path)
             print(project.state)
 
-        elif args.subcommand == 'clean':
-            project = stm32pio.core.lib.Stm32pio(args.path)
-            if args.quiet:
-                project.clean()
-            else:
-                while True:
-                    reply = input(f'WARNING: this operation will delete ALL content of the directory "{project.path}" '
-                                  f'except the "{pathlib.Path(project.config.get("project", "ioc_file")).name}" file. '
-                                  'Are you sure? (y/n) ')
-                    if reply.lower() in ['y', 'yes', 'true', '1']:
-                        project.clean()
-                        break
-                    elif reply.lower() in ['n', 'no', 'false', '0']:
-                        break
+        elif args.subcommand == 'validate':
+            project = stm32pio.core.project.Stm32pio(args.path)
+            print(project.validate_environment())
 
-    # Library is designed to throw the exception in bad cases so we catch here globally
+        elif args.subcommand == 'clean':
+            project = stm32pio.core.project.Stm32pio(args.path)
+            if args.store_content:
+                project.config.save_content_as_ignore_list()
+            else:
+                project.clean(quiet_on_cli=args.quiet)
+
+    # Global errors catching. Core library is designed to throw the exception in cases when there is no sense to
+    # proceed. Of course this also suppose to handle any unexpected behavior, too
     except Exception:
-        stm32pio.core.util.log_current_exception(logger)
+        stm32pio.core.logging.log_current_exception(
+            logger, config=project.config if (project is not None and hasattr(project, 'config')) else None)
         return -1
 
     return 0
