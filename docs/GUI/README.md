@@ -47,11 +47,11 @@ Add a folder with an `.ioc` file to begin with - it will be your first project. 
 
 ![Init](usage_tutorial_screenshots/init_screen.png)
 
-Skip it or enter one of the available PlatformIO STM32 boards identifier. Select "Run" to apply all actions to the project (analog of the `new` CLI command).
+Skip it or enter one of the available PlatformIO STM32 boards identifier. Optionally select "Run" to apply all actions to the project (analog of the `new` CLI command).
 
 At the main screen the buttons row allows you to run specific actions while, at the same time, is representing the current state of project. Green color means that this stage is fulfilled. The active project is monitored automatically while all the others refreshes only when you click on them, so the "stage" line at the projects list item can be outdated.
 
-Let's assume you've worked on some feature for some time (outside of the stm32pio) and now need to re-generate and rebuild the configuration. To schedule all the necessary actions to run one after another, navigate to the last desired action while pressing the **Shift** key. All the actions prior this one should be colored light-green now:
+Let's assume you've worked on some feature for some time (outside the stm32pio) and now need to re-generate and rebuild the configuration. To schedule all the necessary actions to run one after another, navigate to the last desired action while pressing the **Shift** key. All the actions prior this one should be colored light-green now:
 
 ![Highlighting](usage_tutorial_screenshots/highlighting.png)
 

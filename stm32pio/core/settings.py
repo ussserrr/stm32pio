@@ -21,19 +21,24 @@ config_file_name = 'stm32pio.ini'
 
 config_default = collections.OrderedDict(  # guarantees printing to the file in the same order
     app={
-        # (default is OK) How do you start Java from the command line? (edit if Java not in PATH). Set to 'None'
-        # (string) if in your setup the CubeMX can be invoked straightforwardly
+        # How do you start Java from the command line? (edit if Java not in PATH). Can be safely set to 'None' (string)
+        # if in your setup the CubeMX can be invoked directly
         'java_cmd': 'java',
 
-        # (default is OK) How do you start PlatformIO from the command line? (edit if not in PATH, if you use PlatformIO
-        # IDE check https://docs.platformio.org/en/latest/installation.html#install-shell-commands)
-        # ("python -m platformio" isn't supported yet)
+        # How do you start PlatformIO from the command line? (edit if not in PATH, if you use PlatformIO IDE see
+        # https://docs.platformio.org/en/latest/core/installation.html#piocore-install-shell-commands).
+        # Note: "python -m platformio" isn't supported yet
         'platformio_cmd': 'platformio',
 
-        # (default is OK) Trying to guess the STM32CubeMX location. STM actually had changed the installation path
-        # several times already. Note that STM32CubeMX will be invoked as 'java -jar CUBEMX'
+        # Trying to guess the STM32CubeMX location. ST actually had changed the installation path several times already.
+        # It also depends on how do one obtain a distribution archive (logging in on web-site or just downloading by the
+        # direct link). STM32CubeMX will be invoked as 'java -jar [cubemx_cmd]'
         'cubemx_cmd':
-            str(Path.home() / 'cubemx/STM32CubeMX.exe') if my_os in ['Darwin', 'Linux'] else
+            # macOS default: 'Applications' folder
+            '/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX' if my_os == 'Darwin' else
+            # Linux (Ubuntu) default: home directory
+            str(Path.home() / 'STM32CubeMX/STM32CubeMX') if my_os == 'Linux' else
+            # Windows default: Program Files
             'C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/STM32CubeMX.exe' if my_os == 'Windows' else None
     },
     project={
@@ -93,7 +98,7 @@ if CI_ENV_VARIABLE is not None:
     config_default['app'] = {
         'java_cmd': 'java',
         'platformio_cmd': 'platformio',
-        'cubemx_cmd': str(Path(os.getenv('STM32PIO_CUBEMX_CACHE_FOLDER')).joinpath('STM32CubeMX.exe'))
+        'cubemx_cmd': str(Path(os.getenv('STM32PIO_CUBEMX_CACHE_FOLDER')) / 'STM32CubeMX.exe')
     }
 
     TEST_FIXTURES_PATH = Path(os.environ.get('STM32PIO_TEST_FIXTURES',

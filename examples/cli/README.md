@@ -9,13 +9,13 @@
 
 ![Project tab](/examples/cli/tab_Project.png)
 
-4. Use the copied string (project folder) as a `-d` argument for the stm32pio (can be omitted if your current working directory is already a project directory).
+4. Use the copied string (project folder) as a `-d/--directory` argument for the stm32pio (can be omitted if your current working directory is already a project directory).
 5. Run `platformio boards` (`pio boards`) or go to [boards](https://docs.platformio.org/en/latest/boards) to list all supported devices. Pick one and use its ID as a `-b/--board` argument (for example, `nucleo_f031k6`)
 6. All done! You can now run
    ```shell script
    $ stm32pio new -d path/to/project/ -b nucleo_f031k6 --start-editor=code --with-build
    ```
-   to trigger the code generation, compile the project and start the VSCode editor with the folder opened (last 2 options are given as an example and not required). Make sure you have all the tools in PATH (`java`, `platformio`, `python`, editor) (or set them in `stm32pio.ini`). You can use a slightly shorter syntax if you are already located in the project directory:
+   to trigger the code generation, compile the project and start the VSCode editor with the folder opened (last 2 options are given as an example and not required). Make sure you have all the tools in your PATH (`java`, `platformio`, `python`, editor) (or set them in `stm32pio.ini`). You can use a slightly shorter syntax if you are already located in the project directory:
    ```shell script
    path/to/project/ $   stm32pio new -b nucleo_f031k6
    ```
@@ -25,4 +25,4 @@
    $ stm32pio generate -d /path/to/project
    ```
 9. To clean-up the directory and keep only an `.ioc` file run the `clean` command.
-10. If you're facing some errors complaining about some tool incorrectness, run `validate` command to check the current environment in terms of the tools' presence in your system.
+10. If you're facing some errors complaining about tools absence, run `validate` command to check the current environment in terms of the tools' presence in your system.

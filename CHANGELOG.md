@@ -314,6 +314,7 @@
  - Fixed: update embedding example to match the current API
  - Fixed: `setup.cfg`: specify supported PySide2 version
  - Fixed: `setup.cfg`: PyPA parsing issues
+ - Fixed: revert default CubeMX paths that seems more widespread among users
  - Fixed: GUI. Recursive layout warning in Settings window
  - Fixed: GUI. Remove the `ProjectID` parameter for the `initialized` signal to get rid of the annoying Shiboken overflow error
  - Changed: bump up CubeMX, packages, test `.ioc` file, PlatformIO versions (both for local and CI builds)
