@@ -14,7 +14,6 @@
  - [ ] Write in the README about why we use an INI config format (because it should be familiar to the PlatformIO user). Also consider migrating to some other (more feature-rich) format (JSON, etc.)
  - [ ] See on GitHub what people looking for the most (what files) and adjust those parts of the repo
  - [ ] Collect all Python 3.7+ TODOs, notes, etc. to form some kind of resume of what can be done to take advantages of new language/lib features while dropping the 3.6 support
- - [ ] Implement some _optional_ global config (e.g. `~/.stm32pio`) where the users can specify their paths/commands of tools. Maybe integrate with the validation feature
  - [ ] setuptools now migrating to PEP-517 finally, see its docs
  - [ ] Check do we actually need `wheel` package to be installed prior `pip install stm32pio`. Can we add it to dependencies and be sure it will be retrieved before any other?
  - [ ] Adopt Google style guides (https://google.github.io/styleguide/pyguide.html), or some another one (comments, docstrings, etc.)...
@@ -75,6 +74,17 @@
  - [ ] Do not store the state in the list delegate. Save it in the model, also widgets will be using it so the code will be cleaner
  - [ ] Setup QML logging proxy (QML's `console.log()` functions family to the Python `logging`) for all platforms (not only Windows)
  - [ ] Interface for the validation feature (and other that have been implemented in CLI yet GUI lacks)
+ - [ ] Add some sort of desktop shortcut to start the app cause why the GUI users should bother with a CLI stuff?
+ - [ ] Try different themes. Add "dark" mode
+ - [ ] Fix
+    ```
+    $ stm32pio_gui
+    INFO main Starting stm32pio GUI...
+    <stm32pio.gui.app.Application(0x7f8c992552e0) at 0x107826780>
+    [1]    19245 segmentation fault  stm32pio_gui
+    ```
+ - [ ] Maybe completely pack the app (single-executable distribution)
+ - [ ] Migrate to Qt6 (PySide6)
 
 
 ## Core library and CLI
@@ -98,6 +108,7 @@
  - [ ] mb allow to use an arbitrary strings (arrays of str) to specify tools commands in stm32pio.ini (`shell=True` or a list of args (split a string))
  - [ ] Mark some parameters as unnecessary and do not save them to config unless explicitly stated (it can now be implemented more easily thanks to the `Config` subclass, I guess) (some DB-like schema)
  - [ ] Store an editor in the config?
+ - [ ] Implement some _optional_ global config (e.g. `~/.stm32pio`) where the users can specify their paths/commands of tools. Uniform GUI and CLI configs in this case. Maybe if one uses the GUI version they would be fine with the `QSettings` config (add option to choose)
 
 ### Tests
  - [ ] Closely audit the test suite (e.g. CLI tests doesn't verify ALL available commands because some of them will be considered redundant in the presence of unit tests and so on)
@@ -113,8 +124,6 @@
  - [ ] Take a look to the `dataclass` feature and find where we can apply it (3.7+)
  - [x] DISCUSSION. Support equality comparison for `Project` (`__eq__()`) and get rid of `p1.path.samefile(p2.path)`. It's actually a more complicated topic than it seems, e.g. what are _equal_ projects? Path is not the only component of the project despite being the primary one, what about the config content though? It can be different for the same path at different points of time (when config were read after some period). Not needed at the moment
  - [ ] Check with some static analyzer (mypy) (actually, PyCharm is already doing it)
- - [x] Test for names with spaces (everywhere) (#21)
- - [x] Check `subprocess.PIPE`/`subprocess.DEVNULL` relations
  - [ ] Set `git` command in settings (config). There are a little too many options now, should consider hide them unless explicitly set
  - [ ] Edit INI config from CLI. NO! This task is "out of scope" for this app and any `set` command will probably be confusing for the user. Just type `editor stm32pio.ini`
  - [ ] Public API backward compatibility testing (core lib + CLI, I guess)
@@ -124,6 +133,5 @@
  - [ ] what if some parameters missing in the config file? Check the behavior
  - [ ] `platformio_ini_is_patched` is actually not so reliable. For example, some property can contain both our and user-defined values and still technically be considered as "patched". Maybe should use `in` for checking instead of the strict equality
  - [ ] Be able to set the `platformio_cmd` in config to `python -m platformio` (convert to list and concat where used)
- - [x] Add `pio_init` to CLI
  - [ ] Automatically add the `stm32pio.ini` and artifacts to git
  - [ ] Convert the embedding example to an IPython notebook (or smth like this)

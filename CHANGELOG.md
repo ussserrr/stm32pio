@@ -273,7 +273,7 @@
  - Changed: make `platformio_ini_is_patched` a property instead of function
  - Changed: improved in-code docs
 
-## ver 2.0.0 (28.10.20)
+## ver. 2.0.0 (28.10.20)
  - New: introducing CI/CD via Azure Pipelines. I tried to make as "general" system as possible with isolated environments, reproducible builds, etc. Due to a number of such a different tools in use and scattered infrastructure around them this task is very complex and the current configuration is far from ideal though
  - New: new project structure. All packages (core, CLI, GUI) are consolidated under the common `stm32pio` Python _namespace_
  - New: app version is completely removed from the repo and is "computed" at build-time from the VCS (GIT) current tag (using [setuptools_scm](https://github.com/pypa/setuptools_scm)). At run-time the version obtaining process depends: for newer Python it can be retrieved from a package metadata, for older one there is an auto-generated `version.py` file with a value stored in it
@@ -295,7 +295,7 @@
  - Changed: take out to the `settings.py` a strings that we looked for to determine successful CubeMX code generation
  - Changed: use newer `platformio project init` command, use verbose versions of CLI arguments
 
-## ver 2.1.0
+## ver. 2.1.0
  - New: "validate environment" API. Allows to quickly verify tools specified in the config (+ corresponding test). Currently, implemented only for the CLI version
  - New: store the most recent exception in the `last_error` config file parameter (currently CLI-only) (+ corresponding test)
  - New: add shorthands for all CLI options (single-letters, e.g. `-c/--with-build`)
@@ -335,3 +335,6 @@
  - Changed: move `test_clean()` to unit tests
  - Changed: GUI. Remove `go_to_this` option for the `addListItem` method (instead invoke on the list model)
  - Changed: GUI. Implicitly pass the parent to the project constructor in `addListItem` method
+
+## ver. 2.x.x
+ - Fixed: GUI-invoking scripts

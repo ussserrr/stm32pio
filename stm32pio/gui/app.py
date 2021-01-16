@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 import weakref
-from typing import List, Callable, Optional, Any, Mapping, MutableMapping, Iterator, Union
+from typing import List, Callable, Optional, Any, Mapping, MutableMapping, Iterator
 
 try:
     from PySide2.QtCore import QUrl, Property, QAbstractListModel, QModelIndex, QObject, Qt, Slot, Signal, QThread,\
@@ -43,7 +43,7 @@ try:
     import stm32pio.core.state
     import stm32pio.cli.app
 except ModuleNotFoundError:
-    sys.path.insert(0, str(ROOT_PATH))
+    sys.path.append(str(ROOT_PATH))  # hack to run the app as 'python path/to/app.py'
     import stm32pio.core.settings
     import stm32pio.core.logging
     import stm32pio.core.project
@@ -681,7 +681,7 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     return parser.parse_args(args) if len(args) else None
 
 
-def main(sys_argv: List[str] = None):
+def create_app(sys_argv: List[str] = None) -> Application:
     if sys_argv is None:
         sys_argv = sys.argv[1:]
 
@@ -826,16 +826,20 @@ def main(sys_argv: List[str] = None):
     return app
 
 
+def main():
+    app = create_app()
+    return app.exec_()
+
+
 
 # [necessary] globals
 module_logger = logging.getLogger('stm32pio.gui.app')  # use it as a console logger for whatever you want to, typically
                                                        # not related to the concrete project
 projects_logger_handler = BuffersDispatchingHandler()  # a storage of the buffers for the logging messages of all
                                                        # current projects (see its docs for more info)
-settings = QSettings()  # placeholder, will be replaced in main()
+settings = QSettings()  # placeholder, will be replaced in create_app()
 
 
 
 if __name__ == '__main__':
-    app_ = main()
-    sys.exit(app_.exec_())
+    sys.exit(main())

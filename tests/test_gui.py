@@ -30,7 +30,7 @@ class TestGUI(CustomTestCase):
             app.quit()
 
         # TODO: this will create and use QSettings, probably should use local storage (not OS-level one)
-        app = stm32pio.gui.app.main(sys_argv=['--directory', str(PROJECT_PATH)])
+        app = stm32pio.gui.app.create_app(sys_argv=['--directory', str(PROJECT_PATH)])
         app.loaded.connect(on_loaded)
         app.exec_()
 

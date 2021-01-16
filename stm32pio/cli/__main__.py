@@ -1,10 +1,12 @@
+import pathlib
 import sys
 
+MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. root/stm32pio/cli/
+ROOT_PATH = MODULE_PATH.parent.parent  # repo's or the site-package's entry root
 try:
     import stm32pio.cli.app
 except ModuleNotFoundError:
-    import pathlib
-    sys.path.append(str(pathlib.Path(__file__).parent.parent))  # hack to run the app as 'python __main__.py'
+    sys.path.append(str(ROOT_PATH))  # hack to run the app as 'python path/to/__main__.py'
     import stm32pio.cli.app
 
 

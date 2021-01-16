@@ -149,7 +149,7 @@ ApplicationWindow {
                     horizontalAlignment: TextEdit.AlignHCenter
                     verticalAlignment: TextEdit.AlignVCenter
                     text: `ver. ${appVersion}<br>
-                           2018 - 2020 © ussserrr<br>
+                           2018 - 2021 © ussserrr<br>
                            <a href='https://github.com/ussserrr/stm32pio'>GitHub</a><br><br>
                            Powered by Python, PlatformIO, PySide2, FlatIcons and other awesome technologies`
                     onLinkActivated: {

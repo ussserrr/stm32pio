@@ -8,13 +8,15 @@ import pathlib
 import sys
 from typing import Optional, List
 
+MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. root/stm32pio/cli/
+ROOT_PATH = MODULE_PATH.parent.parent  # repo's or the site-package's entry root
 try:
     import stm32pio.core.settings
     import stm32pio.core.logging
     import stm32pio.core.project
     import stm32pio.core.util
 except ModuleNotFoundError:
-    sys.path.append(str(pathlib.Path(sys.path[0]).parent.parent))  # hack to be able to run the app as 'python app.py'
+    sys.path.append(str(ROOT_PATH))  # hack to be able to run the app as 'python path/to/app.py'
     import stm32pio.core.settings
     import stm32pio.core.logging
     import stm32pio.core.project
@@ -34,8 +36,8 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
 
     root_parser = argparse.ArgumentParser(description=inspect.cleandoc('''
         Automation of creating and updating STM32CubeMX-PlatformIO projects. Requirements: Python 3.6+, STM32CubeMX,
-        Java, PlatformIO CLI. Visit https://github.com/ussserrr/stm32pio for more information. Use 'help' command to
-        take a glimpse on the available functionality'''))
+        Java, PlatformIO CLI. Visit https://github.com/ussserrr/stm32pio for more information. Use 'stm32pio [command]
+        -h' to see help on the particular command'''))
 
     # Global arguments (there is also an automatically added '-h, --help' option)
     root_parser.add_argument('--version', action='version', version=f"stm32pio {stm32pio.core.util.get_version()}")
@@ -140,8 +142,9 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
 
     if args is not None and args.subcommand == 'gui':
         gui_args = [arg for arg in sys_argv if arg != 'gui']
-        import stm32pio.gui.app as gui_app
-        return gui_app.main(sys_argv=gui_args).exec_()
+        import stm32pio.gui.app as gui
+        app = gui.create_app(sys_argv=gui_args)
+        return app.exec_()
     elif args is not None and args.subcommand is not None:
         logger = setup_logging(verbose=args.verbose, dummy=not should_setup_logging)
     else:
