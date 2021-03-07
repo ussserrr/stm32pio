@@ -52,118 +52,15 @@ ApplicationWindow {
         }
     }
 
-    /*
-       Slightly customized QSettings
-    */
-    readonly property Settings settings: appSettings
-    Dialogs.Dialog {
-        id: settingsDialog
-        title: 'Settings'
-        standardButtons: Dialogs.StandardButton.Save | Dialogs.StandardButton.Cancel | Dialogs.StandardButton.Reset
-        GridLayout {
-            columns: 2
-
-            Label {
-                Layout.preferredWidth: 140
-                text: 'Editor'
-            }
-            TextField {
-                id: editor
-                placeholderText: "e.g. atom"
-            }
-
-            Label {
-                Layout.preferredWidth: 140
-                text: 'Verbose output'
-            }
-            CheckBox {
-                id: verbose
-                leftPadding: -3
-            }
-
-            Label {
-                Layout.preferredWidth: 140
-                text: 'Notifications'
-            }
-            Column {
-                Layout.preferredWidth: 250
-                CheckBox {
-                    id: notifications
-                    leftPadding: -3
-                }
-                Text {
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    color: 'dimgray'
-                    text: "Get messages about completed project actions when the app is in the background"
-                }
-            }
-
-            Text {
-                Layout.columnSpan: 2
-                Layout.maximumWidth: 250
-                topPadding: 30
-                bottomPadding: 10
-                wrapMode: Text.Wrap
-                text: `To clear ALL app settings including the list of added projects click "Reset" then restart the app`
-            }
-        }
-        // Set UI values there so they are always reflect the actual parameters
-        // TODO: maybe map the data to the corresponding widgets automatically
-        onVisibleChanged: {
-            if (visible) {
-                editor.text = settings.get('editor');
-                verbose.checked = settings.get('verbose');
-                notifications.checked = settings.get('notifications');
-            }
-        }
-        onAccepted: {
-            settings.set('editor', editor.text);
-            settings.set('verbose', verbose.checked);
-            if (settings.get('notifications') !== notifications.checked) {
-                settings.set('notifications', notifications.checked);
-                sysTrayIcon.visible = notifications.checked;
-            }
-        }
-        onReset: {
-            settings.clear();
-            this.close();
-        }
+    AboutDialog {
+        id: aboutDialog
+        appVersion: appVersion
     }
 
-    Dialogs.Dialog {
-        id: aboutDialog
-        title: 'About'
-        standardButtons: Dialogs.StandardButton.Close
-        ColumnLayout {
-            Rectangle {
-                width: 280
-                height: aboutDialogTextArea.implicitHeight
-                TextArea {
-                    id: aboutDialogTextArea
-                    width: parent.width
-                    readOnly: true
-                    selectByMouse: true
-                    wrapMode: Text.WordWrap
-                    textFormat: TextEdit.RichText
-                    horizontalAlignment: TextEdit.AlignHCenter
-                    verticalAlignment: TextEdit.AlignVCenter
-                    text: `ver. ${appVersion}<br>
-                           2018 - 2021 © ussserrr<br>
-                           <a href='https://github.com/ussserrr/stm32pio'>GitHub</a><br><br>
-                           Powered by Python, PlatformIO, PySide2, FlatIcons and other awesome technologies`
-                    onLinkActivated: {
-                        Qt.openUrlExternally(link);
-                        aboutDialog.close();
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        acceptedButtons: Qt.NoButton  // we don't want to eat clicks on the Text
-                        cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    }
-                }
-            }
-        }
+    readonly property Settings settings: appSettings
+    SettingsDialog {
+        id: settingsDialog
+        settings: settings
     }
 
     /*
@@ -217,7 +114,7 @@ ApplicationWindow {
 
     Labs.SystemTrayIcon {
         id: sysTrayIcon
-        icon.source: './icons/icon.svg'
+        icon.source: '../icons/icon.svg'
         visible: settings.get('notifications')
     }
 
@@ -234,9 +131,8 @@ ApplicationWindow {
             contentItem: Column {
                 spacing: 20
                 Image {
-                    id: dropPopupContent
                     anchors.horizontalCenter: parent.horizontalCenter
-                    source: './icons/drop-here.svg'
+                    source: '../icons/drop-here.svg'
                     fillMode: Image.PreserveAspectFit
                     sourceSize.width: 64
                 }
@@ -249,13 +145,13 @@ ApplicationWindow {
         }
         onDropped: {
             if (drop.urls.length) {
-                // We need to convert to an array of strings till typeof(drop.urls) === 'object'
-                projectsModel.addProjectsByPaths(Object.keys(drop.urls).map(u => drop.urls[u]));
+                // We need to convert to an array of strings since typeof(drop.urls) === 'object'
+                projectsModel.addProjectsByPaths(Object.values(drop.urls));
             } else if (drop.text) {
                 // Wrap into an array for consistency
                 projectsModel.addProjectsByPaths([drop.text]);
             } else {
-                console.log("Incorrect drag'n'drop event");
+                console.warn("Incorrect drag'n'drop event");
             }
         }
     }
@@ -271,7 +167,7 @@ ApplicationWindow {
         z: 2  // do not clip glow animation (see below)
 
         ColumnLayout {
-            Layout.preferredWidth: 2.6 * parent.width / 12
+            Layout.preferredWidth: 2.6 * parent.width / 12  // ~1/5, probably should reduce or at least cast to the fraction of 10
             Layout.fillHeight: true
 
             /*
@@ -447,7 +343,7 @@ ApplicationWindow {
                             text: 'Add'
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
                             display: AbstractButton.TextBesideIcon
-                            icon.source: './icons/add.svg'
+                            icon.source: '../icons/add.svg'
                             onClicked: addProjectFolderDialog.open()
                             ToolTip.visible: projectsListView.count === 0 && !loadingOverlay.visible  // show when there is no items in the list
                             ToolTip.text: "<b>Hint:</b> add your project using this button or drag'n'drop it into the window"
@@ -457,7 +353,7 @@ ApplicationWindow {
                             visible: projectsListView.currentIndex !== -1  // show only if any item is selected
                             Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
                             display: AbstractButton.TextBesideIcon
-                            icon.source: './icons/remove.svg'
+                            icon.source: '../icons/remove.svg'
                             onClicked: removeCurrentProject()
                         }
                     }
@@ -730,14 +626,14 @@ ApplicationWindow {
                                         ListElement {
                                             name: 'Clean'
                                             action: 'clean'
-                                            icon: './icons/trash-bin.svg'
+                                            icon: '../icons/trash-bin.svg'
                                             tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder \
                                                       except the current .ioc file and clear all logs"
                                         }
                                         ListElement {
                                             name: 'Open editor'
                                             action: 'start_editor'
-                                            icon: './icons/edit.svg'
+                                            icon: '../icons/edit.svg'
                                             margin: 15  // margin to visually separate first 2 actions as they don't represent any stage
                                         }
                                         ListElement {
