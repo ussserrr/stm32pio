@@ -43,6 +43,13 @@ The app introduces zero dependencies by itself. Of course, you need to have all 
 If you, for some reasons, don't want to (or simply cannot) install (i.e. register in PATH) command line versions of these applications in your system, you can always specify the direct paths to them overriding the default values in the project configuration file `stm32pio.ini`. Check the [config reference](/docs/CONFIG.md) to see all possible ways of telling stm32pio where the tools are residing on your machine.
 
 
+## Documentation
+  - [CLI commands](/docs/CLI/COMMANDS.md)
+  - [Config](/docs/CONFIG.md)
+  - [Example (CLI)](/examples/cli)
+  - [GUI](/docs/GUI/README.md)
+
+
 ## Installation
 As a normal Python package the app can be run in a completely portable way by downloading (or cloning) the snapshot of this repository and invoking the main script:
 ```shell script

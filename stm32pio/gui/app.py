@@ -41,7 +41,6 @@ try:
     import stm32pio.core.project
     import stm32pio.core.util
     import stm32pio.core.state
-    import stm32pio.cli.app
 except ModuleNotFoundError:
     sys.path.append(str(ROOT_PATH))  # hack to run the app as 'python path/to/app.py'
     import stm32pio.core.settings
@@ -49,7 +48,6 @@ except ModuleNotFoundError:
     import stm32pio.core.project
     import stm32pio.core.util
     import stm32pio.core.state
-    import stm32pio.cli.app
 
 
 ProjectID = type(id(object))  # Int
