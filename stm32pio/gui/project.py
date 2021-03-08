@@ -88,7 +88,10 @@ class ProjectListItem(QObject):
             *args: positional arguments of the Stm32pio constructor
             **kwargs: keyword arguments of the Stm32pio constructor
         """
+        self.actionStarted.emit('initialization')
         try:
+            # import time
+            # time.sleep(3.1)
             self.project = stm32pio.core.project.Stm32pio(*args, **kwargs)
         except Exception:
             stm32pio.core.logging.log_current_exception(self.logger)
@@ -97,12 +100,14 @@ class ProjectListItem(QObject):
             else:
                 self._name = 'Undefined'
             self._state = { 'INIT_ERROR': True }  # pseudo-stage
-            self._current_stage = 'Initializing error'
+            self._current_stage = 'Initialization error'
+            initialization_result = False
         else:
             # Successful initialization. These values should not be used anymore but we "reset" them anyway
             self._name = 'Project'
             self._state = {}
             self._current_stage = 'Initialized'
+            initialization_result = True
         finally:
             # Register some kind of the deconstruction handler
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
@@ -112,6 +117,7 @@ class ProjectListItem(QObject):
             self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
             self.stateChanged.emit()
+            self.actionFinished.emit('initialization', initialization_result)
 
 
     @staticmethod
@@ -190,7 +196,8 @@ class ProjectListItem(QObject):
         """
         return self._current_action
 
-    @Property(bool)
+    lastActionSucceedChanged = Signal()
+    @Property(bool, notify=lastActionSucceedChanged)
     def lastActionSucceed(self) -> bool:
         """Have the last action ended with a success?"""
         return self._last_action_succeed
@@ -210,6 +217,7 @@ class ProjectListItem(QObject):
     def actionFinishedSlot(self, action: str, success: bool):
         """Pass the corresponding signal from the worker, perform related tasks"""
         self._last_action_succeed = success
+        self.lastActionSucceedChanged.emit()
         if not success:
             # Clear the queue - stop further execution (cancel planned tasks if an error had happened)
             self.workers_pool.clear()

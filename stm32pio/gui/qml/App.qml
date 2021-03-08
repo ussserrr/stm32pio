@@ -45,7 +45,6 @@ ApplicationWindow {
         modal: true
         background: Rectangle { opacity: 0.0 }
         closePolicy: Popup.NoAutoClose
-
         contentItem: Column {
             BusyIndicator {}
             Text { text: 'Loading...' }
@@ -188,6 +187,7 @@ ApplicationWindow {
                     /*
                        Use DelegateModel as it has a feature to always preserve specified list items in memory so we can store an actual state
                        directly in the delegate
+                       TODO: can be removed now as we got rid of the state in the delegate
                     */
                     model: projectsModel  // backend-side
                     delegate: Loader {
@@ -200,100 +200,185 @@ ApplicationWindow {
                             DelegateModel.inPersistedItems = 1;
                         }
                         sourceComponent: RowLayout {
-                            property bool initOrLoading: true  // initial waiting for the backend-side
-                            readonly property ProjectListItem project: projectsModel.get(index)
-                            Connections {
-                                target: project
-                                function onInitialized() {
-                                    initOrLoading = false;
-
-                                    // Appropriately highlight an item depending on its initialization result
-                                    const state = project.state;
-                                    if (state['INIT_ERROR']) {
-                                        projectName.color = 'indianred';
-                                        projectCurrentStage.color = 'indianred';
-                                    } else if (!project.fromStartup && projectsModel.rowCount() > 1 && index !== projectsListView.currentIndex) {
-                                        // Do not touch those projects that have been loaded on startup (from the QSettings), only the new ones
-                                        // added during this session. Also, do not highlight if there is only a single element in the list or
-                                        // the list is already located to this item
-                                        projectName.color = 'seagreen';
-                                        projectCurrentStage.color = 'seagreen';
-                                    }
-                                }
-                                function onActionStarted(action) {
-                                    runningOrFinished.currentIndex = 0;
-                                    runningOrFinished.visible = true;
-                                }
-                                function onActionFinished(action, success) {
-                                    if (index !== projectsListView.currentIndex) {
-                                        projectCurrentStage.color = 'darkgray';  // show that the stage has changed from the last visit
-                                        runningOrFinished.currentIndex = 1;  // show "notification" about the finished action
-                                        recentlyFinishedIndicator.color = success ? 'lightgreen' : 'lightcoral';
-                                        runningOrFinished.visible = true;
-                                    } else {
-                                        runningOrFinished.visible = false;
-                                    }
-                                }
-                            }
-                            Connections {
-                                target: projectsListView
-                                function onCurrentIndexChanged() {
-                                    // "Read" all "notifications" after navigating to the list element
-                                    if (projectsListView.currentIndex === index) {
-                                        if (Qt.colorEqual(projectName.color, 'seagreen')) {
-                                            projectName.color = 'black';
-                                            projectCurrentStage.color = 'black';
-                                        }
-                                        if (Qt.colorEqual(projectCurrentStage.color, 'darkgray')) {
-                                            projectCurrentStage.color = 'black';
-                                        }
-                                        if (runningOrFinished.currentIndex === 1) {  // TODO: ugly
-                                            runningOrFinished.visible = false;
-                                        }
-                                    } else {
-                                        if (Qt.colorEqual(projectCurrentStage.color, 'black')) {
-                                            projectCurrentStage.color = 'darkgray';
-                                        }
-                                    }
-                                }
-                            }
+                            // TODO: maybe should use "display" (or custom) role everywhere so no need to specify "project" property
+                            //  (but extensive list.data() usage then)
+                            // readonly property ProjectListItem project: projectsModel.get(index)
                             ColumnLayout {
                                 Layout.preferredHeight: 50
 
                                 Text {
                                     id: projectName
                                     leftPadding: 5
-                                    rightPadding: runningOrFinished.visible ? 0 : leftPadding
+                                    rightPadding: actionIndicator.visible ? 0 : leftPadding
                                     Layout.alignment: Qt.AlignBottom
-                                    Layout.preferredWidth: runningOrFinished.visible ?
+                                    Layout.preferredWidth: actionIndicator.visible ?
                                                            (projectsListView.width - parent.height - leftPadding) :
                                                            projectsListView.width
                                     elide: Text.ElideMiddle
                                     maximumLineCount: 1
                                     text: `<b>${display.name}</b>`
+                                    DSM.StateMachine {
+                                        running: true
+                                        initialState: normall
+                                        // onStarted: {
+                                        //     setInitInfo(index);
+                                        // }
+                                        DSM.State {
+                                            id: normall
+                                            onEntered: {
+                                                projectName.color = 'black';
+                                            }
+                                            DSM.SignalTransition {
+                                                targetState: added
+                                                signal: display.actionFinished
+                                                guard: action === 'initialization' && success && !display.fromStartup && projectsModel.rowCount() > 1
+                                            }
+                                            DSM.SignalTransition {
+                                                targetState: initializationErrorr
+                                                signal: display.actionFinished
+                                                guard: action === 'initialization' && !success
+                                            }
+                                        }
+                                        DSM.State {
+                                            id: added
+                                            onEntered: {
+                                                projectName.color = 'seagreen';
+                                            }
+                                            DSM.SignalTransition {
+                                                targetState: normall
+                                                signal: projectsListView.currentIndexChanged
+                                                guard: projectsListView.currentIndex === index
+                                            }
+                                        }
+                                        DSM.State {
+                                            id: initializationErrorr
+                                            onEntered: {
+                                                projectName.color = 'indianred';
+                                            }
+                                        }
+                                    }
                                 }
                                 Text {
                                     id: projectCurrentStage
                                     leftPadding: 5
-                                    rightPadding: runningOrFinished.visible ? 0 : leftPadding
+                                    rightPadding: actionIndicator.visible ? 0 : leftPadding
                                     Layout.alignment: Qt.AlignTop
-                                    Layout.preferredWidth: runningOrFinished.visible ?
+                                    Layout.preferredWidth: actionIndicator.visible ?
                                                            (projectsListView.width - parent.height - leftPadding) :
                                                            projectsListView.width
                                     elide: Text.ElideRight
                                     maximumLineCount: 1
                                     text: display.currentStage
+                                    DSM.StateMachine {
+                                        running: true
+                                        initialState: navigated
+                                        // onStarted: {
+                                        //     setInitInfo(index);
+                                        // }
+                                        DSM.State {
+                                            id: navigated
+                                            onEntered: {
+                                                projectCurrentStage.color = 'black';
+                                            }
+                                            DSM.SignalTransition {
+                                                targetState: inactive
+                                                signal: projectsListView.currentIndexChanged
+                                                guard: projectsListView.currentIndex !== index
+                                            }
+                                            DSM.SignalTransition {
+                                                targetState: addedd
+                                                signal: display.actionFinished
+                                                guard: action === 'initialization' && success && !display.fromStartup && projectsModel.rowCount() > 1
+                                            }
+                                            DSM.SignalTransition {
+                                                targetState: initializationError
+                                                signal: display.actionFinished
+                                                guard: action === 'initialization' && !success
+                                            }
+                                        }
+                                        DSM.State {
+                                            id: addedd
+                                            onEntered: {
+                                                projectCurrentStage.color = 'seagreen';
+                                            }
+                                            DSM.SignalTransition {
+                                                targetState: navigated
+                                                signal: projectsListView.currentIndexChanged
+                                                guard: projectsListView.currentIndex === index
+                                            }
+                                        }
+                                        DSM.State {
+                                            id: inactive
+                                            onEntered: {
+                                                projectCurrentStage.color = 'darkgray';
+                                            }
+                                            DSM.SignalTransition {
+                                                targetState: navigated
+                                                signal: projectsListView.currentIndexChanged
+                                                guard: projectsListView.currentIndex === index
+                                            }
+                                        }
+                                        DSM.State {
+                                            id: initializationError
+                                            onEntered: {
+                                                projectCurrentStage.color = 'indianred';
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
                             // Show whether a busy indicator or a finished action notification
                             StackLayout {
-                                // TODO: probably can use DSM.StateMachine (or maybe regular State) for this, too
-                                id: runningOrFinished
+                                id: actionIndicator
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredWidth: parent.height
                                 Layout.preferredHeight: parent.height
-                                visible: parent.initOrLoading  // initial binding
+
+                                DSM.StateMachine {
+                                    initialState: normal  // seems like initialization process starts earlier then StateMachine runs so lets start from "busy"
+                                    running: true  // run immediately
+                                    // onStarted: {
+                                    //     setInitInfo(index);
+                                    // }
+                                    DSM.State {
+                                        id: normal
+                                        onEntered: {
+                                            actionIndicator.visible = false;
+                                        }
+                                        DSM.SignalTransition {
+                                            targetState: busy
+                                            signal: display.actionStarted
+                                        }
+                                    }
+                                    DSM.State {
+                                        id: busy
+                                        onEntered: {
+                                            actionIndicator.currentIndex = 0;
+                                            actionIndicator.visible = true;
+                                        }
+                                        DSM.SignalTransition {
+                                            targetState: normal
+                                            signal: display.actionFinished
+                                            guard: projectsListView.currentIndex === index || action === 'initialization'
+                                        }
+                                        DSM.SignalTransition {
+                                            targetState: indication
+                                            signal: display.actionFinished
+                                        }
+                                    }
+                                    DSM.State {
+                                        id: indication
+                                        onEntered: {
+                                            actionIndicator.currentIndex = 1;
+                                        }
+                                        DSM.SignalTransition {
+                                            targetState: normal
+                                            signal: projectsListView.currentIndexChanged
+                                            guard: projectsListView.currentIndex === index
+                                        }
+                                    }
+                                }
 
                                 BusyIndicator {
                                     // Important note: if you toggle visibility frequently better use 'visible'
@@ -310,6 +395,7 @@ ApplicationWindow {
                                         width: 10
                                         height: width
                                         radius: width * 0.5
+                                        color: display.lastActionSucceed ? 'lightgreen' : 'lightcoral'
                                     }
                                 }
                             }
@@ -345,7 +431,7 @@ ApplicationWindow {
                             display: AbstractButton.TextBesideIcon
                             icon.source: '../icons/add.svg'
                             onClicked: addProjectFolderDialog.open()
-                            ToolTip.visible: projectsListView.count === 0 && !loadingOverlay.visible  // show when there is no items in the list
+                            ToolTip.visible: projectsListView.count === 0  // show when there is no items in the list
                             ToolTip.text: "<b>Hint:</b> add your project using this button or drag'n'drop it into the window"
                         }
                         Button {
@@ -969,7 +1055,7 @@ ApplicationWindow {
 
     /*
        Improvised status bar - simple text line. Currently, doesn't support smart intrinsic properties
-       as a fully-fledged status bar, but is used only for a single feature so not a big deal right now
+       of a fully-fledged status bar, but is used only for a single feature so not a big deal right now
     */
     footer: Text {
         id: statusBar

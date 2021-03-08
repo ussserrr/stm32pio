@@ -113,7 +113,7 @@ def create_app(sys_argv: List[str] = None) -> Application:
 
     engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'AboutDialog.qml')))
     engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'SettingsDialog.qml')))
-    engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'MainModular.qml')))
+    engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'App.qml')))
 
     main_window = engine.rootObjects()[-1]  # TODO: meh...
 
