@@ -44,7 +44,6 @@ class ProjectsList(QAbstractListModel):
         return len(self.projects)
 
     def data(self, index: QModelIndex, role=None):
-        print('here')
         if role == Qt.DisplayRole or role is None:
             return self.projects[index.row()]
 

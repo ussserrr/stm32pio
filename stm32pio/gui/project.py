@@ -1,4 +1,5 @@
 import logging
+import time
 import threading
 import weakref
 from typing import List, Mapping, Any
@@ -56,7 +57,7 @@ class ProjectListItem(QObject):
         self.workers_pool.setExpiryTimeout(-1)  # tasks wait forever for the available spot
 
         self._current_action: str = ''
-        self._last_action_succeed: bool = True
+        self._last_action = {}
 
         # These values are valid only until the Stm32pio project initialize itself (or failed to) (see init_project)
         self.project = None
@@ -88,10 +89,9 @@ class ProjectListItem(QObject):
             *args: positional arguments of the Stm32pio constructor
             **kwargs: keyword arguments of the Stm32pio constructor
         """
-        self.actionStarted.emit('initialization')
+        # self.actionStarted.emit('initialization')
         try:
-            # import time
-            # time.sleep(3.1)
+            # time.sleep(3)
             self.project = stm32pio.core.project.Stm32pio(*args, **kwargs)
         except Exception:
             stm32pio.core.logging.log_current_exception(self.logger)
@@ -117,7 +117,13 @@ class ProjectListItem(QObject):
             self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
             self.stateChanged.emit()
+            # time.sleep(0.1)
             self.actionFinished.emit('initialization', initialization_result)
+            # self._last_action = {
+            #     'name': 'initialization',
+            #     'successful': initialization_result
+            # }
+            # self.lastActionChanged.emit()
 
 
     @staticmethod
@@ -196,11 +202,11 @@ class ProjectListItem(QObject):
         """
         return self._current_action
 
-    lastActionSucceedChanged = Signal()
-    @Property(bool, notify=lastActionSucceedChanged)
-    def lastActionSucceed(self) -> bool:
+    lastActionChanged = Signal()
+    @Property('QVariant', notify=lastActionChanged)
+    def lastAction(self):
         """Have the last action ended with a success?"""
-        return self._last_action_succeed
+        return self._last_action
 
     actionStarted = Signal(str, arguments=['action'])
     @Slot(str)
@@ -216,8 +222,11 @@ class ProjectListItem(QObject):
     @Slot(str, bool)
     def actionFinishedSlot(self, action: str, success: bool):
         """Pass the corresponding signal from the worker, perform related tasks"""
-        self._last_action_succeed = success
-        self.lastActionSucceedChanged.emit()
+        self._last_action = {
+            'name': action,
+            'successful': success
+        }
+        self.lastActionChanged.emit()
         if not success:
             # Clear the queue - stop further execution (cancel planned tasks if an error had happened)
             self.workers_pool.clear()

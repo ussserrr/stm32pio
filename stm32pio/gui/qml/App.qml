@@ -17,7 +17,7 @@ ApplicationWindow {
     visible: true
     minimumWidth: 980  // comfortable initial size for all platforms (as the same style is used for any of them)
     minimumHeight: 300
-    height: 530
+    height: 300  // 530
     title: 'stm32pio'
     color: 'whitesmoke'
 
@@ -78,7 +78,7 @@ ApplicationWindow {
             initInfo[projectIndex] = 1;
         }
 
-        if (initInfo[projectIndex] === 2) {
+        if (initInfo[projectIndex] === 5) {
             delete initInfo[projectIndex];  // index can be reused
             projectsModel.get(projectIndex).qmlLoaded();
         }
@@ -220,9 +220,9 @@ ApplicationWindow {
                                     DSM.StateMachine {
                                         running: true
                                         initialState: normall
-                                        // onStarted: {
-                                        //     setInitInfo(index);
-                                        // }
+                                        onStarted: {
+                                            setInitInfo(index);
+                                        }
                                         DSM.State {
                                             id: normall
                                             onEntered: {
@@ -250,7 +250,7 @@ ApplicationWindow {
                                                 guard: projectsListView.currentIndex === index
                                             }
                                         }
-                                        DSM.State {
+                                        DSM.FinalState {
                                             id: initializationErrorr
                                             onEntered: {
                                                 projectName.color = 'indianred';
@@ -272,9 +272,9 @@ ApplicationWindow {
                                     DSM.StateMachine {
                                         running: true
                                         initialState: navigated
-                                        // onStarted: {
-                                        //     setInitInfo(index);
-                                        // }
+                                        onStarted: {
+                                            setInitInfo(index);
+                                        }
                                         DSM.State {
                                             id: navigated
                                             onEntered: {
@@ -284,6 +284,11 @@ ApplicationWindow {
                                                 targetState: inactive
                                                 signal: projectsListView.currentIndexChanged
                                                 guard: projectsListView.currentIndex !== index
+                                            }
+                                            DSM.SignalTransition {
+                                                targetState: inactive
+                                                signal: display.actionFinished
+                                                guard: action === 'initialization' && success && display.fromStartup && projectsListView.currentIndex !== index
                                             }
                                             DSM.SignalTransition {
                                                 targetState: addedd
@@ -318,7 +323,7 @@ ApplicationWindow {
                                                 guard: projectsListView.currentIndex === index
                                             }
                                         }
-                                        DSM.State {
+                                        DSM.FinalState {
                                             id: initializationError
                                             onEntered: {
                                                 projectCurrentStage.color = 'indianred';
@@ -336,11 +341,11 @@ ApplicationWindow {
                                 Layout.preferredHeight: parent.height
 
                                 DSM.StateMachine {
-                                    initialState: normal  // seems like initialization process starts earlier then StateMachine runs so lets start from "busy"
                                     running: true  // run immediately
-                                    // onStarted: {
-                                    //     setInitInfo(index);
-                                    // }
+                                    initialState: busy  // seems like initialization process starts earlier then StateMachine runs so lets start from "busy"
+                                    onStarted: {
+                                        setInitInfo(index);
+                                    }
                                     DSM.State {
                                         id: normal
                                         onEntered: {
