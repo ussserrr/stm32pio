@@ -187,7 +187,6 @@ ApplicationWindow {
                     /*
                        Use DelegateModel as it has a feature to always preserve specified list items in memory so we can store an actual state
                        directly in the delegate
-                       TODO: can be removed now as we got rid of the state in the delegate
                     */
                     model: projectsModel  // backend-side
                     delegate: Loader {
@@ -197,7 +196,7 @@ ApplicationWindow {
                         */
                         onLoaded: {
                             setInitInfo(index);
-                            DelegateModel.inPersistedItems = 1;
+                            DelegateModel.inPersistedItems = 1;  // TODO: = true (5.15)
                         }
                         sourceComponent: RowLayout {
                             // TODO: maybe should use "display" (or custom) role everywhere so no need to specify "project" property
@@ -231,7 +230,7 @@ ApplicationWindow {
                                             DSM.SignalTransition {
                                                 targetState: added
                                                 signal: display.actionFinished
-                                                guard: action === 'initialization' && success && !display.fromStartup && projectsModel.rowCount() > 1
+                                                guard: action === 'initialization' && success && !display.fromStartup && projectsListView.currentIndex !== index
                                             }
                                             DSM.SignalTransition {
                                                 targetState: initializationErrorr
@@ -288,12 +287,12 @@ ApplicationWindow {
                                             DSM.SignalTransition {
                                                 targetState: inactive
                                                 signal: display.actionFinished
-                                                guard: action === 'initialization' && success && display.fromStartup && projectsListView.currentIndex !== index
+                                                guard: action === 'initialization' && success && projectsListView.currentIndex !== index && display.fromStartup
                                             }
                                             DSM.SignalTransition {
                                                 targetState: addedd
                                                 signal: display.actionFinished
-                                                guard: action === 'initialization' && success && !display.fromStartup && projectsModel.rowCount() > 1
+                                                guard: action === 'initialization' && success && projectsListView.currentIndex !== index && !display.fromStartup
                                             }
                                             DSM.SignalTransition {
                                                 targetState: initializationError
@@ -395,7 +394,6 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     Rectangle {  // Circle :)
-                                        id: recentlyFinishedIndicator
                                         anchors.centerIn: parent
                                         width: 10
                                         height: width
@@ -464,13 +462,8 @@ ApplicationWindow {
             Layout.leftMargin: 5
             Layout.rightMargin: 10
             Layout.topMargin: 10
+            currentIndex: projectsListView.currentIndex
 
-            Connections {
-                target: projectsListView
-                function onCurrentIndexChanged() {
-                    projectsWorkspaceView.currentIndex = projectsListView.currentIndex;
-                }
-            }
             Repeater {
                 // Use similar to ListView pattern (same projects model, Loader component)
                 model: projectsModel
