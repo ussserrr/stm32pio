@@ -158,6 +158,7 @@ def create_app(sys_argv: List[str] = None) -> Application:
             success = False
 
         main_window.backendLoaded.emit(success)  # inform the GUI
+        print('stm32pio GUI started')
 
     loader = Worker(loading, logger=logging.getLogger('stm32pio.gui.app'), parent=app)
     loader.finished.connect(loaded)

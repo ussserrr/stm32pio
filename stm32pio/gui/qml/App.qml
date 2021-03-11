@@ -16,8 +16,8 @@ ApplicationWindow {
     id: mainWindow
     visible: true
     minimumWidth: 980  // comfortable initial size for all platforms (as the same style is used for any of them)
-    minimumHeight: 300
-    height: 300  // 530
+    minimumHeight: 310
+    height: 310  // 530
     title: 'stm32pio'
     color: 'whitesmoke'
 
@@ -78,7 +78,7 @@ ApplicationWindow {
             initInfo[projectIndex] = 1;
         }
 
-        if (initInfo[projectIndex] === 5) {
+        if (initInfo[projectIndex] === 4) {  // TODO
             delete initInfo[projectIndex];  // index can be reused
             projectsModel.get(projectIndex).qmlLoaded();
         }
@@ -468,546 +468,542 @@ ApplicationWindow {
                 // Use similar to ListView pattern (same projects model, Loader component)
                 model: projectsModel
                 delegate: Loader {
-                    property int projectIndex: index  // binding so will be automatically updated on change
-                    onLoaded: setInitInfo(index)
-                    /*
-                       Use another one StackLayout to separate Project initialization "screen" and Main one
-                    */
-                    sourceComponent: StackLayout {
-                        id: mainOrInitScreen
-                        currentIndex: -1  // at widget creation we do not show main nor init screen
+                    // active: index === projectsWorkspaceView.currentIndex
+                    // onLoaded: setInitInfo(index)
 
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
+                    sourceComponent: Item {
+                        BusyIndicator {
+                            anchors.centerIn: parent
+                        }
+                    }
 
-                        readonly property ProjectListItem project: projectsModel.get(index)
+                    readonly property ProjectListItem project: projectsModel.get(index)
 
-                        /*
-                           State retrieving procedure is relatively expensive (many IO operations) so we optimize it by getting the state
-                           only in certain situations (see Component.onCompleted below) and caching a value in the local variable. Then, all
-                           widgets can pick up this value as many times as they want while not abusing the real property getter. Such a subscription
-                           can be established by the creation of a local reference to the cache and listening to the change event like this:
+                    signal handleState()
+                    property var stateCached: ({})
+                    onHandleState: {
+                        if (mainWindow.active &&  // the app got foreground
+                            index === projectsWorkspaceView.currentIndex &&  // only for the current list item
+                            !projectIncorrectDialog.visible &&  // on macOS, there is an animation effect so this property isn't updated
+                                                                // immediately and the state can be retrieved several times and some flaws
+                                                                // may appear. Workaround - is to have a dedicated flag and update it
+                                                                // manually but this isn't very elegant solution
+                            display.currentAction === ''
+                        ) {
+                            const state = display.state;
+                            stateCached = state;
 
-                               property var stateCachedNotifier: stateCached
-                               onStateCachedNotifierChanged: {
-                                   // use stateCached there
-                               }
-                        */
-                        signal handleState()
-                        property var stateCached: ({})
-                        onHandleState: {
-                            if (mainWindow.active &&  // the app got foreground
-                                projectIndex === projectsWorkspaceView.currentIndex &&  // only for the current list item
-                                !projectIncorrectDialog.visible &&  // on macOS, there is an animation effect so this property isn't updated
-                                                                    // immediately and the state can be retrieved several times and some flaws
-                                                                    // may appear. Workaround - is to have a dedicated flag and update it
-                                                                    // manually but this isn't very elegant solution
-                                project.currentAction === ''
-                            ) {
-                                const state = project.state;
-                                stateCached = state;
+                            display.stageChanged();  // side-effect: update the stage at the same time
+                        }
+                    }
+                    Component.onCompleted: {
+                        // Several events lead to a single handler
+                        project.stateChanged.connect(handleState);  // the model has notified about the change
+                        projectsWorkspaceView.currentIndexChanged.connect(handleState);  // the project was selected in the list
+                        mainWindow.activeChanged.connect(handleState);  // the app window has got (or lost, filter in the handler) the focus
+                    }
 
-                                project.stageChanged();  // side-effect: update the stage at the same time
+                    Connections {
+                        target: project
+                        function onInitialized() {
+                            const state = project.state;
+                            stateCached = state;
+                            const completedStages = Object.keys(state).filter(stateName => state[stateName]);
+                            if (completedStages.length === 1 && completedStages[0] === 'EMPTY') {
+                                sourceComponent = projectSetupPage;
+                            } else {
+                                const config = project.config;
+                                if (Object.keys(config['project']).length && !config['project']['board']) {
+                                    // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
+                                    project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
+                                                     'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                                                     Logging.WARNING);
+                                }
+                                sourceComponent = workspacePage;
                             }
                         }
-                        Component.onCompleted: {
-                            // Several events lead to a single handler
-                            project.stateChanged.connect(handleState);  // the model has notified about the change
-                            projectsWorkspaceView.currentIndexChanged.connect(handleState);  // the project was selected in the list
-                            mainWindow.activeChanged.connect(handleState);  // the app window has got (or lost, filter in the handler) the focus
-                        }
+                    }
 
-                        Connections {
-                            target: project
-                            function onInitialized() {
-                                const state = project.state;
-                                stateCached = state;
-                                const completedStages = Object.keys(state).filter(stateName => state[stateName]);
-                                if (completedStages.length === 1 && completedStages[0] === 'EMPTY') {
-                                    setupScreenLoader.active = true;
-                                    mainOrInitScreen.currentIndex = 0;  // show init dialog
-                                } else {
+                    // TODO: Maybe use initErrorMessage for this
+                    Dialogs.MessageDialog {
+                        id: projectIncorrectDialog
+                        visible: Object.keys(stateCached).length && [
+                                     'LOADING',  // ignore transitional state
+                                     'INIT_ERROR',  // we have another view for this state, skip
+                                     'EMPTY'  // true if .ioc file is present, false otherwise
+                                 ].every(key => !stateCached[key])
+                        text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
+                                The project will be removed from the app. It will not affect any real content`
+                        icon: Dialogs.StandardIcon.Warning
+                        onAccepted: removeCurrentProject()
+                    }
+
+                    ListModel {
+                        id: projActionsModel
+                        readonly property int statefulActionsStartIndex: 2
+                        ListElement {
+                            name: 'Clean'
+                            action: 'clean'
+                            icon: '../icons/trash-bin.svg'
+                            tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder \
+                                      except the current .ioc file and clear all logs"
+                        }
+                        ListElement {
+                            name: 'Open editor'
+                            action: 'start_editor'
+                            icon: '../icons/edit.svg'
+                            margin: 15  // margin to visually separate first 2 actions as they don't represent any stage
+                        }
+                        ListElement {
+                            name: 'Initialize'
+                            stageRepresented: 'INITIALIZED'  // the project stage this button is representing
+                            action: 'save_config'
+                            // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
+                            tooltip: "Saves the current configuration to the config file <b>stm32pio.ini</b>"
+                        }
+                        ListElement {
+                            name: 'Generate'
+                            stageRepresented: 'GENERATED'
+                            action: 'generate_code'
+                        }
+                        ListElement {
+                            name: 'Init PlatformIO'
+                            stageRepresented: 'PIO_INITIALIZED'
+                            action: 'pio_init'
+                        }
+                        ListElement {
+                            name: 'Patch'
+                            stageRepresented: 'PATCHED'
+                            action: 'patch'
+                        }
+                        ListElement {
+                            name: 'Build'
+                            stageRepresented: 'BUILT'
+                            action: 'build'
+                        }
+                    }
+
+
+                    Component {
+                        id: projectSetupPage
+                        Column {
+                            topPadding: 10
+                            leftPadding: 10
+                            spacing: 11
+                            Text {
+                                text: "To complete project initialization you can provide the PlatformIO name of the board:"
+                            }
+                            ComboBox {
+                                id: board
+                                width: 200
+                                editable: true
+                                model: boardsModel  // backend-side (simple string model)
+                                textRole: 'display'
+                                onAccepted: focus = false
+                                onActivated: focus = false
+                                onFocusChanged: {
+                                    if (focus) {
+                                        selectAll();
+                                    } else {
+                                        if (find(editText) === -1) {
+                                            editText = textAt(0);  // should be 'None' at index 0 (TODO probably)
+                                        }
+                                    }
+                                }
+                                Component.onCompleted: {
+                                    // Board can be already specified in the config, in this case we should paste it
                                     const config = project.config;
-                                    if (Object.keys(config['project']).length && !config['project']['board']) {
+                                    if (Object.keys(config['project']).length && config['project']['board']) {
+                                        editText = config['project']['board'];
+                                    }
+                                    forceActiveFocus();
+                                }
+                                // KeyNavigation.tab: openEditor  // not working...
+                            }
+                            Text {
+                                text: "Additional actions to perform next:"
+                                topPadding: 10
+                            }
+                            Row {
+                                topPadding: -6
+                                leftPadding: -6
+                                spacing: 10
+                                /*
+                                    Trigger full run
+                                */
+                                CheckBox {
+                                    id: runCheckBox
+                                    text: 'Full run'
+                                    enabled: false
+                                    ToolTip {
+                                        visible: runCheckBox.hovered  // not working on Linux (Manjaro LXQt)
+                                        Component.onCompleted: {
+                                            // Form the tool tip text using action names
+                                            const actions = [];
+                                            for (let i = projActionsModel.statefulActionsStartIndex; i < projActionsModel.count; ++i) {
+                                                actions.push(`<b>${projActionsModel.get(i).name}</b>`);
+                                            }
+                                            text = `Execute tasks: ${actions.join(' → ')}`;
+                                        }
+                                    }
+                                    Connections {
+                                        target: board
+                                        function onFocusChanged() {
+                                            if (!board.focus) {
+                                                if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
+                                                    runCheckBox.checked = false;
+                                                    runCheckBox.enabled = false;
+                                                } else {
+                                                    runCheckBox.enabled = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                CheckBox {
+                                    id: openEditor
+                                    text: 'Open editor'
+                                    ToolTip {
+                                        text: "Start the editor specified in the <b>Settings</b> after the completion"
+                                        visible: openEditor.hovered  // not working on Linux (Manjaro LXQt)
+                                    }
+                                }
+                            }
+                            Button {
+                                text: 'OK'
+                                topInset: 14
+                                topPadding: 20
+                                onClicked: {
+                                    // All 'run' operations will be queued by the backend
+                                    project.run('save_config', [{
+                                        'project': {
+                                            'board': board.editText === board.textAt(0) ? '' : board.editText
+                                        }
+                                    }]);
+
+                                    if (board.editText === board.textAt(0)) {
                                         // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
                                         project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                                         'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                                         Logging.WARNING);
+                                                            'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                                                            Logging.WARNING);
                                     }
-                                    mainOrInitScreen.currentIndex = 1;  // show main view
+
+                                    if (runCheckBox.checked) {
+                                        for (let i = projActionsModel.statefulActionsStartIndex + 1; i < projActionsModel.count; ++i) {
+                                            project.run(projActionsModel.get(i).action, []);
+                                        }
+                                    }
+
+                                    if (openEditor.checked) {
+                                        project.run('start_editor', [settings.get('editor')]);
+                                    }
+
+                                    sourceComponent = workspacePage;
                                 }
                             }
                         }
+                    }
 
-                        Dialogs.MessageDialog {
-                            id: projectIncorrectDialog
-                            visible: Object.keys(stateCached).length && [
-                                        'LOADING',  // ignore transitional state
-                                        'INIT_ERROR',  // we have another view for this state, skip
-                                        'EMPTY'  // true if .ioc file is present, false otherwise
-                                     ].every(key => !stateCached[key])
-                            text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
-                                   The project will be removed from the app. It will not affect any real content`
-                            icon: Dialogs.StandardIcon.Warning
-                            onAccepted: removeCurrentProject()
-                        }
-
-                        /*
-                           Index: 0. Project initialization "screen"
-
-                           Prompt a user to perform initial setup
-                        */
-                        Loader {
-                            id: setupScreenLoader
-                            active: false
-                            sourceComponent: Column {
-                                Text {
-                                    text: "To complete initialization you can provide the PlatformIO name of the board"
-                                    padding: 10
-                                }
-                                Row {
-                                    padding: 10
-                                    spacing: 10
-                                    ComboBox {
-                                        id: board
-                                        width: 200
-                                        editable: true
-                                        model: boardsModel  // backend-side (simple string model)
-                                        textRole: 'display'
-                                        onAccepted: focus = false
-                                        onActivated: focus = false
-                                        onFocusChanged: {
-                                            if (focus) {
-                                                selectAll();
-                                            } else {
-                                                if (find(editText) === -1) {
-                                                    editText = textAt(0);  // should be 'None' at index 0
-                                                }
-                                            }
-                                        }
-                                        Component.onCompleted: {
-                                            // Board can be already specified in the config, in this case we should paste it
-                                            const config = project.config;
-                                            if (Object.keys(config['project']).length && config['project']['board']) {
-                                                editText = config['project']['board'];
-                                            }
-                                            forceActiveFocus();
-                                        }
-                                    }
-                                    /*
-                                       Trigger full run
-                                    */
-                                    CheckBox {
-                                        id: runCheckBox
-                                        text: 'Run'
-                                        enabled: false
-                                        ToolTip {
-                                            visible: runCheckBox.hovered  // not working on Linux (Manjaro LXQt)
-                                            Component.onCompleted: {
-                                                // Form the tool tip text using action names
-                                                const actions = [];
-                                                for (let i = projActionsModel.statefulActionsStartIndex; i < projActionsModel.count; ++i) {
-                                                    actions.push(`<b>${projActionsModel.get(i).name}</b>`);
-                                                }
-                                                text = `Do: ${actions.join(' → ')}`;
-                                            }
-                                        }
-                                        Connections {
-                                            target: board
-                                            function onFocusChanged() {
-                                                if (!board.focus) {
-                                                    if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
-                                                        runCheckBox.checked = false;
-                                                        runCheckBox.enabled = false;
-                                                    } else {
-                                                        runCheckBox.enabled = true;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    CheckBox {
-                                        id: openEditor
-                                        text: 'Open editor'
-                                        ToolTip {
-                                            text: "Start the editor specified in the <b>Settings</b> after the completion"
-                                            visible: openEditor.hovered  // not working on Linux (Manjaro LXQt)
-                                        }
-                                    }
-                                }
-                                Button {
-                                    text: 'OK'
-                                    topInset: 15
-                                    leftInset: 10
-                                    topPadding: 20
-                                    leftPadding: 18
-                                    onClicked: {
-                                        // All 'run' operations will be queued by the backend
-                                        project.run('save_config', [{
-                                            'project': {
-                                                'board': board.editText === board.textAt(0) ? '' : board.editText
-                                            }
-                                        }]);
-                                        if (board.editText === board.textAt(0)) {
-                                            // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                                            project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                                             'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                                             Logging.WARNING);
-                                        }
-
-                                        if (runCheckBox.checked) {
-                                            for (let i = projActionsModel.statefulActionsStartIndex + 1; i < projActionsModel.count; ++i) {
-                                                project.run(projActionsModel.get(i).action, []);
-                                            }
-                                        }
-
-                                        if (openEditor.checked) {
-                                            project.run('start_editor', [settings.get('editor')]);
-                                        }
-
-                                        mainOrInitScreen.currentIndex = 1;  // go to main screen
-                                        setupScreenLoader.sourceComponent = undefined;  // destroy init screen
-                                    }
-                                }
-                            }
-                        }
-
-                        /*
-                           Index: 1. Main "screen"
-                        */
+                    Component {
+                        id: workspacePage
                         ColumnLayout {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
 
-                            /*
-                               Show this or action buttons
-                            */
-                            Text {
-                                id: initErrorMessage
-                                visible: stateCached['INIT_ERROR'] ? true : false  // explicitly convert to boolean
-                                padding: 10
-                                text: "<b>The project cannot be initialized</b>"
-                                color: 'indianred'
+                            Loader {
+                                sourceComponent: stateCached['INIT_ERROR'] ? initErrorMessage : projActionsRowC
                             }
 
                             /*
-                               The core widget - a group of buttons mapping all main actions that can be performed on the given project.
-                               They also serve the project state displaying - each button indicates a stage associated with it:
-                                 - green (and green glow): done
-                                 - yellow: in progress right now
-                                 - red glow: an error has occurred during the last execution
+                                Show this or action buttons
                             */
-                            RowLayout {
-                                id: projActionsRow
-                                visible: stateCached['INIT_ERROR'] ? false : true
-                                Layout.fillWidth: true
-                                Layout.bottomMargin: 7
-                                z: 1  // for the glowing animation
-                                Repeater {
-                                    model: ListModel {
-                                        id: projActionsModel
-                                        readonly property int statefulActionsStartIndex: 2
-                                        ListElement {
-                                            name: 'Clean'
-                                            action: 'clean'
-                                            icon: '../icons/trash-bin.svg'
-                                            tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder \
-                                                      except the current .ioc file and clear all logs"
-                                        }
-                                        ListElement {
-                                            name: 'Open editor'
-                                            action: 'start_editor'
-                                            icon: '../icons/edit.svg'
-                                            margin: 15  // margin to visually separate first 2 actions as they don't represent any stage
-                                        }
-                                        ListElement {
-                                            name: 'Initialize'
-                                            stageRepresented: 'INITIALIZED'  // the project stage this button is representing
-                                            action: 'save_config'
-                                            // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                                            tooltip: "Saves the current configuration to the config file <b>stm32pio.ini</b>"
-                                        }
-                                        ListElement {
-                                            name: 'Generate'
-                                            stageRepresented: 'GENERATED'
-                                            action: 'generate_code'
-                                        }
-                                        ListElement {
-                                            name: 'Init PlatformIO'
-                                            stageRepresented: 'PIO_INITIALIZED'
-                                            action: 'pio_init'
-                                        }
-                                        ListElement {
-                                            name: 'Patch'
-                                            stageRepresented: 'PATCHED'
-                                            action: 'patch'
-                                        }
-                                        ListElement {
-                                            name: 'Build'
-                                            stageRepresented: 'BUILT'
-                                            action: 'build'
-                                        }
-                                    }
-                                    delegate: Button {
-                                        text: model.name
-                                        Layout.rightMargin: model.margin
-                                        property bool shouldBeHighlighted: false  // highlight on mouse over
-                                        property bool shouldBeHighlightedWhileRunning: false  // distinguish actions picked out for the batch run
-                                        property int buttonIndex: -1
-                                        Component.onCompleted: {
-                                            buttonIndex = index;
-                                            background.border.color = 'dimgray';
-                                        }
-                                        display: model.icon ? AbstractButton.IconOnly : AbstractButton.TextOnly
-                                        icon.source: model.icon || ''
-                                        ToolTip {
-                                            visible: mouseArea.containsMouse
+                            Component {
+                                id: initErrorMessage
+                                Text {
+                                    padding: 10
+                                    text: "<b>The project cannot be initialized</b>"
+                                    color: 'indianred'
+                                }
+                            }
+
+                            /*
+                                The core widget - a group of buttons mapping all main actions that can be performed on the given project.
+                                They also serve the project state displaying - each button indicates a stage associated with it:
+                                    - green (and green glow): done
+                                    - yellow: in progress right now
+                                    - red glow: an error has occurred during the last execution
+                            */
+                            Component {
+                                id: projActionsRowC
+                                RowLayout {
+                                    id: projActionsRow
+                                    Layout.fillWidth: true
+                                    Layout.bottomMargin: 7
+                                    z: 1  // for the glowing animation
+                                    Repeater {
+                                        model: projActionsModel
+                                        delegate: Button {
+                                            text: model.name
+                                            Layout.rightMargin: model.margin
+                                            property bool shouldBeHighlighted: false  // highlight on mouse over
+                                            property bool shouldBeHighlightedWhileRunning: false  // distinguish actions picked out for the batch run
+                                            property int buttonIndex: index  // TODO: was -1
                                             Component.onCompleted: {
-                                                text = '';
-                                                if (model.icon) {
-                                                    text += model.name;
-                                                }
-                                                if (model.tooltip) {
-                                                    text += text ? `<br>${model.tooltip}` : model.tooltip;
-                                                }
-                                                if (!model.icon && !model.tooltip) {
-                                                    this.destroy();
+                                                // buttonIndex = index;
+                                                background.border.color = 'dimgray';
+                                            }
+                                            display: model.icon ? AbstractButton.IconOnly : AbstractButton.TextOnly
+                                            icon.source: model.icon || ''
+                                            ToolTip {
+                                                visible: mouseArea.containsMouse
+                                                Component.onCompleted: {
+                                                    text = '';
+                                                    if (model.icon) {
+                                                        text += model.name;
+                                                    }
+                                                    if (model.tooltip) {
+                                                        text += text ? `<br>${model.tooltip}` : model.tooltip;
+                                                    }
+                                                    if (!model.icon && !model.tooltip) {
+                                                        this.destroy();  // TODO: Loader?
+                                                    }
                                                 }
                                             }
-                                        }
-                                        onClicked: {
-                                            // JS array cannot be attached to a ListElement (at least in a non-hacky manner) so we fill arguments here
-                                            const args = [];
-                                            switch (model.action) {
-                                                case 'start_editor':
-                                                    args.push(settings.get('editor'));
-                                                    break;
-                                                case 'clean':
-                                                    log.clear();
-                                                    break;
-                                                default:
-                                                    break;
+                                            onClicked: {
+                                                // JS array cannot be attached to a ListElement (at least in a non-hacky manner) so we fill arguments here
+                                                const args = [];
+                                                switch (model.action) {
+                                                    case 'start_editor':
+                                                        args.push(settings.get('editor'));
+                                                        break;
+                                                    case 'clean':
+                                                        log.clear();
+                                                        break;
+                                                    default:
+                                                        break;
+                                                }
+                                                project.run(model.action, args);
                                             }
-                                            project.run(model.action, args);
-                                        }
-                                        /*
-                                           As the button reflects relatively complex logic it's easier to maintain using the state machine technique.
-                                           We define states and allowed transitions between them, all other stuff is managed by the DSM framework.
-                                           You can find the graphical diagram somewhere in the docs
-                                        */
-                                        DSM.StateMachine {
-                                            initialState: main  // start position
-                                            running: true  // run immediately
-                                            DSM.State {
-                                                id: main
-                                                initialState: normal
-                                                DSM.SignalTransition {
-                                                    targetState: disabled
-                                                    signal: project.actionStarted
-                                                }
-                                                DSM.SignalTransition {
-                                                    targetState: highlighted
-                                                    signal: shouldBeHighlightedChanged
-                                                    guard: shouldBeHighlighted  // go only if...
-                                                }
-                                                onEntered: {
-                                                    enabled = true;
-                                                    palette.buttonText = 'black';
-                                                }
+                                            /*
+                                                As the button reflects relatively complex logic it's easier to maintain using the state machine technique.
+                                                We define states and allowed transitions between them, all other stuff is managed by the DSM framework.
+                                                You can find the graphical diagram somewhere in the docs
+                                            */
+                                            DSM.StateMachine {
+                                                initialState: main  // start position
+                                                running: true  // run immediately
+                                                onStarted: stateCachedChanged()
                                                 DSM.State {
-                                                    id: normal
+                                                    id: main
+                                                    initialState: normal
                                                     DSM.SignalTransition {
-                                                        targetState: stageFulfilled
-                                                        signal: stateCachedChanged
-                                                        guard: stateCached[model.stageRepresented] ? true : false  // explicitly convert to boolean
+                                                        targetState: disabled
+                                                        signal: project.actionStarted
+                                                    }
+                                                    DSM.SignalTransition {
+                                                        targetState: highlighted
+                                                        signal: shouldBeHighlightedChanged
+                                                        guard: shouldBeHighlighted  // go only if...
                                                     }
                                                     onEntered: {
-                                                        palette.button = 'lightgray';
+                                                        enabled = true;
+                                                        palette.buttonText = 'black';
+                                                    }
+                                                    DSM.State {
+                                                        id: normal
+                                                        DSM.SignalTransition {
+                                                            targetState: stageFulfilled
+                                                            signal: stateCachedChanged
+                                                            guard: stateCached[model.stageRepresented] ? true : false  // explicitly convert to boolean
+                                                        }
+                                                        onEntered: {
+                                                            palette.button = 'lightgray';
+                                                        }
+                                                    }
+                                                    DSM.State {
+                                                        id: stageFulfilled
+                                                        DSM.SignalTransition {
+                                                            targetState: normal
+                                                            signal: stateCachedChanged
+                                                            guard: stateCached[model.stageRepresented] ? false : true
+                                                        }
+                                                        onEntered: {
+                                                            palette.button = 'lightgreen';
+                                                        }
+                                                    }
+                                                    DSM.HistoryState {
+                                                        id: mainHistory
+                                                        defaultState: normal
                                                     }
                                                 }
                                                 DSM.State {
-                                                    id: stageFulfilled
+                                                    // Activates/deactivates additional properties (such as color or border) on some conditions
+                                                    // (e.g. some action is currently running), see onEntered, onExited
+                                                    id: disabled
                                                     DSM.SignalTransition {
-                                                        targetState: normal
-                                                        signal: stateCachedChanged
-                                                        guard: stateCached[model.stageRepresented] ? false : true
+                                                        targetState: mainHistory
+                                                        signal: project.actionFinished
                                                     }
                                                     onEntered: {
-                                                        palette.button = 'lightgreen';
+                                                        enabled = false;
+                                                        palette.buttonText = 'darkgray';
+                                                        if (project.currentAction === model.action) {
+                                                            palette.button = 'gold';
+                                                        }
+                                                        if (shouldBeHighlightedWhileRunning) {
+                                                            background.border.width = 2;
+                                                        }
+                                                    }
+                                                    onExited: {
+                                                        // Erase highlighting if this action is the last in the series (or an error occurred)
+                                                        if ((project.currentAction === model.action || !project.lastActionSucceed) &&
+                                                            shouldBeHighlightedWhileRunning &&
+                                                            (buttonIndex === (projActionsModel.count - 1) ||
+                                                                !projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning)
+                                                        ) {
+                                                            for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                                projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
+                                                                projActionsRow.children[i].background.border.width = 0;
+                                                            }
+                                                        }
                                                     }
                                                 }
-                                                DSM.HistoryState {
-                                                    id: mainHistory
-                                                    defaultState: normal
+                                                DSM.State {
+                                                    id: highlighted
+                                                    DSM.SignalTransition {
+                                                        targetState: mainHistory
+                                                        signal: shouldBeHighlightedChanged
+                                                        guard: !shouldBeHighlighted
+                                                    }
+                                                    onEntered: {
+                                                        palette.button = Qt.lighter('lightgreen', 1.2);
+                                                        palette.buttonText = 'dimgray';
+                                                    }
                                                 }
                                             }
-                                            DSM.State {
-                                                // Activates/deactivates additional properties (such as color or border) on some conditions
-                                                // (e.g. some action is currently running), see onEntered, onExited
-                                                id: disabled
-                                                DSM.SignalTransition {
-                                                    targetState: mainHistory
-                                                    signal: project.actionFinished
+                                            /*
+                                                Detect modifier keys using overlaying MouseArea:
+                                                    - Ctrl (Cmd): start the editor after the action(s)
+                                                    - Shift: batch actions run
+                                            */
+                                            MouseArea {
+                                                id: mouseArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                property bool ctrlPressed: false
+                                                property bool ctrlPressedLastState: false
+                                                property bool shiftPressed: false
+                                                property bool shiftPressedLastState: false
+                                                function shiftHandler() {
+                                                    // manage the appearance of all [stateful] buttons prior this one
+                                                    for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                        projActionsRow.children[i].shouldBeHighlighted = shiftPressed;
+                                                    }
+                                                }
+                                                onClicked: {
+                                                    if (shiftPressed && buttonIndex >= projActionsModel.statefulActionsStartIndex) {
+                                                        for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                            projActionsRow.children[i].shouldBeHighlighted = false;
+                                                            projActionsRow.children[i].shouldBeHighlightedWhileRunning = true;
+                                                        }
+                                                        for (let i = projActionsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
+                                                            project.run(projActionsModel.get(i).action, []);
+                                                        }
+                                                    }
+                                                    parent.clicked();  // pass the event to the underlying button though all work can be done in-place
+                                                    if (ctrlPressed && model.action !== 'start_editor') {
+                                                        project.run('start_editor', [settings.get('editor')]);
+                                                    }
+                                                }
+                                                onPositionChanged: {
+                                                    ctrlPressed = mouse.modifiers & Qt.ControlModifier;  // bitwise AND
+                                                    if (ctrlPressedLastState !== ctrlPressed) {
+                                                        ctrlPressedLastState = ctrlPressed;
+                                                    }
+
+                                                    shiftPressed = mouse.modifiers & Qt.ShiftModifier;  // bitwise AND
+                                                    if (shiftPressedLastState !== shiftPressed) {  // reduce a number of unnecessary shiftHandler() calls
+                                                        shiftPressedLastState = shiftPressed;
+                                                        shiftHandler();
+                                                    }
                                                 }
                                                 onEntered: {
-                                                    enabled = false;
-                                                    palette.buttonText = 'darkgray';
-                                                    if (project.currentAction === model.action) {
-                                                        palette.button = 'gold';
-                                                    }
-                                                    if (shouldBeHighlightedWhileRunning) {
-                                                        background.border.width = 2;
+                                                    if (model.action !== 'start_editor') {
+                                                        let preparedText = `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b>
+                                                                            after the operation`;
+                                                        if (buttonIndex >= projActionsModel.statefulActionsStartIndex) {
+                                                            preparedText +=
+                                                                `, <b>Shift</b>-click to perform all actions prior this one (including).
+                                                                    <b>Ctrl</b>-<b>Shift</b>-click for both`;
+                                                        }
+                                                        statusBar.text = preparedText;
                                                     }
                                                 }
                                                 onExited: {
-                                                    // Erase highlighting if this action is the last in the series (or an error occurred)
-                                                    if ((project.currentAction === model.action || !project.lastActionSucceed) &&
-                                                        shouldBeHighlightedWhileRunning &&
-                                                        (buttonIndex === (projActionsModel.count - 1) ||
-                                                         !projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning)
-                                                    ) {
-                                                        for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                            projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
-                                                            projActionsRow.children[i].background.border.width = 0;
+                                                    statusBar.text = '';
+
+                                                    ctrlPressed = false;
+                                                    ctrlPressedLastState = false;
+
+                                                    if (shiftPressed || shiftPressedLastState) {
+                                                        shiftPressed = false;
+                                                        shiftPressedLastState = false;
+                                                        shiftHandler();
+                                                    }
+                                                }
+                                            }
+                                            Connections {
+                                                target: project
+                                                function onActionStarted(action) {
+                                                    glow.visible = false;
+                                                }
+                                                function onActionFinished(action, success) {
+                                                    if (action === model.action) {
+                                                        if (success) {
+                                                            glow.color = 'lightgreen';
+                                                        } else {
+                                                            glow.color = 'lightcoral';
+                                                        }
+                                                        glow.visible = true;
+
+                                                        if (settings.get('notifications') && !mainWindow.active) {
+                                                            sysTrayIcon.showMessage(
+                                                                success ? 'Success' : 'Error',  // title
+                                                                `${project.name} - ${model.name}`,  // text
+                                                                success ? Labs.SystemTrayIcon.Information : Labs.SystemTrayIcon.Warning,  // icon
+                                                                5000  // ms
+                                                            );
                                                         }
                                                     }
                                                 }
                                             }
-                                            DSM.State {
-                                                id: highlighted
-                                                DSM.SignalTransition {
-                                                    targetState: mainHistory
-                                                    signal: shouldBeHighlightedChanged
-                                                    guard: !shouldBeHighlighted
-                                                }
-                                                onEntered: {
-                                                    palette.button = Qt.lighter('lightgreen', 1.2);
-                                                    palette.buttonText = 'dimgray';
-                                                }
-                                            }
-                                        }
-                                        /*
-                                           Detect modifier keys using overlaying MouseArea:
-                                             - Ctrl (Cmd): start the editor after the action(s)
-                                             - Shift: batch actions run
-                                        */
-                                        MouseArea {
-                                            id: mouseArea
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            property bool ctrlPressed: false
-                                            property bool ctrlPressedLastState: false
-                                            property bool shiftPressed: false
-                                            property bool shiftPressedLastState: false
-                                            function shiftHandler() {
-                                                // manage the appearance of all [stateful] buttons prior this one
-                                                for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                    projActionsRow.children[i].shouldBeHighlighted = shiftPressed;
-                                                }
-                                            }
-                                            onClicked: {
-                                                if (shiftPressed && buttonIndex >= projActionsModel.statefulActionsStartIndex) {
-                                                    for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                        projActionsRow.children[i].shouldBeHighlighted = false;
-                                                        projActionsRow.children[i].shouldBeHighlightedWhileRunning = true;
+                                            /*
+                                                "Blinky" glowing
+                                            */
+                                            RectangularGlow {
+                                                id: glow
+                                                visible: false
+                                                anchors.fill: parent
+                                                cornerRadius: 25
+                                                glowRadius: 20
+                                                spread: 0.25
+                                                onVisibleChanged: visible ? glowAnimation.start() : glowAnimation.complete()
+                                                SequentialAnimation {
+                                                    id: glowAnimation
+                                                    loops: 3
+                                                    onStopped: glow.visible = false
+                                                    OpacityAnimator {
+                                                        target: glow
+                                                        from: 0
+                                                        to: 1
+                                                        duration: 1000
                                                     }
-                                                    for (let i = projActionsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
-                                                        project.run(projActionsModel.get(i).action, []);
+                                                    OpacityAnimator {
+                                                        target: glow
+                                                        from: 1
+                                                        to: 0
+                                                        duration: 1000
                                                     }
-                                                }
-                                                parent.clicked();  // pass the event to the underlying button though all work can be done in-place
-                                                if (ctrlPressed && model.action !== 'start_editor') {
-                                                    project.run('start_editor', [settings.get('editor')]);
-                                                }
-                                            }
-                                            onPositionChanged: {
-                                                ctrlPressed = mouse.modifiers & Qt.ControlModifier;  // bitwise AND
-                                                if (ctrlPressedLastState !== ctrlPressed) {
-                                                    ctrlPressedLastState = ctrlPressed;
-                                                }
-
-                                                shiftPressed = mouse.modifiers & Qt.ShiftModifier;  // bitwise AND
-                                                if (shiftPressedLastState !== shiftPressed) {  // reduce a number of unnecessary shiftHandler() calls
-                                                    shiftPressedLastState = shiftPressed;
-                                                    shiftHandler();
-                                                }
-                                            }
-                                            onEntered: {
-                                                if (model.action !== 'start_editor') {
-                                                    let preparedText = `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b>
-                                                                        after the operation`;
-                                                    if (buttonIndex >= projActionsModel.statefulActionsStartIndex) {
-                                                        preparedText +=
-                                                            `, <b>Shift</b>-click to perform all actions prior this one (including).
-                                                             <b>Ctrl</b>-<b>Shift</b>-click for both`;
-                                                    }
-                                                    statusBar.text = preparedText;
-                                                }
-                                            }
-                                            onExited: {
-                                                statusBar.text = '';
-
-                                                ctrlPressed = false;
-                                                ctrlPressedLastState = false;
-
-                                                if (shiftPressed || shiftPressedLastState) {
-                                                    shiftPressed = false;
-                                                    shiftPressedLastState = false;
-                                                    shiftHandler();
-                                                }
-                                            }
-                                        }
-                                        Connections {
-                                            target: project
-                                            function onActionStarted(action) {
-                                                glow.visible = false;
-                                            }
-                                            function onActionFinished(action, success) {
-                                                if (action === model.action) {
-                                                    if (success) {
-                                                        glow.color = 'lightgreen';
-                                                    } else {
-                                                        glow.color = 'lightcoral';
-                                                    }
-                                                    glow.visible = true;
-
-                                                    if (settings.get('notifications') && !mainWindow.active) {
-                                                        sysTrayIcon.showMessage(
-                                                            success ? 'Success' : 'Error',  // title
-                                                            `${project.name} - ${model.name}`,  // text
-                                                            success ? Labs.SystemTrayIcon.Information : Labs.SystemTrayIcon.Warning,  // icon
-                                                            5000  // ms
-                                                        );
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        /*
-                                           "Blinky" glowing
-                                        */
-                                        RectangularGlow {
-                                            id: glow
-                                            visible: false
-                                            anchors.fill: parent
-                                            cornerRadius: 25
-                                            glowRadius: 20
-                                            spread: 0.25
-                                            onVisibleChanged: visible ? glowAnimation.start() : glowAnimation.complete()
-                                            SequentialAnimation {
-                                                id: glowAnimation
-                                                loops: 3
-                                                onStopped: glow.visible = false
-                                                OpacityAnimator {
-                                                    target: glow
-                                                    from: 0
-                                                    to: 1
-                                                    duration: 1000
-                                                }
-                                                OpacityAnimator {
-                                                    target: glow
-                                                    from: 1
-                                                    to: 0
-                                                    duration: 1000
                                                 }
                                             }
                                         }
@@ -1046,6 +1042,592 @@ ApplicationWindow {
                             }
                         }
                     }
+
+
+
+
+
+
+
+
+
+
+                    /*
+                       Use another one StackLayout to separate Project initialization "screen" and Main one
+                    */
+                    // sourceComponent: StackLayout {
+                    //     id: mainOrInitScreen
+                    //     currentIndex: -1  // at widget creation we do not show main nor init screen
+
+                    //     Layout.fillWidth: true
+                    //     Layout.fillHeight: true
+
+                    //     readonly property ProjectListItem project: projectsModel.get(index)
+
+                    //     /*
+                    //        State retrieving procedure is relatively expensive (many IO operations) so we optimize it by getting the state
+                    //        only in certain situations (see Component.onCompleted below) and caching a value in the local variable. Then, all
+                    //        widgets can pick up this value as many times as they want while not abusing the real property getter. Such a subscription
+                    //        can be established by the creation of a local reference to the cache and listening to the change event like this:
+
+                    //            property var stateCachedNotifier: stateCached
+                    //            onStateCachedNotifierChanged: {
+                    //                // use stateCached there
+                    //            }
+                    //     */
+                    //     signal handleState()
+                    //     property var stateCached: ({})
+                    //     onHandleState: {
+                    //         if (mainWindow.active &&  // the app got foreground
+                    //             projectIndex === projectsWorkspaceView.currentIndex &&  // only for the current list item
+                    //             !projectIncorrectDialog.visible &&  // on macOS, there is an animation effect so this property isn't updated
+                    //                                                 // immediately and the state can be retrieved several times and some flaws
+                    //                                                 // may appear. Workaround - is to have a dedicated flag and update it
+                    //                                                 // manually but this isn't very elegant solution
+                    //             project.currentAction === ''
+                    //         ) {
+                    //             const state = project.state;
+                    //             stateCached = state;
+
+                    //             project.stageChanged();  // side-effect: update the stage at the same time
+                    //         }
+                    //     }
+                    //     Component.onCompleted: {
+                    //         // Several events lead to a single handler
+                    //         project.stateChanged.connect(handleState);  // the model has notified about the change
+                    //         projectsWorkspaceView.currentIndexChanged.connect(handleState);  // the project was selected in the list
+                    //         mainWindow.activeChanged.connect(handleState);  // the app window has got (or lost, filter in the handler) the focus
+                    //     }
+
+                    //     Connections {
+                    //         target: project
+                    //         function onInitialized() {
+                    //             const state = project.state;
+                    //             stateCached = state;
+                    //             const completedStages = Object.keys(state).filter(stateName => state[stateName]);
+                    //             if (completedStages.length === 1 && completedStages[0] === 'EMPTY') {
+                    //                 setupScreenLoader.active = true;
+                    //                 mainOrInitScreen.currentIndex = 0;  // show init dialog
+                    //             } else {
+                    //                 const config = project.config;
+                    //                 if (Object.keys(config['project']).length && !config['project']['board']) {
+                    //                     // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
+                    //                     project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
+                    //                                      'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                    //                                      Logging.WARNING);
+                    //                 }
+                    //                 mainOrInitScreen.currentIndex = 1;  // show main view
+                    //             }
+                    //         }
+                    //     }
+
+                    //     Dialogs.MessageDialog {
+                    //         id: projectIncorrectDialog
+                    //         visible: Object.keys(stateCached).length && [
+                    //                     'LOADING',  // ignore transitional state
+                    //                     'INIT_ERROR',  // we have another view for this state, skip
+                    //                     'EMPTY'  // true if .ioc file is present, false otherwise
+                    //                  ].every(key => !stateCached[key])
+                    //         text: `The project was modified outside of the stm32pio and .ioc file is no longer present.<br>
+                    //                The project will be removed from the app. It will not affect any real content`
+                    //         icon: Dialogs.StandardIcon.Warning
+                    //         onAccepted: removeCurrentProject()
+                    //     }
+
+                    //     /*
+                    //        Index: 0. Project initialization "screen"
+
+                    //        Prompt a user to perform initial setup
+                    //     */
+                    //     Loader {
+                    //         id: setupScreenLoader
+                    //         active: false
+                    //         sourceComponent: Column {
+                    //             Text {
+                    //                 text: "To complete initialization you can provide the PlatformIO name of the board"
+                    //                 padding: 10
+                    //             }
+                    //             Row {
+                    //                 padding: 10
+                    //                 spacing: 10
+                    //                 ComboBox {
+                    //                     id: board
+                    //                     width: 200
+                    //                     editable: true
+                    //                     model: boardsModel  // backend-side (simple string model)
+                    //                     textRole: 'display'
+                    //                     onAccepted: focus = false
+                    //                     onActivated: focus = false
+                    //                     onFocusChanged: {
+                    //                         if (focus) {
+                    //                             selectAll();
+                    //                         } else {
+                    //                             if (find(editText) === -1) {
+                    //                                 editText = textAt(0);  // should be 'None' at index 0
+                    //                             }
+                    //                         }
+                    //                     }
+                    //                     Component.onCompleted: {
+                    //                         // Board can be already specified in the config, in this case we should paste it
+                    //                         const config = project.config;
+                    //                         if (Object.keys(config['project']).length && config['project']['board']) {
+                    //                             editText = config['project']['board'];
+                    //                         }
+                    //                         forceActiveFocus();
+                    //                     }
+                    //                 }
+                    //                 /*
+                    //                    Trigger full run
+                    //                 */
+                    //                 CheckBox {
+                    //                     id: runCheckBox
+                    //                     text: 'Run'
+                    //                     enabled: false
+                    //                     ToolTip {
+                    //                         visible: runCheckBox.hovered  // not working on Linux (Manjaro LXQt)
+                    //                         Component.onCompleted: {
+                    //                             // Form the tool tip text using action names
+                    //                             const actions = [];
+                    //                             for (let i = projActionsModel.statefulActionsStartIndex; i < projActionsModel.count; ++i) {
+                    //                                 actions.push(`<b>${projActionsModel.get(i).name}</b>`);
+                    //                             }
+                    //                             text = `Do: ${actions.join(' → ')}`;
+                    //                         }
+                    //                     }
+                    //                     Connections {
+                    //                         target: board
+                    //                         function onFocusChanged() {
+                    //                             if (!board.focus) {
+                    //                                 if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
+                    //                                     runCheckBox.checked = false;
+                    //                                     runCheckBox.enabled = false;
+                    //                                 } else {
+                    //                                     runCheckBox.enabled = true;
+                    //                                 }
+                    //                             }
+                    //                         }
+                    //                     }
+                    //                 }
+                    //                 CheckBox {
+                    //                     id: openEditor
+                    //                     text: 'Open editor'
+                    //                     ToolTip {
+                    //                         text: "Start the editor specified in the <b>Settings</b> after the completion"
+                    //                         visible: openEditor.hovered  // not working on Linux (Manjaro LXQt)
+                    //                     }
+                    //                 }
+                    //             }
+                    //             Button {
+                    //                 text: 'OK'
+                    //                 topInset: 15
+                    //                 leftInset: 10
+                    //                 topPadding: 20
+                    //                 leftPadding: 18
+                    //                 onClicked: {
+                    //                     // All 'run' operations will be queued by the backend
+                    //                     project.run('save_config', [{
+                    //                         'project': {
+                    //                             'board': board.editText === board.textAt(0) ? '' : board.editText
+                    //                         }
+                    //                     }]);
+                    //                     if (board.editText === board.textAt(0)) {
+                    //                         // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
+                    //                         project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
+                    //                                          'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                    //                                          Logging.WARNING);
+                    //                     }
+
+                    //                     if (runCheckBox.checked) {
+                    //                         for (let i = projActionsModel.statefulActionsStartIndex + 1; i < projActionsModel.count; ++i) {
+                    //                             project.run(projActionsModel.get(i).action, []);
+                    //                         }
+                    //                     }
+
+                    //                     if (openEditor.checked) {
+                    //                         project.run('start_editor', [settings.get('editor')]);
+                    //                     }
+
+                    //                     mainOrInitScreen.currentIndex = 1;  // go to main screen
+                    //                     setupScreenLoader.sourceComponent = undefined;  // destroy init screen
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
+
+                    //     /*
+                    //        Index: 1. Main "screen"
+                    //     */
+                    //     ColumnLayout {
+                    //         Layout.fillWidth: true
+                    //         Layout.fillHeight: true
+
+                    //         /*
+                    //            Show this or action buttons
+                    //         */
+                    //         Text {
+                    //             id: initErrorMessage
+                    //             visible: stateCached['INIT_ERROR'] ? true : false  // explicitly convert to boolean
+                    //             padding: 10
+                    //             text: "<b>The project cannot be initialized</b>"
+                    //             color: 'indianred'
+                    //         }
+
+                    //         /*
+                    //            The core widget - a group of buttons mapping all main actions that can be performed on the given project.
+                    //            They also serve the project state displaying - each button indicates a stage associated with it:
+                    //              - green (and green glow): done
+                    //              - yellow: in progress right now
+                    //              - red glow: an error has occurred during the last execution
+                    //         */
+                    //         RowLayout {
+                    //             id: projActionsRow
+                    //             visible: stateCached['INIT_ERROR'] ? false : true
+                    //             Layout.fillWidth: true
+                    //             Layout.bottomMargin: 7
+                    //             z: 1  // for the glowing animation
+                    //             Repeater {
+                    //                 model: ListModel {
+                    //                     id: projActionsModel
+                    //                     readonly property int statefulActionsStartIndex: 2
+                    //                     ListElement {
+                    //                         name: 'Clean'
+                    //                         action: 'clean'
+                    //                         icon: '../icons/trash-bin.svg'
+                    //                         tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder \
+                    //                                   except the current .ioc file and clear all logs"
+                    //                     }
+                    //                     ListElement {
+                    //                         name: 'Open editor'
+                    //                         action: 'start_editor'
+                    //                         icon: '../icons/edit.svg'
+                    //                         margin: 15  // margin to visually separate first 2 actions as they don't represent any stage
+                    //                     }
+                    //                     ListElement {
+                    //                         name: 'Initialize'
+                    //                         stageRepresented: 'INITIALIZED'  // the project stage this button is representing
+                    //                         action: 'save_config'
+                    //                         // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
+                    //                         tooltip: "Saves the current configuration to the config file <b>stm32pio.ini</b>"
+                    //                     }
+                    //                     ListElement {
+                    //                         name: 'Generate'
+                    //                         stageRepresented: 'GENERATED'
+                    //                         action: 'generate_code'
+                    //                     }
+                    //                     ListElement {
+                    //                         name: 'Init PlatformIO'
+                    //                         stageRepresented: 'PIO_INITIALIZED'
+                    //                         action: 'pio_init'
+                    //                     }
+                    //                     ListElement {
+                    //                         name: 'Patch'
+                    //                         stageRepresented: 'PATCHED'
+                    //                         action: 'patch'
+                    //                     }
+                    //                     ListElement {
+                    //                         name: 'Build'
+                    //                         stageRepresented: 'BUILT'
+                    //                         action: 'build'
+                    //                     }
+                    //                 }
+                    //                 delegate: Button {
+                    //                     text: model.name
+                    //                     Layout.rightMargin: model.margin
+                    //                     property bool shouldBeHighlighted: false  // highlight on mouse over
+                    //                     property bool shouldBeHighlightedWhileRunning: false  // distinguish actions picked out for the batch run
+                    //                     property int buttonIndex: -1
+                    //                     Component.onCompleted: {
+                    //                         buttonIndex = index;
+                    //                         background.border.color = 'dimgray';
+                    //                     }
+                    //                     display: model.icon ? AbstractButton.IconOnly : AbstractButton.TextOnly
+                    //                     icon.source: model.icon || ''
+                    //                     ToolTip {
+                    //                         visible: mouseArea.containsMouse
+                    //                         Component.onCompleted: {
+                    //                             text = '';
+                    //                             if (model.icon) {
+                    //                                 text += model.name;
+                    //                             }
+                    //                             if (model.tooltip) {
+                    //                                 text += text ? `<br>${model.tooltip}` : model.tooltip;
+                    //                             }
+                    //                             if (!model.icon && !model.tooltip) {
+                    //                                 this.destroy();
+                    //                             }
+                    //                         }
+                    //                     }
+                    //                     onClicked: {
+                    //                         // JS array cannot be attached to a ListElement (at least in a non-hacky manner) so we fill arguments here
+                    //                         const args = [];
+                    //                         switch (model.action) {
+                    //                             case 'start_editor':
+                    //                                 args.push(settings.get('editor'));
+                    //                                 break;
+                    //                             case 'clean':
+                    //                                 log.clear();
+                    //                                 break;
+                    //                             default:
+                    //                                 break;
+                    //                         }
+                    //                         project.run(model.action, args);
+                    //                     }
+                    //                     /*
+                    //                        As the button reflects relatively complex logic it's easier to maintain using the state machine technique.
+                    //                        We define states and allowed transitions between them, all other stuff is managed by the DSM framework.
+                    //                        You can find the graphical diagram somewhere in the docs
+                    //                     */
+                    //                     DSM.StateMachine {
+                    //                         initialState: main  // start position
+                    //                         running: true  // run immediately
+                    //                         DSM.State {
+                    //                             id: main
+                    //                             initialState: normal
+                    //                             DSM.SignalTransition {
+                    //                                 targetState: disabled
+                    //                                 signal: project.actionStarted
+                    //                             }
+                    //                             DSM.SignalTransition {
+                    //                                 targetState: highlighted
+                    //                                 signal: shouldBeHighlightedChanged
+                    //                                 guard: shouldBeHighlighted  // go only if...
+                    //                             }
+                    //                             onEntered: {
+                    //                                 enabled = true;
+                    //                                 palette.buttonText = 'black';
+                    //                             }
+                    //                             DSM.State {
+                    //                                 id: normal
+                    //                                 DSM.SignalTransition {
+                    //                                     targetState: stageFulfilled
+                    //                                     signal: stateCachedChanged
+                    //                                     guard: stateCached[model.stageRepresented] ? true : false  // explicitly convert to boolean
+                    //                                 }
+                    //                                 onEntered: {
+                    //                                     palette.button = 'lightgray';
+                    //                                 }
+                    //                             }
+                    //                             DSM.State {
+                    //                                 id: stageFulfilled
+                    //                                 DSM.SignalTransition {
+                    //                                     targetState: normal
+                    //                                     signal: stateCachedChanged
+                    //                                     guard: stateCached[model.stageRepresented] ? false : true
+                    //                                 }
+                    //                                 onEntered: {
+                    //                                     palette.button = 'lightgreen';
+                    //                                 }
+                    //                             }
+                    //                             DSM.HistoryState {
+                    //                                 id: mainHistory
+                    //                                 defaultState: normal
+                    //                             }
+                    //                         }
+                    //                         DSM.State {
+                    //                             // Activates/deactivates additional properties (such as color or border) on some conditions
+                    //                             // (e.g. some action is currently running), see onEntered, onExited
+                    //                             id: disabled
+                    //                             DSM.SignalTransition {
+                    //                                 targetState: mainHistory
+                    //                                 signal: project.actionFinished
+                    //                             }
+                    //                             onEntered: {
+                    //                                 enabled = false;
+                    //                                 palette.buttonText = 'darkgray';
+                    //                                 if (project.currentAction === model.action) {
+                    //                                     palette.button = 'gold';
+                    //                                 }
+                    //                                 if (shouldBeHighlightedWhileRunning) {
+                    //                                     background.border.width = 2;
+                    //                                 }
+                    //                             }
+                    //                             onExited: {
+                    //                                 // Erase highlighting if this action is the last in the series (or an error occurred)
+                    //                                 if ((project.currentAction === model.action || !project.lastActionSucceed) &&
+                    //                                     shouldBeHighlightedWhileRunning &&
+                    //                                     (buttonIndex === (projActionsModel.count - 1) ||
+                    //                                      !projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning)
+                    //                                 ) {
+                    //                                     for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                    //                                         projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
+                    //                                         projActionsRow.children[i].background.border.width = 0;
+                    //                                     }
+                    //                                 }
+                    //                             }
+                    //                         }
+                    //                         DSM.State {
+                    //                             id: highlighted
+                    //                             DSM.SignalTransition {
+                    //                                 targetState: mainHistory
+                    //                                 signal: shouldBeHighlightedChanged
+                    //                                 guard: !shouldBeHighlighted
+                    //                             }
+                    //                             onEntered: {
+                    //                                 palette.button = Qt.lighter('lightgreen', 1.2);
+                    //                                 palette.buttonText = 'dimgray';
+                    //                             }
+                    //                         }
+                    //                     }
+                    //                     /*
+                    //                        Detect modifier keys using overlaying MouseArea:
+                    //                          - Ctrl (Cmd): start the editor after the action(s)
+                    //                          - Shift: batch actions run
+                    //                     */
+                    //                     MouseArea {
+                    //                         id: mouseArea
+                    //                         anchors.fill: parent
+                    //                         hoverEnabled: true
+                    //                         property bool ctrlPressed: false
+                    //                         property bool ctrlPressedLastState: false
+                    //                         property bool shiftPressed: false
+                    //                         property bool shiftPressedLastState: false
+                    //                         function shiftHandler() {
+                    //                             // manage the appearance of all [stateful] buttons prior this one
+                    //                             for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                    //                                 projActionsRow.children[i].shouldBeHighlighted = shiftPressed;
+                    //                             }
+                    //                         }
+                    //                         onClicked: {
+                    //                             if (shiftPressed && buttonIndex >= projActionsModel.statefulActionsStartIndex) {
+                    //                                 for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                    //                                     projActionsRow.children[i].shouldBeHighlighted = false;
+                    //                                     projActionsRow.children[i].shouldBeHighlightedWhileRunning = true;
+                    //                                 }
+                    //                                 for (let i = projActionsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
+                    //                                     project.run(projActionsModel.get(i).action, []);
+                    //                                 }
+                    //                             }
+                    //                             parent.clicked();  // pass the event to the underlying button though all work can be done in-place
+                    //                             if (ctrlPressed && model.action !== 'start_editor') {
+                    //                                 project.run('start_editor', [settings.get('editor')]);
+                    //                             }
+                    //                         }
+                    //                         onPositionChanged: {
+                    //                             ctrlPressed = mouse.modifiers & Qt.ControlModifier;  // bitwise AND
+                    //                             if (ctrlPressedLastState !== ctrlPressed) {
+                    //                                 ctrlPressedLastState = ctrlPressed;
+                    //                             }
+
+                    //                             shiftPressed = mouse.modifiers & Qt.ShiftModifier;  // bitwise AND
+                    //                             if (shiftPressedLastState !== shiftPressed) {  // reduce a number of unnecessary shiftHandler() calls
+                    //                                 shiftPressedLastState = shiftPressed;
+                    //                                 shiftHandler();
+                    //                             }
+                    //                         }
+                    //                         onEntered: {
+                    //                             if (model.action !== 'start_editor') {
+                    //                                 let preparedText = `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b>
+                    //                                                     after the operation`;
+                    //                                 if (buttonIndex >= projActionsModel.statefulActionsStartIndex) {
+                    //                                     preparedText +=
+                    //                                         `, <b>Shift</b>-click to perform all actions prior this one (including).
+                    //                                          <b>Ctrl</b>-<b>Shift</b>-click for both`;
+                    //                                 }
+                    //                                 statusBar.text = preparedText;
+                    //                             }
+                    //                         }
+                    //                         onExited: {
+                    //                             statusBar.text = '';
+
+                    //                             ctrlPressed = false;
+                    //                             ctrlPressedLastState = false;
+
+                    //                             if (shiftPressed || shiftPressedLastState) {
+                    //                                 shiftPressed = false;
+                    //                                 shiftPressedLastState = false;
+                    //                                 shiftHandler();
+                    //                             }
+                    //                         }
+                    //                     }
+                    //                     Connections {
+                    //                         target: project
+                    //                         function onActionStarted(action) {
+                    //                             glow.visible = false;
+                    //                         }
+                    //                         function onActionFinished(action, success) {
+                    //                             if (action === model.action) {
+                    //                                 if (success) {
+                    //                                     glow.color = 'lightgreen';
+                    //                                 } else {
+                    //                                     glow.color = 'lightcoral';
+                    //                                 }
+                    //                                 glow.visible = true;
+
+                    //                                 if (settings.get('notifications') && !mainWindow.active) {
+                    //                                     sysTrayIcon.showMessage(
+                    //                                         success ? 'Success' : 'Error',  // title
+                    //                                         `${project.name} - ${model.name}`,  // text
+                    //                                         success ? Labs.SystemTrayIcon.Information : Labs.SystemTrayIcon.Warning,  // icon
+                    //                                         5000  // ms
+                    //                                     );
+                    //                                 }
+                    //                             }
+                    //                         }
+                    //                     }
+                    //                     /*
+                    //                        "Blinky" glowing
+                    //                     */
+                    //                     RectangularGlow {
+                    //                         id: glow
+                    //                         visible: false
+                    //                         anchors.fill: parent
+                    //                         cornerRadius: 25
+                    //                         glowRadius: 20
+                    //                         spread: 0.25
+                    //                         onVisibleChanged: visible ? glowAnimation.start() : glowAnimation.complete()
+                    //                         SequentialAnimation {
+                    //                             id: glowAnimation
+                    //                             loops: 3
+                    //                             onStopped: glow.visible = false
+                    //                             OpacityAnimator {
+                    //                                 target: glow
+                    //                                 from: 0
+                    //                                 to: 1
+                    //                                 duration: 1000
+                    //                             }
+                    //                             OpacityAnimator {
+                    //                                 target: glow
+                    //                                 from: 1
+                    //                                 to: 0
+                    //                                 duration: 1000
+                    //                             }
+                    //                         }
+                    //                     }
+                    //                 }
+                    //             }
+                    //         }
+
+                    //         Rectangle {
+                    //             Layout.fillWidth: true
+                    //             Layout.fillHeight: true
+
+                    //             ScrollView {
+                    //                 anchors.fill: parent
+                    //                 TextArea {
+                    //                     id: log
+                    //                     readOnly: true
+                    //                     selectByMouse: true
+                    //                     wrapMode: Text.WordWrap
+                    //                     font.pointSize: 10  // different on different platforms, Qt's bug
+                    //                     font.weight: Font.DemiBold
+                    //                     textFormat: TextEdit.RichText
+                    //                     Connections {
+                    //                         target: project
+                    //                         function onLogAdded(message, level) {
+                    //                             if (level === Logging.WARNING) {
+                    //                                 log.append('<font color="goldenrod"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
+                    //                             } else if (level >= Logging.ERROR) {
+                    //                                 log.append('<font color="indianred"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
+                    //                             } else {
+                    //                                 log.append('<pre style="white-space: pre-wrap">' + message + '</pre>');
+                    //                             }
+                    //                         }
+                    //                     }
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
+                    // }
                 }
             }
         }

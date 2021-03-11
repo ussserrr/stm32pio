@@ -65,7 +65,7 @@ class ProjectListItem(QObject):
         self._state = { 'LOADING': True }  # pseudo-stage (not present in the ProjectStage enum but is used from QML)
         self._current_stage = 'Loading...'
 
-        self.qml_ready = threading.Event()  # the front and the back both should know when each other is initialized
+        # self.qml_ready = threading.Event()  # the front and the back both should know when each other is initialized
 
         # Register some kind of the deconstruction handler (later, after the project initialization, see init_project)
         self._finalizer = None
@@ -91,7 +91,7 @@ class ProjectListItem(QObject):
         """
         # self.actionStarted.emit('initialization')
         try:
-            # time.sleep(3)
+            time.sleep(3)
             self.project = stm32pio.core.project.Stm32pio(*args, **kwargs)
         except Exception:
             stm32pio.core.logging.log_current_exception(self.logger)
@@ -112,12 +112,11 @@ class ProjectListItem(QObject):
             # Register some kind of the deconstruction handler
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
                                                self.name if self.project is None else str(self.project))
-            self.qml_ready.wait()  # wait for the GUI to initialize (which one is earlier, actually, back or front)
+            # self.qml_ready.wait()  # wait for the GUI to initialize (which one is earlier, actually, back or front)
             self.initialized.emit()
-            self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
-            self.stageChanged.emit()
-            self.stateChanged.emit()
-            # time.sleep(0.1)
+            # self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
+            # self.stageChanged.emit()
+            # self.stateChanged.emit()
             self.actionFinished.emit('initialization', initialization_result)
             # self._last_action = {
             #     'name': 'initialization',
@@ -236,11 +235,11 @@ class ProjectListItem(QObject):
         # to such a specific logic)
         self._current_action = ''
 
-    @Slot()
-    def qmlLoaded(self):
-        """Event signaling the complete loading of the needed frontend components"""
-        self.qml_ready.set()
-        self.logging_worker.can_flush_log.set()
+    # @Slot()
+    # def qmlLoaded(self):
+    #     """Event signaling the complete loading of the needed frontend components"""
+    #     self.qml_ready.set()
+    #     self.logging_worker.can_flush_log.set()
 
 
     @Slot(str, 'QVariantList')
