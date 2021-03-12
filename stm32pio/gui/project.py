@@ -92,7 +92,7 @@ class ProjectListItem(QObject):
         """
         # self.actionStarted.emit('initialization')
         try:
-            time.sleep(3)
+            # time.sleep(3)
             self.project = stm32pio.core.project.Stm32pio(*args, **kwargs)
         except Exception:
             stm32pio.core.logging.log_current_exception(self.logger)

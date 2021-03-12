@@ -70,17 +70,28 @@ ApplicationWindow {
        a number of widgets currently loaded for each project in model and informs the Qt-side right after all
        necessary components become ready.
     */
+    readonly property var componentsToWait: [
+        'listElementProjectName',
+        'listElementCurrentStage',
+        'listElementBusyIndicator',
+        'workspace'
+    ]
     readonly property var initInfo: ({})
-    function setInitInfo(projectIndex) {
-        if (projectIndex in initInfo) {
-            initInfo[projectIndex]++;
-        } else {
-            initInfo[projectIndex] = 1;
-        }
-
-        if (initInfo[projectIndex] === 4) {  // TODO
-            delete initInfo[projectIndex];  // index can be reused
-            projectsModel.get(projectIndex).qmlLoaded();
+    function setInitInfo(projectIndex, component) {
+        if (componentsToWait.includes(component)) {
+            if (projectIndex in initInfo) {
+                initInfo[projectIndex]++;
+            } else {
+                initInfo[projectIndex] = 1;
+            }
+            if (initInfo[projectIndex] === componentsToWait.length) {
+                delete initInfo[projectIndex];  // index can be reused
+                projectsModel.get(projectIndex).qmlLoaded();
+            }
+        } else if (!component) {
+            console.warn('Loaded component should identify itself. The call was from:', new Error().stack);
+        } else if (!componentsToWait.includes(component)) {
+            console.warn('Unrecognized loaded component:', component);
         }
     }
 
@@ -195,7 +206,6 @@ ApplicationWindow {
                            as it can give us the reliable timestamp of all its children loading completion (unlike Component.onCompleted)
                         */
                         onLoaded: {
-                            setInitInfo(index);
                             DelegateModel.inPersistedItems = 1;  // TODO: = true (5.15)
                         }
                         sourceComponent: RowLayout {
@@ -220,7 +230,7 @@ ApplicationWindow {
                                         running: true
                                         initialState: normall
                                         onStarted: {
-                                            setInitInfo(index);
+                                            setInitInfo(index, 'listElementProjectName');
                                         }
                                         DSM.State {
                                             id: normall
@@ -272,7 +282,7 @@ ApplicationWindow {
                                         running: true
                                         initialState: navigated
                                         onStarted: {
-                                            setInitInfo(index);
+                                            setInitInfo(index, 'listElementCurrentStage');
                                         }
                                         DSM.State {
                                             id: navigated
@@ -343,7 +353,7 @@ ApplicationWindow {
                                     running: true  // run immediately
                                     initialState: busy  // seems like initialization process starts earlier then StateMachine runs so lets start from "busy"
                                     onStarted: {
-                                        setInitInfo(index);
+                                        setInitInfo(index, 'listElementBusyIndicator');
                                     }
                                     DSM.State {
                                         id: normal
@@ -468,14 +478,7 @@ ApplicationWindow {
                 // Use similar to ListView pattern (same projects model, Loader component)
                 model: projectsModel
                 delegate: Loader {
-                    // active: index === projectsWorkspaceView.currentIndex
-                    // onLoaded: setInitInfo(index)
-
-                    sourceComponent: Item {
-                        BusyIndicator {
-                            anchors.centerIn: parent
-                        }
-                    }
+                    onLoaded: setInitInfo(index, 'workspace')
 
                     readonly property ProjectListItem project: projectsModel.get(index)
 
@@ -501,27 +504,6 @@ ApplicationWindow {
                         project.stateChanged.connect(handleState);  // the model has notified about the change
                         projectsWorkspaceView.currentIndexChanged.connect(handleState);  // the project was selected in the list
                         mainWindow.activeChanged.connect(handleState);  // the app window has got (or lost, filter in the handler) the focus
-                    }
-
-                    Connections {
-                        target: project
-                        function onInitialized() {
-                            const state = project.state;
-                            stateCached = state;
-                            const completedStages = Object.keys(state).filter(stateName => state[stateName]);
-                            if (completedStages.length === 1 && completedStages[0] === 'EMPTY') {
-                                sourceComponent = projectSetupPage;
-                            } else {
-                                const config = project.config;
-                                if (Object.keys(config['project']).length && !config['project']['board']) {
-                                    // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                                    project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                                     'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                                     Logging.WARNING);
-                                }
-                                sourceComponent = workspacePage;
-                            }
-                        }
                     }
 
                     // TODO: Maybe use initErrorMessage for this
@@ -583,129 +565,163 @@ ApplicationWindow {
                         }
                     }
 
+                    sourceComponent: StackLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        currentIndex: 0
 
-                    Component {
-                        id: projectSetupPage
-                        Column {
-                            topPadding: 10
-                            leftPadding: 10
-                            spacing: 11
-                            Text {
-                                text: "To complete project initialization you can provide the PlatformIO name of the board:"
-                            }
-                            ComboBox {
-                                id: board
-                                width: 200
-                                editable: true
-                                model: boardsModel  // backend-side (simple string model)
-                                textRole: 'display'
-                                onAccepted: focus = false
-                                onActivated: focus = false
-                                onFocusChanged: {
-                                    if (focus) {
-                                        selectAll();
-                                    } else {
-                                        if (find(editText) === -1) {
-                                            editText = textAt(0);  // should be 'None' at index 0 (TODO probably)
-                                        }
-                                    }
-                                }
-                                Component.onCompleted: {
-                                    // Board can be already specified in the config, in this case we should paste it
+                        Connections {
+                            target: project
+                            function onInitialized() {
+                                const state = project.state;
+                                stateCached = state;
+                                const completedStages = Object.keys(stateCached).filter(stateName => stateCached[stateName]);
+                                if (completedStages.length === 1 && completedStages[0] === 'EMPTY') {
+                                    projectSetupPageLoader.active = true;
+                                    currentIndex = 1;
+                                } else {
                                     const config = project.config;
-                                    if (Object.keys(config['project']).length && config['project']['board']) {
-                                        editText = config['project']['board'];
+                                    if (Object.keys(config['project']).length && !config['project']['board']) {
+                                        // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
+                                        project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
+                                                        'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                                                        Logging.WARNING);
                                     }
-                                    forceActiveFocus();
+                                    currentIndex = 2;
                                 }
-                                // KeyNavigation.tab: openEditor  // not working...
                             }
-                            Text {
-                                text: "Additional actions to perform next:"
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            BusyIndicator {
+                                anchors.centerIn: parent
+                            }
+                        }
+
+                        Loader {
+                            id: projectSetupPageLoader
+                            active: false
+                            sourceComponent: Column {
                                 topPadding: 10
-                            }
-                            Row {
-                                topPadding: -6
-                                leftPadding: -6
-                                spacing: 10
-                                /*
-                                    Trigger full run
-                                */
-                                CheckBox {
-                                    id: runCheckBox
-                                    text: 'Full run'
-                                    enabled: false
-                                    ToolTip {
-                                        visible: runCheckBox.hovered  // not working on Linux (Manjaro LXQt)
-                                        Component.onCompleted: {
-                                            // Form the tool tip text using action names
-                                            const actions = [];
-                                            for (let i = projActionsModel.statefulActionsStartIndex; i < projActionsModel.count; ++i) {
-                                                actions.push(`<b>${projActionsModel.get(i).name}</b>`);
+                                leftPadding: 10
+                                spacing: 11
+                                Text {
+                                    text: "To complete project initialization you can provide the PlatformIO name of the board:"
+                                }
+                                ComboBox {
+                                    id: board
+                                    width: 200
+                                    editable: true
+                                    model: boardsModel  // backend-side (simple string model)
+                                    textRole: 'display'
+                                    onAccepted: focus = false
+                                    onActivated: focus = false
+                                    onFocusChanged: {
+                                        if (focus) {
+                                            selectAll();
+                                        } else {
+                                            if (find(editText) === -1) {
+                                                editText = textAt(0);  // should be 'None' at index 0 (TODO probably)
                                             }
-                                            text = `Execute tasks: ${actions.join(' → ')}`;
                                         }
                                     }
-                                    Connections {
-                                        target: board
-                                        function onFocusChanged() {
-                                            if (!board.focus) {
-                                                if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
-                                                    runCheckBox.checked = false;
-                                                    runCheckBox.enabled = false;
-                                                } else {
-                                                    runCheckBox.enabled = true;
+                                    Component.onCompleted: {
+                                        // Board can be already specified in the config, in this case we should paste it
+                                        const config = project.config;
+                                        if (Object.keys(config['project']).length && config['project']['board']) {
+                                            editText = config['project']['board'];
+                                        }
+                                        forceActiveFocus();
+                                    }
+                                    // KeyNavigation.tab: openEditor  // not working...
+                                }
+                                Text {
+                                    text: "Additional actions to perform next:"
+                                    topPadding: 10
+                                }
+                                Row {
+                                    topPadding: -6
+                                    leftPadding: -6
+                                    spacing: 10
+                                    /*
+                                        Trigger full run
+                                    */
+                                    CheckBox {
+                                        id: runCheckBox
+                                        text: 'Full run'
+                                        enabled: false
+                                        ToolTip {
+                                            visible: runCheckBox.hovered  // not working on Linux (Manjaro LXQt)
+                                            Component.onCompleted: {
+                                                // Form the tool tip text using action names
+                                                const actions = [];
+                                                for (let i = projActionsModel.statefulActionsStartIndex; i < projActionsModel.count; ++i) {
+                                                    actions.push(`<b>${projActionsModel.get(i).name}</b>`);
+                                                }
+                                                text = `Execute tasks: ${actions.join(' → ')}`;
+                                            }
+                                        }
+                                        Connections {
+                                            target: board
+                                            function onFocusChanged() {
+                                                if (!board.focus) {
+                                                    if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
+                                                        runCheckBox.checked = false;
+                                                        runCheckBox.enabled = false;
+                                                    } else {
+                                                        runCheckBox.enabled = true;
+                                                    }
                                                 }
                                             }
                                         }
                                     }
-                                }
-                                CheckBox {
-                                    id: openEditor
-                                    text: 'Open editor'
-                                    ToolTip {
-                                        text: "Start the editor specified in the <b>Settings</b> after the completion"
-                                        visible: openEditor.hovered  // not working on Linux (Manjaro LXQt)
-                                    }
-                                }
-                            }
-                            Button {
-                                text: 'OK'
-                                topInset: 14
-                                topPadding: 20
-                                onClicked: {
-                                    // All 'run' operations will be queued by the backend
-                                    project.run('save_config', [{
-                                        'project': {
-                                            'board': board.editText === board.textAt(0) ? '' : board.editText
-                                        }
-                                    }]);
-
-                                    if (board.editText === board.textAt(0)) {
-                                        // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                                        project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                                            'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                                            Logging.WARNING);
-                                    }
-
-                                    if (runCheckBox.checked) {
-                                        for (let i = projActionsModel.statefulActionsStartIndex + 1; i < projActionsModel.count; ++i) {
-                                            project.run(projActionsModel.get(i).action, []);
+                                    CheckBox {
+                                        id: openEditor
+                                        text: 'Open editor'
+                                        ToolTip {
+                                            text: "Start the editor specified in the <b>Settings</b> after the completion"
+                                            visible: openEditor.hovered  // not working on Linux (Manjaro LXQt)
                                         }
                                     }
+                                }
+                                Button {
+                                    text: 'OK'
+                                    topInset: 14
+                                    topPadding: 20
+                                    onClicked: {
+                                        // All 'run' operations will be queued by the backend
+                                        project.run('save_config', [{
+                                            'project': {
+                                                'board': board.editText === board.textAt(0) ? '' : board.editText
+                                            }
+                                        }]);
 
-                                    if (openEditor.checked) {
-                                        project.run('start_editor', [settings.get('editor')]);
+                                        if (board.editText === board.textAt(0)) {
+                                            // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
+                                            project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
+                                                                'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                                                                Logging.WARNING);
+                                        }
+
+                                        if (runCheckBox.checked) {
+                                            for (let i = projActionsModel.statefulActionsStartIndex + 1; i < projActionsModel.count; ++i) {
+                                                project.run(projActionsModel.get(i).action, []);
+                                            }
+                                        }
+
+                                        if (openEditor.checked) {
+                                            project.run('start_editor', [settings.get('editor')]);
+                                        }
+
+                                        currentIndex = 2;
+                                        projectSetupPageLoader.sourceComponent = undefined;
                                     }
-
-                                    sourceComponent = workspacePage;
                                 }
                             }
                         }
-                    }
 
-                    Component {
-                        id: workspacePage
                         ColumnLayout {
                             Layout.fillWidth: true
                             Layout.fillHeight: true

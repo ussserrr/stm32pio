@@ -69,6 +69,7 @@
  - [ ] Lost log box autoscroll when manually scrolling between the actions
  - [ ] Crash on shutdown in Win and Linux (errors such as `[QML] CRITICAL QThread: Destroyed while thread is still running Process finished with exit code 1073741845`)
  - [ ] Linux: Not a monospaced font in the log area
+ - [ ] Remember last viewed index
  - [ ] Temporarily pin projects with currently running actions to the top (and stay there on scrolling). See QML Package type
  - [ ] "Pressed" effect for action buttons
  - [ ] Maybe do not save the stm32pio.ini if there wasn't one (after starting from CLI)
