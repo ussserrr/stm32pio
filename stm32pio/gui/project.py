@@ -2,12 +2,13 @@ import logging
 import time
 import threading
 import weakref
-from typing import List, Mapping, Any
+from typing import List, Mapping, Any, Optional
 
 from PySide2.QtCore import QObject, Signal, QThreadPool, Property, Slot
 
 import stm32pio.core.logging
 import stm32pio.core.project
+import stm32pio.core.state
 
 from stm32pio.gui.log import LoggingWorker, module_logger
 from stm32pio.gui.util import Worker
@@ -60,7 +61,7 @@ class ProjectListItem(QObject):
         self._last_action = {}
 
         # These values are valid only until the Stm32pio project initialize itself (or failed to) (see init_project)
-        self.project = None
+        self.project: Optional[stm32pio.core.project.Stm32pio] = None
         # Use a project path string (as it should be a first argument) as a name
         self._name = str(project_args[0]) if len(project_args) else 'Undefined'
         self._state = { 'LOADING': True }  # pseudo-stage (not present in the ProjectStage enum but is used from QML)
@@ -173,7 +174,7 @@ class ProjectListItem(QObject):
             # Side-effect: caching the current stage at the same time to avoid the flooding of calls to the 'state'
             # getter (many IO operations). Requests to 'state' and 'stage' are usually goes together so there is no need
             # to necessarily keeps them separated
-            self._current_stage = str(state.current_stage)
+            # self._current_stage = str(state.current_stage)
 
             state.pop(stm32pio.core.state.ProjectStage.UNDEFINED)  # exclude UNDEFINED key
             # Convert to {string: boolean} dict (will be translated into the JavaScript object)
@@ -188,7 +189,10 @@ class ProjectListItem(QObject):
         Get the current stage the project resides in.
         Note: this returns a cached value. Cache updates every time the state property got requested
         """
-        return self._current_stage
+        if self.project is not None:
+            return str(self.project.state.current_stage)
+        else:
+            return self._current_stage
 
     @Property(str)
     def currentAction(self) -> str:
