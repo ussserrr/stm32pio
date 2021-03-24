@@ -34,11 +34,13 @@ try:
     import stm32pio.core.settings
     import stm32pio.core.logging
     import stm32pio.core.util
+    import stm32pio.core.state
 except ModuleNotFoundError:
     sys.path.append(str(ROOT_PATH))  # hack to run the app as 'python path/to/app.py'
     import stm32pio.core.settings
     import stm32pio.core.logging
     import stm32pio.core.util
+    import stm32pio.core.state
 
 from stm32pio.gui.settings import init_settings, Settings
 from stm32pio.gui.util import Worker
@@ -107,6 +109,8 @@ def create_app(sys_argv: List[str] = None) -> Application:
     # TODO: use setContextProperties()
     engine.rootContext().setContextProperty('appVersion', stm32pio.core.util.get_version())
     engine.rootContext().setContextProperty('Logging', stm32pio.core.logging.logging_levels)
+    engine.rootContext().setContextProperty(stm32pio.core.state.ProjectStage.__name__,
+                                            { stage.name: str(stage) for stage in stm32pio.core.state.ProjectStage })
     engine.rootContext().setContextProperty('projectsModel', projects_model)
     engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.rootContext().setContextProperty('appSettings', settings)

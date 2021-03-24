@@ -1,3 +1,4 @@
+import copy
 import logging
 import time
 import threading
@@ -58,7 +59,7 @@ class ProjectListItem(QObject):
         self.workers_pool.setExpiryTimeout(-1)  # tasks wait forever for the available spot
 
         self._current_action: str = ''
-        self._last_action = {}
+        self._last_action_succeed: bool = True
 
         # These values are valid only until the Stm32pio project initialize itself (or failed to) (see init_project)
         self.project: Optional[stm32pio.core.project.Stm32pio] = None
@@ -103,24 +104,19 @@ class ProjectListItem(QObject):
         else:
             # Successful initialization. These values should not be used anymore but we "reset" them anyway
             self._name = 'Project'
-            self._state = {}
-            self._current_stage = 'Initialized'
+            # self._state = {}
+            # self._current_stage = 'Initialized'
             initialization_result = True
         finally:
             # Register some kind of the deconstruction handler
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
                                                self.name if self.project is None else str(self.project))
             self.qml_ready.wait()  # wait for the GUI to initialize (which one is earlier, actually, back or front)
+            self.updateState()
             self.initialized.emit()
             self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
             self.stageChanged.emit()
-            self.stateChanged.emit()
             self.actionFinished.emit('initialization', initialization_result)
-            # self._last_action = {
-            #     'name': 'initialization',
-            #     'successful': initialization_result
-            # }
-            # self.lastActionChanged.emit()
 
 
     @staticmethod
@@ -168,19 +164,28 @@ class ProjectListItem(QObject):
         Get the current project state in the appropriate Qt form. Update the cached 'current stage' value as a side
         effect
         """
-        if self.project is not None:
-            state = self.project.state
+        if type(self._state) == stm32pio.core.state.ProjectState:
+            # state = copy.deepcopy(self._state)
 
             # Side-effect: caching the current stage at the same time to avoid the flooding of calls to the 'state'
             # getter (many IO operations). Requests to 'state' and 'stage' are usually goes together so there is no need
             # to necessarily keeps them separated
             # self._current_stage = str(state.current_stage)
 
-            state.pop(stm32pio.core.state.ProjectStage.UNDEFINED)  # exclude UNDEFINED key
+            # state.pop(stm32pio.core.state.ProjectStage.UNDEFINED)  # exclude UNDEFINED key
             # Convert to {string: boolean} dict (will be translated into the JavaScript object)
-            return { stage.name: value for stage, value in state.items() }
+            return { stage.name: value for stage, value in self._state.items() }
         else:
-            return self._state
+            return { }  # TODO
+
+    @Slot()
+    def updateState(self):
+        if self.project is not None:
+            self._state = self.project.state
+        else:
+            self._state = {}  # TODO
+        self.stateChanged.emit()
+        self.stageChanged.emit()
 
     stageChanged = Signal()
     @Property(str, notify=stageChanged)
@@ -189,8 +194,8 @@ class ProjectListItem(QObject):
         Get the current stage the project resides in.
         Note: this returns a cached value. Cache updates every time the state property got requested
         """
-        if self.project is not None:
-            return str(self.project.state.current_stage)
+        if type(self._state) == stm32pio.core.state.ProjectState:
+            return self._state.current_stage.name
         else:
             return self._current_stage
 
@@ -202,11 +207,10 @@ class ProjectListItem(QObject):
         """
         return self._current_action
 
-    lastActionChanged = Signal()
-    @Property('QVariant', notify=lastActionChanged)
-    def lastAction(self):
+    @Property(bool)
+    def lastActionSucceed(self) -> bool:
         """Have the last action ended with a success?"""
-        return self._last_action
+        return self._last_action_succeed
 
     actionStarted = Signal(str, arguments=['action'])
     @Slot(str)
@@ -222,11 +226,7 @@ class ProjectListItem(QObject):
     @Slot(str, bool)
     def actionFinishedSlot(self, action: str, success: bool):
         """Pass the corresponding signal from the worker, perform related tasks"""
-        self._last_action = {
-            'name': action,
-            'successful': success
-        }
-        self.lastActionChanged.emit()
+        self._last_action_succeed = success
         if not success:
             # Clear the queue - stop further execution (cancel planned tasks if an error had happened)
             self.workers_pool.clear()
@@ -256,7 +256,7 @@ class ProjectListItem(QObject):
         worker = Worker(getattr(self.project, action), args, self.logger, parent=self)
         worker.started.connect(self.actionStartedSlot)
         worker.finished.connect(self.actionFinishedSlot)
-        worker.finished.connect(self.stateChanged)
+        worker.finished.connect(self.updateState)
         worker.finished.connect(self.stageChanged)
 
         self.workers_pool.start(worker)  # will automatically place to the queue
