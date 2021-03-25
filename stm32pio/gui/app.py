@@ -105,12 +105,14 @@ def create_app(sys_argv: List[str] = None) -> Application:
 
     projects_model = ProjectsList(parent=engine)
     boards_model = QStringListModel(parent=engine)
+    project_stages = { stage.name: str(stage) for stage in stm32pio.core.state.ProjectStage }
+    project_stages['LOADING'] = 'Loading...'
+    project_stages['INIT_ERROR'] = 'Initialization error'
 
     # TODO: use setContextProperties()
     engine.rootContext().setContextProperty('appVersion', stm32pio.core.util.get_version())
     engine.rootContext().setContextProperty('Logging', stm32pio.core.logging.logging_levels)
-    engine.rootContext().setContextProperty(stm32pio.core.state.ProjectStage.__name__,
-                                            { stage.name: str(stage) for stage in stm32pio.core.state.ProjectStage })
+    engine.rootContext().setContextProperty(stm32pio.core.state.ProjectStage.__name__, project_stages)
     engine.rootContext().setContextProperty('projectsModel', projects_model)
     engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.rootContext().setContextProperty('appSettings', settings)

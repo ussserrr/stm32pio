@@ -72,9 +72,9 @@ ApplicationWindow {
     */
     readonly property var componentsToWait: [
         'listElementProjectName',
-        'listElementCurrentStage',
+        // 'listElementCurrentStage',
         'listElementBusyIndicator',
-        'workspace'
+        // 'workspace'
     ]
     readonly property var initInfo: ({})
     function setInitInfo(projectIndex, component) {
@@ -225,7 +225,8 @@ ApplicationWindow {
                                                            projectsListView.width
                                     elide: Text.ElideMiddle
                                     maximumLineCount: 1
-                                    text: `<b>${display.name}</b>`
+                                    font.weight: Font.Bold
+                                    text: display.name
                                     DSM.StateMachine {
                                         running: true
                                         initialState: normall
@@ -234,36 +235,35 @@ ApplicationWindow {
                                         }
                                         DSM.State {
                                             id: normall
-                                            onEntered: {
-                                                projectName.color = 'black';
-                                            }
+                                            onEntered: projectName.color = 'black'
                                             DSM.SignalTransition {
                                                 targetState: added
-                                                signal: display.actionFinished
-                                                guard: action === 'initialization' && success && !display.fromStartup && projectsListView.currentIndex !== index
+                                                signal: display.initialized
+                                                guard: !display.fromStartup && projectsListView.currentIndex !== index
                                             }
                                             DSM.SignalTransition {
                                                 targetState: initializationErrorr
                                                 signal: display.stateChanged
-                                                guard: !display.state['EMPTY']
+                                                guard: !display.state['EMPTY'] && !display.state.LOADING
                                             }
                                         }
                                         DSM.State {
                                             id: added
-                                            onEntered: {
-                                                projectName.color = 'seagreen';
-                                            }
+                                            onEntered: projectName.color = 'seagreen'
                                             DSM.SignalTransition {
                                                 targetState: normall
                                                 signal: projectsListView.currentIndexChanged
-                                                guard: projectsListView.currentIndex === index
+                                                guard: projectsListView.currentIndex === index && display.state['EMPTY']
+                                            }
+                                            DSM.SignalTransition {
+                                                targetState: initializationErrorr
+                                                signal: projectsListView.currentIndexChanged
+                                                guard: projectsListView.currentIndex === index && !display.state['EMPTY']
                                             }
                                         }
                                         DSM.State {
                                             id: initializationErrorr
-                                            onEntered: {
-                                                projectName.color = 'indianred';
-                                            }
+                                            onEntered: projectName.color = 'indianred'
                                             DSM.SignalTransition {
                                                 targetState: normall
                                                 signal: display.stateChanged
@@ -285,67 +285,81 @@ ApplicationWindow {
                                     text: ProjectStage[display.currentStage] ?? display.currentStage
                                     DSM.StateMachine {
                                         running: true
-                                        initialState: navigated
-                                        onStarted: {
-                                            setInitInfo(index, 'listElementCurrentStage');
-                                        }
+                                        initialState: projectsListView.currentIndex === index ? navigated : inactive
+                                        // onStarted: {
+                                        //     setInitInfo(index, 'listElementCurrentStage');
+                                        // }
                                         DSM.State {
                                             id: navigated
-                                            onEntered: {
-                                                projectCurrentStage.color = 'black';
+                                            initialState: (display.state.EMPTY || display.state.LOADING) ? n1 : n2
+                                            DSM.State {
+                                                id: n1
+                                                onEntered: {
+                                                    projectCurrentStage.color = 'black';
+                                                }
+                                                DSM.SignalTransition {
+                                                    targetState: n2
+                                                    signal: display.stateChanged
+                                                    guard: !display.state['EMPTY']
+                                                }
+                                            }
+                                            DSM.State {
+                                                id: n2
+                                                onEntered: {
+                                                    projectCurrentStage.color = 'indianred';
+                                                }
+                                                DSM.SignalTransition {
+                                                    targetState: n1
+                                                    signal: display.stateChanged
+                                                    guard: display.state['EMPTY']
+                                                }
                                             }
                                             DSM.SignalTransition {
                                                 targetState: inactive
                                                 signal: projectsListView.currentIndexChanged
                                                 guard: projectsListView.currentIndex !== index
                                             }
-                                            DSM.SignalTransition {
-                                                targetState: inactive
-                                                signal: display.actionFinished
-                                                guard: action === 'initialization' && success && projectsListView.currentIndex !== index && display.fromStartup
-                                            }
-                                            DSM.SignalTransition {
-                                                targetState: addedd
-                                                signal: display.actionFinished
-                                                guard: action === 'initialization' && success && projectsListView.currentIndex !== index && !display.fromStartup
-                                            }
-                                            DSM.SignalTransition {
-                                                targetState: initializationError
-                                                signal: display.stateChanged
-                                                guard: !display.state['EMPTY']
-                                            }
-                                        }
-                                        DSM.State {
-                                            id: addedd
-                                            onEntered: {
-                                                projectCurrentStage.color = 'seagreen';
-                                            }
-                                            DSM.SignalTransition {
-                                                targetState: navigated
-                                                signal: projectsListView.currentIndexChanged
-                                                guard: projectsListView.currentIndex === index
-                                            }
                                         }
                                         DSM.State {
                                             id: inactive
-                                            onEntered: {
-                                                projectCurrentStage.color = 'darkgray';
+                                            initialState: (display.state.EMPTY || display.state.LOADING) ? i1 : i2
+                                            DSM.State {
+                                                id: i1
+                                                onEntered: {
+                                                    projectCurrentStage.color = 'darkgray';
+                                                }
+                                                DSM.SignalTransition {
+                                                    targetState: i2
+                                                    signal: display.stateChanged
+                                                    guard: !display.state['EMPTY']
+                                                }
+                                                DSM.SignalTransition {
+                                                    targetState: i3
+                                                    signal: display.stateChanged
+                                                    guard: display.state['EMPTY'] && !display.fromStartup
+                                                }
+                                            }
+                                            DSM.State {
+                                                id: i2
+                                                onEntered: {
+                                                    projectCurrentStage.color = 'indianred';
+                                                }
+                                                DSM.SignalTransition {
+                                                    targetState: i1
+                                                    signal: display.stateChanged
+                                                    guard: display.state['EMPTY']
+                                                }
+                                            }
+                                            DSM.State {
+                                                id: i3
+                                                onEntered: {
+                                                    projectCurrentStage.color = 'seagreen';
+                                                }
                                             }
                                             DSM.SignalTransition {
                                                 targetState: navigated
                                                 signal: projectsListView.currentIndexChanged
                                                 guard: projectsListView.currentIndex === index
-                                            }
-                                        }
-                                        DSM.State {  // TODO
-                                            id: initializationError
-                                            onEntered: {
-                                                projectCurrentStage.color = 'indianred';
-                                            }
-                                            DSM.SignalTransition {
-                                                targetState: navigated
-                                                signal: display.stateChanged
-                                                guard: display.state['EMPTY']
                                             }
                                         }
                                     }
@@ -383,8 +397,12 @@ ApplicationWindow {
                                         }
                                         DSM.SignalTransition {
                                             targetState: normal
+                                            signal: display.initialized
+                                        }
+                                        DSM.SignalTransition {
+                                            targetState: normal
                                             signal: display.actionFinished
-                                            guard: projectsListView.currentIndex === index || action === 'initialization'
+                                            guard: projectsListView.currentIndex === index
                                         }
                                         DSM.SignalTransition {
                                             targetState: indication
@@ -489,7 +507,7 @@ ApplicationWindow {
                 // Use similar to ListView pattern (same projects model, Loader component)
                 model: projectsModel
                 delegate: Loader {
-                    onLoaded: setInitInfo(index, 'workspace')
+                    // onLoaded: setInitInfo(index, 'workspace')
 
                     readonly property ProjectListItem project: projectsModel.get(index)
 
@@ -560,6 +578,11 @@ ApplicationWindow {
                         DSM.StateMachine {
                             running: true
                             initialState: wLoading
+                            onStarted: {
+                                if (!project.state.LOADING) {
+                                    project.currentStageChanged();
+                                }
+                            }
                             DSM.State {
                                 id: wLoading
                                 onEntered: {
@@ -568,12 +591,12 @@ ApplicationWindow {
                                 }
                                 DSM.SignalTransition {
                                     targetState: wInitPage
-                                    signal: project.initialized
+                                    signal: project.currentStageChanged
                                     guard: project.currentStage === 'EMPTY'
                                 }
                                 DSM.SignalTransition {
                                     targetState: wMain
-                                    signal: project.initialized
+                                    signal: project.currentStageChanged
                                     guard: project.currentStage !== 'EMPTY'
                                 }
                                 onExited: {
@@ -818,7 +841,11 @@ ApplicationWindow {
                                         DSM.StateMachine {
                                             initialState: main  // start position
                                             running: true  // run immediately
-                                            onStarted: project.stateChanged()
+                                            onStarted: {
+                                                if (!project.state.LOADING) {
+                                                    project.stateChanged();
+                                                }
+                                            }
                                             DSM.State {
                                                 id: main
                                                 initialState: normal

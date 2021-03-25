@@ -1,4 +1,3 @@
-import copy
 import logging
 import time
 import threading
@@ -66,7 +65,7 @@ class ProjectListItem(QObject):
         # Use a project path string (as it should be a first argument) as a name
         self._name = str(project_args[0]) if len(project_args) else 'Undefined'
         self._state = { 'LOADING': True }  # pseudo-stage (not present in the ProjectStage enum but is used from QML)
-        self._current_stage = 'Loading...'
+        self._current_stage = 'LOADING'
 
         self.qml_ready = threading.Event()  # the front and the back both should know when each other is initialized
 
@@ -92,21 +91,13 @@ class ProjectListItem(QObject):
             *args: positional arguments of the Stm32pio constructor
             **kwargs: keyword arguments of the Stm32pio constructor
         """
-        # self.actionStarted.emit('initialization')
         try:
             # time.sleep(3)
             self.project = stm32pio.core.project.Stm32pio(*args, **kwargs)
         except Exception:
             stm32pio.core.logging.log_current_exception(self.logger)
             self._state = { 'INIT_ERROR': True }  # pseudo-stage
-            self._current_stage = 'Initialization error'
-            initialization_result = False
-        else:
-            # Successful initialization. These values should not be used anymore but we "reset" them anyway
-            self._name = 'Project'
-            # self._state = {}
-            # self._current_stage = 'Initialized'
-            initialization_result = True
+            self._current_stage = 'INIT_ERROR'
         finally:
             # Register some kind of the deconstruction handler
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
@@ -115,8 +106,6 @@ class ProjectListItem(QObject):
             self.updateState()
             self.initialized.emit()
             self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
-            self.stageChanged.emit()
-            self.actionFinished.emit('initialization', initialization_result)
 
 
     @staticmethod
@@ -165,30 +154,19 @@ class ProjectListItem(QObject):
         effect
         """
         if type(self._state) == stm32pio.core.state.ProjectState:
-            # state = copy.deepcopy(self._state)
-
-            # Side-effect: caching the current stage at the same time to avoid the flooding of calls to the 'state'
-            # getter (many IO operations). Requests to 'state' and 'stage' are usually goes together so there is no need
-            # to necessarily keeps them separated
-            # self._current_stage = str(state.current_stage)
-
-            # state.pop(stm32pio.core.state.ProjectStage.UNDEFINED)  # exclude UNDEFINED key
-            # Convert to {string: boolean} dict (will be translated into the JavaScript object)
             return { stage.name: value for stage, value in self._state.items() }
         else:
-            return { }  # TODO
+            return self._state
 
     @Slot()
     def updateState(self):
         if self.project is not None:
             self._state = self.project.state
-        else:
-            self._state = {}  # TODO
         self.stateChanged.emit()
-        self.stageChanged.emit()
+        self.currentStageChanged.emit()
 
-    stageChanged = Signal()
-    @Property(str, notify=stageChanged)
+    currentStageChanged = Signal()
+    @Property(str, notify=currentStageChanged)
     def currentStage(self) -> str:
         """
         Get the current stage the project resides in.
@@ -257,6 +235,6 @@ class ProjectListItem(QObject):
         worker.started.connect(self.actionStartedSlot)
         worker.finished.connect(self.actionFinishedSlot)
         worker.finished.connect(self.updateState)
-        worker.finished.connect(self.stageChanged)
+        worker.finished.connect(self.currentStageChanged)
 
         self.workers_pool.start(worker)  # will automatically place to the queue

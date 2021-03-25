@@ -53,7 +53,7 @@ class ProjectsList(QAbstractListModel):
         """
 
         # Wait for all projects to be loaded (project.init_project is finished), whether successful or not
-        while not all(project.name != 'Loading...' for project in self.projects):
+        while any(project.currentStage == 'LOADING' for project in self.projects):
             pass
 
         # Only correct ones (inner Stm32pio instance has been successfully constructed)
