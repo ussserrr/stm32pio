@@ -10,8 +10,6 @@ import Settings 1.0
 
 
 Dialogs.Dialog {
-    id: settingsDialog
-    property Settings settings
     title: 'Settings'
     standardButtons: Dialogs.StandardButton.Save | Dialogs.StandardButton.Cancel | Dialogs.StandardButton.Reset
     GridLayout {

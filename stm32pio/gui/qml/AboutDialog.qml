@@ -5,8 +5,6 @@ import QtQuick.Dialogs 1.3 as Dialogs
 
 
 Dialogs.Dialog {
-    id: aboutDialog
-    property string appVersion
     title: 'About'
     standardButtons: Dialogs.StandardButton.Close
     ColumnLayout {

@@ -22,7 +22,7 @@ Button {
     display: thisButton.icon ? AbstractButton.IconOnly : AbstractButton.TextOnly
     icon.source: thisButton.icon || ''
     ToolTip {
-        visible: mouseArea.containsMouse
+        visible: actionButtonMouseArea.containsMouse
         Component.onCompleted: {
             if (thisButton.icon || thisButton.tooltip) {
                 let content = '';
@@ -59,7 +59,7 @@ Button {
         You can find the graphical diagram somewhere in the docs
     */
     DSM.StateMachine {
-        initialState: main  // start position
+        initialState: actionButton_main  // start position
         running: true  // run immediately
         onStarted: {
             if (!project.state.LOADING) {
@@ -67,14 +67,14 @@ Button {
             }
         }
         DSM.State {
-            id: main
-            initialState: normal
+            id: actionButton_main
+            initialState: actionButton_mainNormal
             DSM.SignalTransition {
-                targetState: disabled
+                targetState: actionButton_disabled
                 signal: project.actionStarted
             }
             DSM.SignalTransition {
-                targetState: highlighted
+                targetState: actionButton_highlighted
                 signal: shouldBeHighlightedChanged
                 guard: shouldBeHighlighted  // go only if...
             }
@@ -83,9 +83,9 @@ Button {
                 palette.buttonText = 'black';
             }
             DSM.State {
-                id: normal
+                id: actionButton_mainNormal
                 DSM.SignalTransition {
-                    targetState: stageFulfilled
+                    targetState: actionButton_mainStageFulfilled
                     signal: project.stateChanged
                     guard: project.state[thisButton.stageRepresented] ? true : false  // explicitly convert to boolean
                 }
@@ -94,9 +94,9 @@ Button {
                 }
             }
             DSM.State {
-                id: stageFulfilled
+                id: actionButton_mainStageFulfilled
                 DSM.SignalTransition {
-                    targetState: normal
+                    targetState: actionButton_mainNormal
                     signal: project.stateChanged
                     guard: project.state[thisButton.stageRepresented] ? false : true
                 }
@@ -105,16 +105,16 @@ Button {
                 }
             }
             DSM.HistoryState {
-                id: mainHistory
-                defaultState: normal
+                id: actionButton_mainHistory
+                defaultState: actionButton_mainNormal
             }
         }
         DSM.State {
             // Activates/deactivates additional properties (such as color or border) on some conditions
             // (e.g. some action is currently running), see onEntered, onExited
-            id: disabled
+            id: actionButton_disabled
             DSM.SignalTransition {
-                targetState: mainHistory
+                targetState: actionButton_mainHistory
                 signal: project.actionFinished
             }
             onEntered: {
@@ -142,9 +142,9 @@ Button {
             }
         }
         DSM.State {
-            id: highlighted
+            id: actionButton_highlighted
             DSM.SignalTransition {
-                targetState: mainHistory
+                targetState: actionButton_mainHistory
                 signal: shouldBeHighlightedChanged
                 guard: !shouldBeHighlighted
             }
@@ -160,7 +160,7 @@ Button {
             - Shift: batch actions run
     */
     MouseArea {
-        id: mouseArea
+        id: actionButtonMouseArea
         anchors.fill: parent
         hoverEnabled: true
         property bool ctrlPressed: false
@@ -241,24 +241,24 @@ Button {
         "Blinky" glowing
     */
     RectangularGlow {
-        id: glow
+        id: actionButtonGlow
         anchors.fill: parent
         cornerRadius: 25
         glowRadius: 20
         spread: 0.25
-        onVisibleChanged: visible ? glowAnimation.start() : glowAnimation.complete()
+        onVisibleChanged: visible ? actionButtonGlowAnimation.start() : actionButtonGlowAnimation.complete()
         SequentialAnimation {
-            id: glowAnimation
+            id: actionButtonGlowAnimation
             loops: 3
-            onStopped: glow.visible = false
+            onStopped: actionButtonGlow.visible = false
             OpacityAnimator {
-                target: glow
+                target: actionButtonGlow
                 from: 0
                 to: 1
                 duration: 500
             }
             OpacityAnimator {
-                target: glow
+                target: actionButtonGlow
                 from: 1
                 to: 0
                 duration: 500
@@ -266,40 +266,40 @@ Button {
         }
         DSM.StateMachine {
             running: true
-            initialState: glowOff
+            initialState: actionButton_glowIsOff
             DSM.State {
-                id: glowOff
-                onEntered: glow.visible = false
+                id: actionButton_glowIsOff
+                onEntered: actionButtonGlow.visible = false
                 DSM.SignalTransition {
-                    targetState: glowSuccess
+                    targetState: actionButton_glowForSuccess
                     signal: project.actionFinished
                     guard: action === thisButton.action && success
                 }
                 DSM.SignalTransition {
-                    targetState: glowError
+                    targetState: actionButton_glowForError
                     signal: project.actionFinished
                     guard: action === thisButton.action && !success
                 }
             }
             DSM.State {
-                id: glowOn
-                onEntered: glow.visible = true
+                id: actionButton_glowIsOn
+                onEntered: actionButtonGlow.visible = true
                 DSM.SignalTransition {
-                    targetState: glowOff
-                    signal: glow.visibleChanged
+                    targetState: actionButton_glowIsOff
+                    signal: actionButtonGlow.visibleChanged
                     guard: visible === false
                 }
                 DSM.SignalTransition {
-                    targetState: glowOff
+                    targetState: actionButton_glowIsOff
                     signal: project.actionStarted
                 }
                 DSM.State {
-                    id: glowSuccess
-                    onEntered: glow.color = 'lightgreen'
+                    id: actionButton_glowForSuccess
+                    onEntered: actionButtonGlow.color = 'lightgreen'
                 }
                 DSM.State {
-                    id: glowError
-                    onEntered: glow.color = 'lightcoral'
+                    id: actionButton_glowForError
+                    onEntered: actionButtonGlow.color = 'lightcoral'
                 }
             }
         }

@@ -115,7 +115,7 @@ def create_app(sys_argv: List[str] = None) -> Application:
     engine.rootContext().setContextProperty(stm32pio.core.state.ProjectStage.__name__, project_stages)
     engine.rootContext().setContextProperty('projectsModel', projects_model)
     engine.rootContext().setContextProperty('boardsModel', boards_model)
-    engine.rootContext().setContextProperty('appSettings', settings)
+    engine.rootContext().setContextProperty('settings', settings)
 
     # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'ActionButton.qml')))
     # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'ProjectActionsModel.qml')))

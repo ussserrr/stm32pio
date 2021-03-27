@@ -8,7 +8,7 @@ import QtQml.StateMachine 1.14 as DSM
 
 import Qt.labs.platform 1.1 as Labs
 
-import Settings 1.0
+// import Settings 1.0
 
 
 ApplicationWindow {
@@ -52,13 +52,11 @@ ApplicationWindow {
 
     AboutDialog {
         id: aboutDialog
-        appVersion: appVersion
     }
 
-    readonly property Settings settings: appSettings
+    // readonly property Settings settings: appSettings
     SettingsDialog {
         id: settingsDialog
-        settings: settings
     }
 
     /*
@@ -117,7 +115,7 @@ ApplicationWindow {
     Labs.SystemTrayIcon {
         id: sysTrayIcon
         icon.source: '../icons/icon.svg'
-        visible: settings.get('notifications')
+        visible: settings === null ? false : settings.get('notifications')
     }
 
     DropArea {
@@ -444,9 +442,6 @@ ApplicationWindow {
                     }
 
                     ColumnLayout {
-                        // Layout.fillWidth: true
-                        // Layout.fillHeight: true
-
                         /*
                             Show this or action buttons
                         */
@@ -510,7 +505,6 @@ ApplicationWindow {
                             }
                         }
                     }
-                    // }
                 }
             }
         }
