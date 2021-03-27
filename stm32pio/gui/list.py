@@ -15,6 +15,7 @@ class ProjectsList(QAbstractListModel):
     ProjectListItem
     """
 
+    ProjectRole = Qt.UserRole + 1
     goToProject = Signal(int, arguments=['indexToGo'])
 
     def __init__(self, projects: List[ProjectListItem] = None, parent: QObject = None):
@@ -31,21 +32,17 @@ class ProjectsList(QAbstractListModel):
         self.workers_pool.setMaxThreadCount(1)  # only 1 active worker at a time
         self.workers_pool.setExpiryTimeout(-1)  # tasks wait forever for the available spot
 
-    @Slot(int, result=ProjectListItem)
-    def get(self, index: int):
-        """
-        Expose the ProjectListItem to the GUI QML side. You should firstly register the returning type using
-        qmlRegisterType or similar
-        """
-        if index in range(len(self.projects)):
-            return self.projects[index]
-
     def rowCount(self, parent=None, *args, **kwargs):
         return len(self.projects)
 
     def data(self, index: QModelIndex, role=None):
-        if role == Qt.DisplayRole or role is None:
+        if role == ProjectsList.ProjectRole or role == 0 or role is None:
             return self.projects[index.row()]
+
+    def roleNames(self) -> Mapping[int, bytes]:
+        return {
+            ProjectsList.ProjectRole: b'project'
+        }
 
     def _saveInSettings(self) -> None:
         """
@@ -57,7 +54,7 @@ class ProjectsList(QAbstractListModel):
             pass
 
         # Only correct ones (inner Stm32pio instance has been successfully constructed)
-        projects_to_save = [project for project in self.projects if project.project is not None]
+        projects_to_save = [project for project in self.projects if project.currentStage != 'INIT_ERROR']
 
         settings = stm32pio.gui.settings.global_instance()
         settings.beginGroup('app')

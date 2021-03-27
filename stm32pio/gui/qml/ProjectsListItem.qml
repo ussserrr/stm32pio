@@ -1,5 +1,5 @@
 // implicit ones:
-// display, index, projectsListView, setInitInfo
+// project, index, projectsListView, setInitInfo
 
 import QtQuick 2.14
 import QtQuick.Controls 2.14
@@ -24,7 +24,7 @@ RowLayout {
             elide: Text.ElideMiddle
             maximumLineCount: 1
             font.weight: Font.Bold
-            text: display.name
+            text: project.name
             DSM.StateMachine {
                 running: true
                 initialState: projectName_normal
@@ -34,13 +34,13 @@ RowLayout {
                     onEntered: projectName.color = 'black'
                     DSM.SignalTransition {
                         targetState: projectName_added
-                        signal: display.initialized
-                        guard: !display.fromStartup && projectsListView.currentIndex !== index
+                        signal: project.initialized
+                        guard: !project.fromStartup && projectsListView.currentIndex !== index
                     }
                     DSM.SignalTransition {
                         targetState: projectName_error
-                        signal: display.stateChanged
-                        guard: !display.state.EMPTY && !display.state.LOADING
+                        signal: project.stateChanged
+                        guard: !project.state.EMPTY && !project.state.LOADING
                     }
                 }
                 DSM.State {
@@ -49,12 +49,12 @@ RowLayout {
                     DSM.SignalTransition {
                         targetState: projectName_normal
                         signal: projectsListView.currentIndexChanged
-                        guard: projectsListView.currentIndex === index && display.state.EMPTY
+                        guard: projectsListView.currentIndex === index && project.state.EMPTY
                     }
                     DSM.SignalTransition {
                         targetState: projectName_error
                         signal: projectsListView.currentIndexChanged
-                        guard: projectsListView.currentIndex === index && !display.state.EMPTY
+                        guard: projectsListView.currentIndex === index && !project.state.EMPTY
                     }
                 }
                 DSM.State {
@@ -62,8 +62,8 @@ RowLayout {
                     onEntered: projectName.color = 'indianred'
                     DSM.SignalTransition {
                         targetState: projectName_normal
-                        signal: display.stateChanged
-                        guard: display.state.EMPTY
+                        signal: project.stateChanged
+                        guard: project.state.EMPTY
                     }
                 }
             }
@@ -79,7 +79,7 @@ RowLayout {
                                    projectsListView.width
             elide: Text.ElideRight
             maximumLineCount: 1
-            text: ProjectStage[display.currentStage]
+            text: ProjectStage[project.currentStage]
             DSM.StateMachine {
                 running: true
                 initialState: projectsListView.currentIndex === index
@@ -87,7 +87,7 @@ RowLayout {
                     : projectCurrentStage_inactive
                 DSM.State {
                     id: projectCurrentStage_navigated
-                    initialState: (display.state.EMPTY || display.state.LOADING)
+                    initialState: (project.state.EMPTY || project.state.LOADING)
                         ? projectCurrentStage_navigatedNormal
                         : projectCurrentStage_navigatedError
                     DSM.State {
@@ -95,8 +95,8 @@ RowLayout {
                         onEntered: projectCurrentStage.color = 'black'
                         DSM.SignalTransition {
                             targetState: projectCurrentStage_navigatedError
-                            signal: display.stateChanged
-                            guard: !display.state.EMPTY
+                            signal: project.stateChanged
+                            guard: !project.state.EMPTY
                         }
                     }
                     DSM.State {
@@ -104,8 +104,8 @@ RowLayout {
                         onEntered: projectCurrentStage.color = 'indianred'
                         DSM.SignalTransition {
                             targetState: projectCurrentStage_navigatedNormal
-                            signal: display.stateChanged
-                            guard: display.state.EMPTY
+                            signal: project.stateChanged
+                            guard: project.state.EMPTY
                         }
                     }
                     DSM.SignalTransition {
@@ -116,7 +116,7 @@ RowLayout {
                 }
                 DSM.State {
                     id: projectCurrentStage_inactive
-                    initialState: (display.state.EMPTY || display.state.LOADING)
+                    initialState: (project.state.EMPTY || project.state.LOADING)
                         ? projectCurrentStage_inactiveNormal
                         : projectCurrentStage_inactiveError
                     DSM.State {
@@ -124,13 +124,13 @@ RowLayout {
                         onEntered: projectCurrentStage.color = 'darkgray'
                         DSM.SignalTransition {
                             targetState: projectCurrentStage_inactiveError
-                            signal: display.stateChanged
-                            guard: !display.state.EMPTY
+                            signal: project.stateChanged
+                            guard: !project.state.EMPTY
                         }
                         DSM.SignalTransition {
                             targetState: projectCurrentStage_inactiveAdded
-                            signal: display.initialized
-                            guard: display.state.EMPTY && !display.fromStartup
+                            signal: project.initialized
+                            guard: project.state.EMPTY && !project.fromStartup
                         }
                     }
                     DSM.State {
@@ -138,8 +138,8 @@ RowLayout {
                         onEntered: projectCurrentStage.color = 'indianred'
                         DSM.SignalTransition {
                             targetState: projectCurrentStage_inactiveNormal
-                            signal: display.stateChanged
-                            guard: display.state.EMPTY
+                            signal: project.stateChanged
+                            guard: project.state.EMPTY
                         }
                     }
                     DSM.State {
@@ -172,7 +172,7 @@ RowLayout {
                 onEntered: actionIndicator.visible = false
                 DSM.SignalTransition {
                     targetState: busy
-                    signal: display.actionStarted
+                    signal: project.actionStarted
                 }
             }
             DSM.State {
@@ -183,22 +183,22 @@ RowLayout {
                 }
                 DSM.SignalTransition {
                     targetState: normal
-                    signal: display.initialized
+                    signal: project.initialized
                 }
                 DSM.SignalTransition {
                     targetState: normal
-                    signal: display.actionFinished
+                    signal: project.actionFinished
                     guard: projectsListView.currentIndex === index
                 }
                 DSM.SignalTransition {
                     targetState: indication
-                    signal: display.actionFinished
+                    signal: project.actionFinished
                 }
             }
             DSM.State {
                 id: indication
                 onEntered: {
-                    lastActionNotification.color = display.lastActionSucceed ? 'lightgreen' : 'lightcoral';
+                    lastActionNotification.color = project.lastActionSucceed ? 'lightgreen' : 'lightcoral';
                     actionIndicator.currentIndex = 1;
                 }
                 DSM.SignalTransition {

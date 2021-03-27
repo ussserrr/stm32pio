@@ -85,8 +85,10 @@ ApplicationWindow {
                 initInfo[projectIndex] = 1;
             }
             if (initInfo[projectIndex] === componentsToWait.length) {
+                const indexInModel = projectsModel.index(projectIndex, 0);
+                const project = projectsModel.data(indexInModel);
+                project.qmlLoaded();
                 delete initInfo[projectIndex];  // index can be reused
-                projectsModel.get(projectIndex).qmlLoaded();
             }
         } else if (!component) {
             console.warn('Loaded component should identify itself. The call stack:', new Error().stack);
@@ -106,7 +108,7 @@ ApplicationWindow {
         indexToRemove === 0 ? projectsListView.incrementCurrentIndex() : projectsListView.decrementCurrentIndex();
 
         // Need to manually unload the dynamic component to prevent annoying "TypeError: Cannot read property 'XXX' of null" messages
-        projectsWorkspaceView.children[indexToRemove].sourceComponent = undefined;
+        // projectsWorkspaceView.children[indexToRemove].sourceComponent = undefined;
 
         projectsModel.removeProject(indexToRemove);
     }
@@ -260,18 +262,19 @@ ApplicationWindow {
             Repeater {
                 // Use similar to ListView pattern (same projects model, Loader component)
                 model: projectsModel
-                delegate: Loader {
+                // delegate: Loader {
+                delegate: StackLayout {
                     // onLoaded: setInitInfo(index, 'workspace')
 
-                    readonly property ProjectListItem project: projectsModel.get(index)
+                    // readonly property ProjectListItem project: projectsModel.get(index)
 
                     signal handleState()
                     onHandleState: {
                         if (mainWindow.active &&  // the app got foreground
                             index === projectsWorkspaceView.currentIndex &&  // only for the current list item
-                            display.currentAction === ''
+                            project.currentAction === ''
                         ) {
-                            display.updateState();
+                            project.updateState();
                         }
                     }
                     Component.onCompleted: {
@@ -298,574 +301,573 @@ ApplicationWindow {
                         }
                         ListElement {
                             name: 'Initialize'
-                            stageRepresented: 'INITIALIZED'  // the project stage this button is representing
                             action: 'save_config'
+                            stageRepresented: 'INITIALIZED'  // the project stage this button is representing
                             // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
                             tooltip: "Saves the current configuration to the config file <b>stm32pio.ini</b>"
                         }
                         ListElement {
                             name: 'Generate'
-                            stageRepresented: 'GENERATED'
                             action: 'generate_code'
+                            stageRepresented: 'GENERATED'
                         }
                         ListElement {
                             name: 'Init PlatformIO'
-                            stageRepresented: 'PIO_INITIALIZED'
                             action: 'pio_init'
+                            stageRepresented: 'PIO_INITIALIZED'
                         }
                         ListElement {
                             name: 'Patch'
-                            stageRepresented: 'PATCHED'
                             action: 'patch'
+                            stageRepresented: 'PATCHED'
                         }
                         ListElement {
                             name: 'Build'
-                            stageRepresented: 'BUILT'
                             action: 'build'
+                            stageRepresented: 'BUILT'
                         }
                     }
 
-                    sourceComponent: StackLayout {
+                    // sourceComponent: StackLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    DSM.StateMachine {
+                        running: true
+                        initialState: wLoading
+                        onStarted: {
+                            if (!project.state.LOADING) {
+                                project.currentStageChanged();
+                            }
+                        }
+                        DSM.State {
+                            id: wLoading
+                            onEntered: {
+                                wLoader.active = true;
+                                currentIndex = 0;
+                            }
+                            DSM.SignalTransition {
+                                targetState: wInitPage
+                                signal: project.currentStageChanged
+                                guard: project.currentStage === 'EMPTY' && !project.state.LOADING
+                            }
+                            DSM.SignalTransition {
+                                targetState: wMain
+                                signal: project.currentStageChanged
+                                guard: project.currentStage !== 'EMPTY' && !project.state.LOADING
+                            }
+                            onExited: {
+                                wLoader.sourceComponent = undefined;
+                            }
+                        }
+                        DSM.State {
+                            id: wInitPage
+                            onEntered: {
+                                currentIndex = 1;
+                            }
+                            DSM.SignalTransition {
+                                targetState: wMain
+                                signal: project.stateChanged
+                                guard: project.currentStage !== 'EMPTY'
+                            }
+                        }
+                        DSM.State {
+                            id: wMain
+                            onEntered: {
+                                currentIndex = 2;
+                            }
+                            DSM.SignalTransition {
+                                targetState: wInitPage
+                                signal: project.stateChanged
+                                guard: project.currentStage === 'EMPTY'
+                            }
+                        }
+                    }
+
+                    Loader {
+                        id: wLoader
+                        sourceComponent: Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            BusyIndicator {
+                                anchors.centerIn: parent
+                            }
+                        }
+                    }
+
+                    Column {
+                        topPadding: 10
+                        leftPadding: 10
+                        spacing: 11
+                        Text {
+                            text: "To complete project initialization you can provide the PlatformIO name of the board:"
+                        }
+                        ComboBox {
+                            id: board
+                            width: 200
+                            editable: true
+                            model: boardsModel  // backend-side (simple string model)
+                            textRole: 'display'
+                            onAccepted: focus = false
+                            onActivated: focus = false
+                            onFocusChanged: {
+                                if (focus) {
+                                    selectAll();
+                                } else {
+                                    if (find(editText) === -1) {
+                                        editText = textAt(0);  // should be 'None' at index 0 (TODO probably)
+                                    }
+                                }
+                            }
+                            Component.onCompleted: {
+                                // Board can be already specified in the config, in this case we should paste it
+                                const config = project.config;
+                                if (Object.keys(config['project']).length && config['project']['board']) {
+                                    editText = config['project']['board'];
+                                }
+                                forceActiveFocus();
+                            }
+                            // KeyNavigation.tab: runCheckBox  // not working...
+                        }
+                        Text {
+                            text: "Additional actions to perform next:"
+                            topPadding: 10
+                        }
+                        Row {
+                            topPadding: -6
+                            leftPadding: -6
+                            spacing: 10
+                            /*
+                                Trigger full run
+                            */
+                            CheckBox {
+                                id: runCheckBox
+                                text: 'Full run'
+                                enabled: false
+                                ToolTip {
+                                    visible: runCheckBox.hovered  // not working on Linux (Manjaro LXQt)
+                                    Component.onCompleted: {
+                                        // Form the tool tip text using action names
+                                        const actions = [];
+                                        for (let i = projActionsModel.statefulActionsStartIndex; i < projActionsModel.count; ++i) {
+                                            actions.push(`<b>${projActionsModel.get(i).name}</b>`);
+                                        }
+                                        text = `Execute tasks: ${actions.join(' → ')}`;
+                                    }
+                                }
+                                Connections {
+                                    target: board
+                                    function onFocusChanged() {
+                                        if (!board.focus) {
+                                            if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
+                                                runCheckBox.checked = false;
+                                                runCheckBox.enabled = false;
+                                            } else {
+                                                runCheckBox.enabled = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            CheckBox {
+                                id: openEditor
+                                text: 'Open editor'
+                                ToolTip {
+                                    text: "Start the editor specified in the <b>Settings</b> after the completion"
+                                    visible: openEditor.hovered  // not working on Linux (Manjaro LXQt)
+                                }
+                            }
+                        }
+                        Button {
+                            text: 'OK'
+                            topInset: 14
+                            topPadding: 20
+                            onClicked: {
+                                // All 'run' operations will be queued by the backend
+                                project.run('save_config', [{
+                                    'project': {
+                                        'board': board.editText === board.textAt(0) ? '' : board.editText
+                                    }
+                                }]);
+
+                                if (board.editText === board.textAt(0)) {
+                                    // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
+                                    project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
+                                                        'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                                                        Logging.WARNING);
+                                }
+
+                                if (runCheckBox.checked) {
+                                    for (let i = projActionsModel.statefulActionsStartIndex + 1; i < projActionsModel.count; ++i) {
+                                        project.run(projActionsModel.get(i).action, []);
+                                    }
+                                }
+
+                                if (openEditor.checked) {
+                                    project.run('start_editor', [settings.get('editor')]);
+                                }
+
+                                const config = project.config;
+                                if (Object.keys(config['project']).length && !config['project']['board']) {
+                                    // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
+                                    project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
+                                                    'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                                                    Logging.WARNING);
+                                }
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
 
-                        DSM.StateMachine {
-                            running: true
-                            initialState: wLoading
-                            onStarted: {
-                                if (!project.state.LOADING) {
-                                    project.currentStageChanged();
-                                }
-                            }
-                            DSM.State {
-                                id: wLoading
-                                onEntered: {
-                                    wLoader.active = true;
-                                    currentIndex = 0;
-                                }
-                                DSM.SignalTransition {
-                                    targetState: wInitPage
-                                    signal: project.currentStageChanged
-                                    guard: project.currentStage === 'EMPTY' && !project.state.LOADING
-                                }
-                                DSM.SignalTransition {
-                                    targetState: wMain
-                                    signal: project.currentStageChanged
-                                    guard: project.currentStage !== 'EMPTY' && !project.state.LOADING
-                                }
-                                onExited: {
-                                    wLoader.sourceComponent = undefined;
-                                }
-                            }
-                            DSM.State {
-                                id: wInitPage
-                                onEntered: {
-                                    currentIndex = 1;
-                                }
-                                DSM.SignalTransition {
-                                    targetState: wMain
-                                    signal: project.stateChanged
-                                    guard: project.currentStage !== 'EMPTY'
-                                }
-                            }
-                            DSM.State {
-                                id: wMain
-                                onEntered: {
-                                    currentIndex = 2;
-                                }
-                                DSM.SignalTransition {
-                                    targetState: wInitPage
-                                    signal: project.stateChanged
-                                    guard: project.currentStage === 'EMPTY'
-                                }
-                            }
+                        /*
+                            Show this or action buttons
+                        */
+                        Text {
+                            visible: project.state.EMPTY ? false : true
+                            padding: 10
+                            text: "<b>Project not found or no STM32CubeMX .ioc file is present</b>"
+                            color: 'indianred'
                         }
 
-                        Loader {
-                            id: wLoader
-                            sourceComponent: Item {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                BusyIndicator {
-                                    anchors.centerIn: parent
-                                }
-                            }
-                        }
-
-                        Column {
-                            topPadding: 10
-                            leftPadding: 10
-                            spacing: 11
-                            Text {
-                                text: "To complete project initialization you can provide the PlatformIO name of the board:"
-                            }
-                            ComboBox {
-                                id: board
-                                width: 200
-                                editable: true
-                                model: boardsModel  // backend-side (simple string model)
-                                textRole: 'display'
-                                onAccepted: focus = false
-                                onActivated: focus = false
-                                onFocusChanged: {
-                                    if (focus) {
-                                        selectAll();
-                                    } else {
-                                        if (find(editText) === -1) {
-                                            editText = textAt(0);  // should be 'None' at index 0 (TODO probably)
-                                        }
-                                    }
-                                }
-                                Component.onCompleted: {
-                                    // Board can be already specified in the config, in this case we should paste it
-                                    const config = project.config;
-                                    if (Object.keys(config['project']).length && config['project']['board']) {
-                                        editText = config['project']['board'];
-                                    }
-                                    forceActiveFocus();
-                                }
-                                // KeyNavigation.tab: runCheckBox  // not working...
-                            }
-                            Text {
-                                text: "Additional actions to perform next:"
-                                topPadding: 10
-                            }
-                            Row {
-                                topPadding: -6
-                                leftPadding: -6
-                                spacing: 10
-                                /*
-                                    Trigger full run
-                                */
-                                CheckBox {
-                                    id: runCheckBox
-                                    text: 'Full run'
-                                    enabled: false
-                                    ToolTip {
-                                        visible: runCheckBox.hovered  // not working on Linux (Manjaro LXQt)
-                                        Component.onCompleted: {
-                                            // Form the tool tip text using action names
-                                            const actions = [];
-                                            for (let i = projActionsModel.statefulActionsStartIndex; i < projActionsModel.count; ++i) {
-                                                actions.push(`<b>${projActionsModel.get(i).name}</b>`);
-                                            }
-                                            text = `Execute tasks: ${actions.join(' → ')}`;
-                                        }
-                                    }
-                                    Connections {
-                                        target: board
-                                        function onFocusChanged() {
-                                            if (!board.focus) {
-                                                if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
-                                                    runCheckBox.checked = false;
-                                                    runCheckBox.enabled = false;
-                                                } else {
-                                                    runCheckBox.enabled = true;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                CheckBox {
-                                    id: openEditor
-                                    text: 'Open editor'
-                                    ToolTip {
-                                        text: "Start the editor specified in the <b>Settings</b> after the completion"
-                                        visible: openEditor.hovered  // not working on Linux (Manjaro LXQt)
-                                    }
-                                }
-                            }
-                            Button {
-                                text: 'OK'
-                                topInset: 14
-                                topPadding: 20
-                                onClicked: {
-                                    // All 'run' operations will be queued by the backend
-                                    project.run('save_config', [{
-                                        'project': {
-                                            'board': board.editText === board.textAt(0) ? '' : board.editText
-                                        }
-                                    }]);
-
-                                    if (board.editText === board.textAt(0)) {
-                                        // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                                        project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                                            'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                                            Logging.WARNING);
-                                    }
-
-                                    if (runCheckBox.checked) {
-                                        for (let i = projActionsModel.statefulActionsStartIndex + 1; i < projActionsModel.count; ++i) {
-                                            project.run(projActionsModel.get(i).action, []);
-                                        }
-                                    }
-
-                                    if (openEditor.checked) {
-                                        project.run('start_editor', [settings.get('editor')]);
-                                    }
-
-                                    const config = project.config;
-                                    if (Object.keys(config['project']).length && !config['project']['board']) {
-                                        // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                                        project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                                        'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                                        Logging.WARNING);
-                                    }
-                                }
-                            }
-                        }
-
-                        ColumnLayout {
+                        /*
+                            The core widget - a group of buttons mapping all main actions that can be performed on the given project.
+                            They also serve the project state displaying - each button indicates a stage associated with it:
+                                - green (and green glow): done
+                                - yellow: in progress right now
+                                - red glow: an error has occurred during the last execution
+                        */
+                        RowLayout {
+                            id: projActionsRow
+                            visible: project.state.EMPTY ? true : false
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
-
-                            /*
-                                Show this or action buttons
-                            */
-                            Text {
-                                visible: project.state.EMPTY ? false : true
-                                padding: 10
-                                text: "<b>Project not found or no STM32CubeMX .ioc file is present</b>"
-                                color: 'indianred'
-                            }
-
-                            /*
-                                The core widget - a group of buttons mapping all main actions that can be performed on the given project.
-                                They also serve the project state displaying - each button indicates a stage associated with it:
-                                    - green (and green glow): done
-                                    - yellow: in progress right now
-                                    - red glow: an error has occurred during the last execution
-                            */
-                            RowLayout {
-                                id: projActionsRow
-                                visible: project.state.EMPTY ? true : false
-                                Layout.fillWidth: true
-                                Layout.bottomMargin: 7
-                                z: 1  // for the glowing animation
-                                Repeater {
-                                    model: projActionsModel
-                                    delegate: Button {
-                                        text: model.name
-                                        Layout.rightMargin: model.margin
-                                        property bool shouldBeHighlighted: false  // highlight on mouse over
-                                        property bool shouldBeHighlightedWhileRunning: false  // distinguish actions picked out for the batch run
-                                        property int buttonIndex: index  // TODO: was -1
+                            Layout.bottomMargin: 7
+                            z: 1  // for the glowing animation
+                            Repeater {
+                                model: projActionsModel
+                                delegate: Button {
+                                    text: model.name
+                                    Layout.rightMargin: model.margin
+                                    property bool shouldBeHighlighted: false  // highlight on mouse over
+                                    property bool shouldBeHighlightedWhileRunning: false  // distinguish actions picked out for the batch run
+                                    property int buttonIndex: index  // TODO: was -1
+                                    Component.onCompleted: {
+                                        // buttonIndex = index;
+                                        background.border.color = 'dimgray';
+                                    }
+                                    display: model.icon ? AbstractButton.IconOnly : AbstractButton.TextOnly
+                                    icon.source: model.icon || ''
+                                    ToolTip {
+                                        visible: mouseArea.containsMouse
                                         Component.onCompleted: {
-                                            // buttonIndex = index;
-                                            background.border.color = 'dimgray';
-                                        }
-                                        display: model.icon ? AbstractButton.IconOnly : AbstractButton.TextOnly
-                                        icon.source: model.icon || ''
-                                        ToolTip {
-                                            visible: mouseArea.containsMouse
-                                            Component.onCompleted: {
-                                                text = '';
-                                                if (model.icon) {
-                                                    text += model.name;
-                                                }
-                                                if (model.tooltip) {
-                                                    text += text ? `<br>${model.tooltip}` : model.tooltip;
-                                                }
-                                                if (!model.icon && !model.tooltip) {
-                                                    this.destroy();  // TODO: Loader?
-                                                }
+                                            text = '';
+                                            if (model.icon) {
+                                                text += model.name;
+                                            }
+                                            if (model.tooltip) {
+                                                text += text ? `<br>${model.tooltip}` : model.tooltip;
+                                            }
+                                            if (!model.icon && !model.tooltip) {
+                                                this.destroy();  // TODO: Loader?
                                             }
                                         }
-                                        onClicked: {
-                                            // JS array cannot be attached to a ListElement (at least in a non-hacky manner) so we fill arguments here
-                                            const args = [];
-                                            switch (model.action) {
-                                                case 'start_editor':
-                                                    args.push(settings.get('editor'));
-                                                    break;
-                                                case 'clean':
-                                                    log.clear();
-                                                    break;
-                                                default:
-                                                    break;
-                                            }
-                                            project.run(model.action, args);
+                                    }
+                                    onClicked: {
+                                        // JS array cannot be attached to a ListElement (at least in a non-hacky manner) so we fill arguments here
+                                        const args = [];
+                                        switch (model.action) {
+                                            case 'start_editor':
+                                                args.push(settings.get('editor'));
+                                                break;
+                                            case 'clean':
+                                                log.clear();
+                                                break;
+                                            default:
+                                                break;
                                         }
-                                        /*
-                                            As the button reflects relatively complex logic it's easier to maintain using the state machine technique.
-                                            We define states and allowed transitions between them, all other stuff is managed by the DSM framework.
-                                            You can find the graphical diagram somewhere in the docs
-                                        */
-                                        DSM.StateMachine {
-                                            initialState: main  // start position
-                                            running: true  // run immediately
-                                            onStarted: {
-                                                if (!project.state.LOADING) {
-                                                    project.stateChanged();
-                                                }
-                                            }
-                                            DSM.State {
-                                                id: main
-                                                initialState: normal
-                                                DSM.SignalTransition {
-                                                    targetState: disabled
-                                                    signal: project.actionStarted
-                                                }
-                                                DSM.SignalTransition {
-                                                    targetState: highlighted
-                                                    signal: shouldBeHighlightedChanged
-                                                    guard: shouldBeHighlighted  // go only if...
-                                                }
-                                                onEntered: {
-                                                    enabled = true;
-                                                    palette.buttonText = 'black';
-                                                }
-                                                DSM.State {
-                                                    id: normal
-                                                    DSM.SignalTransition {
-                                                        targetState: stageFulfilled
-                                                        signal: project.stateChanged
-                                                        guard: project.state[model.stageRepresented] ? true : false  // explicitly convert to boolean
-                                                    }
-                                                    onEntered: {
-                                                        palette.button = 'lightgray';
-                                                    }
-                                                }
-                                                DSM.State {
-                                                    id: stageFulfilled
-                                                    DSM.SignalTransition {
-                                                        targetState: normal
-                                                        signal: project.stateChanged
-                                                        guard: project.state[model.stageRepresented] ? false : true
-                                                    }
-                                                    onEntered: {
-                                                        palette.button = 'lightgreen';
-                                                    }
-                                                }
-                                                DSM.HistoryState {
-                                                    id: mainHistory
-                                                    defaultState: normal
-                                                }
-                                            }
-                                            DSM.State {
-                                                // Activates/deactivates additional properties (such as color or border) on some conditions
-                                                // (e.g. some action is currently running), see onEntered, onExited
-                                                id: disabled
-                                                DSM.SignalTransition {
-                                                    targetState: mainHistory
-                                                    signal: project.actionFinished
-                                                }
-                                                onEntered: {
-                                                    enabled = false;
-                                                    palette.buttonText = 'darkgray';
-                                                    if (project.currentAction === model.action) {
-                                                        palette.button = 'gold';
-                                                    }
-                                                    if (shouldBeHighlightedWhileRunning) {
-                                                        background.border.width = 2;
-                                                    }
-                                                }
-                                                onExited: {
-                                                    // Erase highlighting if this action is the last in the series (or an error occurred)
-                                                    if ((project.currentAction === model.action || !project.lastActionSucceed) &&
-                                                        shouldBeHighlightedWhileRunning &&
-                                                        (buttonIndex === (projActionsModel.count - 1) ||
-                                                            !projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning)
-                                                    ) {
-                                                        for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                            projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
-                                                            projActionsRow.children[i].background.border.width = 0;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            DSM.State {
-                                                id: highlighted
-                                                DSM.SignalTransition {
-                                                    targetState: mainHistory
-                                                    signal: shouldBeHighlightedChanged
-                                                    guard: !shouldBeHighlighted
-                                                }
-                                                onEntered: {
-                                                    palette.button = Qt.lighter('lightgreen', 1.2);
-                                                    palette.buttonText = 'dimgray';
-                                                }
+                                        project.run(model.action, args);
+                                    }
+                                    /*
+                                        As the button reflects relatively complex logic it's easier to maintain using the state machine technique.
+                                        We define states and allowed transitions between them, all other stuff is managed by the DSM framework.
+                                        You can find the graphical diagram somewhere in the docs
+                                    */
+                                    DSM.StateMachine {
+                                        initialState: main  // start position
+                                        running: true  // run immediately
+                                        onStarted: {
+                                            if (!project.state.LOADING) {
+                                                project.stateChanged();
                                             }
                                         }
-                                        /*
-                                            Detect modifier keys using overlaying MouseArea:
-                                                - Ctrl (Cmd): start the editor after the action(s)
-                                                - Shift: batch actions run
-                                        */
-                                        MouseArea {
-                                            id: mouseArea
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            property bool ctrlPressed: false
-                                            property bool ctrlPressedLastState: false
-                                            property bool shiftPressed: false
-                                            property bool shiftPressedLastState: false
-                                            function shiftHandler() {
-                                                // manage the appearance of all [stateful] buttons prior this one
-                                                for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                    projActionsRow.children[i].shouldBeHighlighted = shiftPressed;
-                                                }
+                                        DSM.State {
+                                            id: main
+                                            initialState: normal
+                                            DSM.SignalTransition {
+                                                targetState: disabled
+                                                signal: project.actionStarted
                                             }
-                                            onClicked: {
-                                                if (shiftPressed && buttonIndex >= projActionsModel.statefulActionsStartIndex) {
-                                                    for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
-                                                        projActionsRow.children[i].shouldBeHighlighted = false;
-                                                        projActionsRow.children[i].shouldBeHighlightedWhileRunning = true;
-                                                    }
-                                                    for (let i = projActionsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
-                                                        project.run(projActionsModel.get(i).action, []);
-                                                    }
-                                                }
-                                                parent.clicked();  // pass the event to the underlying button though all work can be done in-place
-                                                if (ctrlPressed && model.action !== 'start_editor') {
-                                                    project.run('start_editor', [settings.get('editor')]);
-                                                }
-                                            }
-                                            onPositionChanged: {
-                                                ctrlPressed = mouse.modifiers & Qt.ControlModifier;  // bitwise AND
-                                                if (ctrlPressedLastState !== ctrlPressed) {
-                                                    ctrlPressedLastState = ctrlPressed;
-                                                }
-
-                                                shiftPressed = mouse.modifiers & Qt.ShiftModifier;  // bitwise AND
-                                                if (shiftPressedLastState !== shiftPressed) {  // reduce a number of unnecessary shiftHandler() calls
-                                                    shiftPressedLastState = shiftPressed;
-                                                    shiftHandler();
-                                                }
+                                            DSM.SignalTransition {
+                                                targetState: highlighted
+                                                signal: shouldBeHighlightedChanged
+                                                guard: shouldBeHighlighted  // go only if...
                                             }
                                             onEntered: {
-                                                if (model.action !== 'start_editor') {
-                                                    let preparedText = `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b>
-                                                                        after the operation`;
-                                                    if (buttonIndex >= projActionsModel.statefulActionsStartIndex) {
-                                                        preparedText +=
-                                                            `, <b>Shift</b>-click to perform all actions prior this one (including).
-                                                                <b>Ctrl</b>-<b>Shift</b>-click for both`;
-                                                    }
-                                                    statusBar.text = preparedText;
+                                                enabled = true;
+                                                palette.buttonText = 'black';
+                                            }
+                                            DSM.State {
+                                                id: normal
+                                                DSM.SignalTransition {
+                                                    targetState: stageFulfilled
+                                                    signal: project.stateChanged
+                                                    guard: project.state[model.stageRepresented] ? true : false  // explicitly convert to boolean
+                                                }
+                                                onEntered: {
+                                                    palette.button = 'lightgray';
+                                                }
+                                            }
+                                            DSM.State {
+                                                id: stageFulfilled
+                                                DSM.SignalTransition {
+                                                    targetState: normal
+                                                    signal: project.stateChanged
+                                                    guard: project.state[model.stageRepresented] ? false : true
+                                                }
+                                                onEntered: {
+                                                    palette.button = 'lightgreen';
+                                                }
+                                            }
+                                            DSM.HistoryState {
+                                                id: mainHistory
+                                                defaultState: normal
+                                            }
+                                        }
+                                        DSM.State {
+                                            // Activates/deactivates additional properties (such as color or border) on some conditions
+                                            // (e.g. some action is currently running), see onEntered, onExited
+                                            id: disabled
+                                            DSM.SignalTransition {
+                                                targetState: mainHistory
+                                                signal: project.actionFinished
+                                            }
+                                            onEntered: {
+                                                enabled = false;
+                                                palette.buttonText = 'darkgray';
+                                                if (project.currentAction === model.action) {
+                                                    palette.button = 'gold';
+                                                }
+                                                if (shouldBeHighlightedWhileRunning) {
+                                                    background.border.width = 2;
                                                 }
                                             }
                                             onExited: {
-                                                statusBar.text = '';
-
-                                                ctrlPressed = false;
-                                                ctrlPressedLastState = false;
-
-                                                if (shiftPressed || shiftPressedLastState) {
-                                                    shiftPressed = false;
-                                                    shiftPressedLastState = false;
-                                                    shiftHandler();
+                                                // Erase highlighting if this action is the last in the series (or an error occurred)
+                                                if ((project.currentAction === model.action || !project.lastActionSucceed) &&
+                                                    shouldBeHighlightedWhileRunning &&
+                                                    (buttonIndex === (projActionsModel.count - 1) ||
+                                                        !projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning)
+                                                ) {
+                                                    for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                        projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
+                                                        projActionsRow.children[i].background.border.width = 0;
+                                                    }
                                                 }
                                             }
                                         }
-                                        Connections {
-                                            target: project
-                                            function onActionFinished(action, success) {
-                                                if (action === model.action && settings.get('notifications') && !mainWindow.active) {
-                                                    sysTrayIcon.showMessage(
-                                                        success ? 'Success' : 'Error',  // title
-                                                        `${project.name} - ${model.name}`,  // text
-                                                        success ? Labs.SystemTrayIcon.Information : Labs.SystemTrayIcon.Warning,  // icon
-                                                        5000  // ms
-                                                    );
-                                                }
+                                        DSM.State {
+                                            id: highlighted
+                                            DSM.SignalTransition {
+                                                targetState: mainHistory
+                                                signal: shouldBeHighlightedChanged
+                                                guard: !shouldBeHighlighted
+                                            }
+                                            onEntered: {
+                                                palette.button = Qt.lighter('lightgreen', 1.2);
+                                                palette.buttonText = 'dimgray';
                                             }
                                         }
-                                        /*
-                                            "Blinky" glowing
-                                        */
-                                        RectangularGlow {
-                                            id: glow
-                                            anchors.fill: parent
-                                            cornerRadius: 25
-                                            glowRadius: 20
-                                            spread: 0.25
-                                            onVisibleChanged: visible ? glowAnimation.start() : glowAnimation.complete()
-                                            SequentialAnimation {
-                                                id: glowAnimation
-                                                loops: 3
-                                                onStopped: glow.visible = false
-                                                OpacityAnimator {
-                                                    target: glow
-                                                    from: 0
-                                                    to: 1
-                                                    duration: 500
+                                    }
+                                    /*
+                                        Detect modifier keys using overlaying MouseArea:
+                                            - Ctrl (Cmd): start the editor after the action(s)
+                                            - Shift: batch actions run
+                                    */
+                                    MouseArea {
+                                        id: mouseArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        property bool ctrlPressed: false
+                                        property bool ctrlPressedLastState: false
+                                        property bool shiftPressed: false
+                                        property bool shiftPressedLastState: false
+                                        function shiftHandler() {
+                                            // manage the appearance of all [stateful] buttons prior this one
+                                            for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                projActionsRow.children[i].shouldBeHighlighted = shiftPressed;
+                                            }
+                                        }
+                                        onClicked: {
+                                            if (shiftPressed && buttonIndex >= projActionsModel.statefulActionsStartIndex) {
+                                                for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                    projActionsRow.children[i].shouldBeHighlighted = false;
+                                                    projActionsRow.children[i].shouldBeHighlightedWhileRunning = true;
                                                 }
-                                                OpacityAnimator {
-                                                    target: glow
-                                                    from: 1
-                                                    to: 0
-                                                    duration: 500
+                                                for (let i = projActionsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
+                                                    project.run(projActionsModel.get(i).action, []);
                                                 }
                                             }
-                                            DSM.StateMachine {
-                                                running: true
-                                                initialState: glowOff
-                                                DSM.State {
-                                                    id: glowOff
-                                                    onEntered: glow.visible = false
-                                                    DSM.SignalTransition {
-                                                        targetState: glowSuccess
-                                                        signal: project.actionFinished
-                                                        guard: action === model.action && success
-                                                    }
-                                                    DSM.SignalTransition {
-                                                        targetState: glowError
-                                                        signal: project.actionFinished
-                                                        guard: action === model.action && !success
-                                                    }
+                                            parent.clicked();  // pass the event to the underlying button though all work can be done in-place
+                                            if (ctrlPressed && model.action !== 'start_editor') {
+                                                project.run('start_editor', [settings.get('editor')]);
+                                            }
+                                        }
+                                        onPositionChanged: {
+                                            ctrlPressed = mouse.modifiers & Qt.ControlModifier;  // bitwise AND
+                                            if (ctrlPressedLastState !== ctrlPressed) {
+                                                ctrlPressedLastState = ctrlPressed;
+                                            }
+
+                                            shiftPressed = mouse.modifiers & Qt.ShiftModifier;  // bitwise AND
+                                            if (shiftPressedLastState !== shiftPressed) {  // reduce a number of unnecessary shiftHandler() calls
+                                                shiftPressedLastState = shiftPressed;
+                                                shiftHandler();
+                                            }
+                                        }
+                                        onEntered: {
+                                            if (model.action !== 'start_editor') {
+                                                let preparedText = `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b>
+                                                                    after the operation`;
+                                                if (buttonIndex >= projActionsModel.statefulActionsStartIndex) {
+                                                    preparedText +=
+                                                        `, <b>Shift</b>-click to perform all actions prior this one (including).
+                                                            <b>Ctrl</b>-<b>Shift</b>-click for both`;
+                                                }
+                                                statusBar.text = preparedText;
+                                            }
+                                        }
+                                        onExited: {
+                                            statusBar.text = '';
+
+                                            ctrlPressed = false;
+                                            ctrlPressedLastState = false;
+
+                                            if (shiftPressed || shiftPressedLastState) {
+                                                shiftPressed = false;
+                                                shiftPressedLastState = false;
+                                                shiftHandler();
+                                            }
+                                        }
+                                    }
+                                    Connections {
+                                        target: project
+                                        function onActionFinished(action, success) {
+                                            if (action === model.action && settings.get('notifications') && !mainWindow.active) {
+                                                sysTrayIcon.showMessage(
+                                                    success ? 'Success' : 'Error',  // title
+                                                    `${project.name} - ${model.name}`,  // text
+                                                    success ? Labs.SystemTrayIcon.Information : Labs.SystemTrayIcon.Warning,  // icon
+                                                    5000  // ms
+                                                );
+                                            }
+                                        }
+                                    }
+                                    /*
+                                        "Blinky" glowing
+                                    */
+                                    RectangularGlow {
+                                        id: glow
+                                        anchors.fill: parent
+                                        cornerRadius: 25
+                                        glowRadius: 20
+                                        spread: 0.25
+                                        onVisibleChanged: visible ? glowAnimation.start() : glowAnimation.complete()
+                                        SequentialAnimation {
+                                            id: glowAnimation
+                                            loops: 3
+                                            onStopped: glow.visible = false
+                                            OpacityAnimator {
+                                                target: glow
+                                                from: 0
+                                                to: 1
+                                                duration: 500
+                                            }
+                                            OpacityAnimator {
+                                                target: glow
+                                                from: 1
+                                                to: 0
+                                                duration: 500
+                                            }
+                                        }
+                                        DSM.StateMachine {
+                                            running: true
+                                            initialState: glowOff
+                                            DSM.State {
+                                                id: glowOff
+                                                onEntered: glow.visible = false
+                                                DSM.SignalTransition {
+                                                    targetState: glowSuccess
+                                                    signal: project.actionFinished
+                                                    guard: action === model.action && success
+                                                }
+                                                DSM.SignalTransition {
+                                                    targetState: glowError
+                                                    signal: project.actionFinished
+                                                    guard: action === model.action && !success
+                                                }
+                                            }
+                                            DSM.State {
+                                                id: glowOn
+                                                onEntered: glow.visible = true
+                                                DSM.SignalTransition {
+                                                    targetState: glowOff
+                                                    signal: glow.visibleChanged
+                                                    guard: visible === false
+                                                }
+                                                DSM.SignalTransition {
+                                                    targetState: glowOff
+                                                    signal: project.actionStarted
                                                 }
                                                 DSM.State {
-                                                    id: glowOn
-                                                    onEntered: glow.visible = true
-                                                    DSM.SignalTransition {
-                                                        targetState: glowOff
-                                                        signal: glow.visibleChanged
-                                                        guard: visible === false
-                                                    }
-                                                    DSM.SignalTransition {
-                                                        targetState: glowOff
-                                                        signal: project.actionStarted
-                                                    }
-                                                    DSM.State {
-                                                        id: glowSuccess
-                                                        onEntered: glow.color = 'lightgreen'
-                                                    }
-                                                    DSM.State {
-                                                        id: glowError
-                                                        onEntered: glow.color = 'lightcoral'
-                                                    }
+                                                    id: glowSuccess
+                                                    onEntered: glow.color = 'lightgreen'
+                                                }
+                                                DSM.State {
+                                                    id: glowError
+                                                    onEntered: glow.color = 'lightcoral'
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
+                        }
 
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
 
-                                ScrollView {
-                                    anchors.fill: parent
-                                    TextArea {
-                                        id: log
-                                        readOnly: true
-                                        selectByMouse: true
-                                        wrapMode: Text.WordWrap
-                                        font.pointSize: 10  // different on different platforms, Qt's bug
-                                        font.weight: Font.DemiBold
-                                        textFormat: TextEdit.RichText
-                                        Connections {
-                                            target: project
-                                            function onLogAdded(message, level) {
-                                                if (level === Logging.WARNING) {
-                                                    log.append('<font color="goldenrod"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
-                                                } else if (level >= Logging.ERROR) {
-                                                    log.append('<font color="indianred"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
-                                                } else {
-                                                    log.append('<pre style="white-space: pre-wrap">' + message + '</pre>');
-                                                }
+                            ScrollView {
+                                anchors.fill: parent
+                                TextArea {
+                                    id: log
+                                    readOnly: true
+                                    selectByMouse: true
+                                    wrapMode: Text.WordWrap
+                                    font.pointSize: 10  // different on different platforms, Qt's bug
+                                    font.weight: Font.DemiBold
+                                    textFormat: TextEdit.RichText
+                                    Connections {
+                                        target: project
+                                        function onLogAdded(message, level) {
+                                            if (level === Logging.WARNING) {
+                                                log.append('<font color="goldenrod"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
+                                            } else if (level >= Logging.ERROR) {
+                                                log.append('<font color="indianred"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
+                                            } else {
+                                                log.append('<pre style="white-space: pre-wrap">' + message + '</pre>');
                                             }
                                         }
                                     }
@@ -873,6 +875,7 @@ ApplicationWindow {
                             }
                         }
                     }
+                    // }
                 }
             }
         }
