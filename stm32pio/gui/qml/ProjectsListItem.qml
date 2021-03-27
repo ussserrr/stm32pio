@@ -1,5 +1,5 @@
 // implicit ones:
-// project, index, projectsListView, setInitInfo
+// project, index, projectsListView, registerAsReady
 
 import QtQuick 2.14
 import QtQuick.Controls 2.14
@@ -28,7 +28,7 @@ RowLayout {
             DSM.StateMachine {
                 running: true
                 initialState: projectName_normal
-                onStarted: setInitInfo(index, 'listElementProjectName')
+                onStarted: registerAsReady(index, 'listElementProjectName')
                 DSM.State {
                     id: projectName_normal
                     onEntered: projectName.color = 'black'
@@ -166,7 +166,7 @@ RowLayout {
         DSM.StateMachine {
             running: true  // run immediately
             initialState: busy  // seems like initialization process starts earlier then StateMachine runs so lets start from "busy"
-            onStarted: setInitInfo(index, 'listElementBusyIndicator')
+            onStarted: registerAsReady(index, 'listElementBusyIndicator')
             DSM.State {
                 id: normal
                 onEntered: actionIndicator.visible = false

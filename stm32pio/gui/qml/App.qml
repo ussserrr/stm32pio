@@ -8,7 +8,6 @@ import QtQml.StateMachine 1.14 as DSM
 
 import Qt.labs.platform 1.1 as Labs
 
-import ProjectListItem 1.0
 import Settings 1.0
 
 
@@ -77,7 +76,7 @@ ApplicationWindow {
         // 'workspace'
     ]
     readonly property var initInfo: ({})
-    function setInitInfo(projectIndex, component) {
+    function registerAsReady(projectIndex, component) {
         if (componentsToWait.includes(component)) {
             if (projectIndex in initInfo) {
                 initInfo[projectIndex]++;
@@ -102,15 +101,6 @@ ApplicationWindow {
         function onGoToProject(indexToGo) {
             projectsListView.currentIndex = indexToGo;
         }
-    }
-    function removeCurrentProject() {
-        const indexToRemove = projectsListView.currentIndex;
-        indexToRemove === 0 ? projectsListView.incrementCurrentIndex() : projectsListView.decrementCurrentIndex();
-
-        // Need to manually unload the dynamic component to prevent annoying "TypeError: Cannot read property 'XXX' of null" messages
-        // projectsWorkspaceView.children[indexToRemove].sourceComponent = undefined;
-
-        projectsModel.removeProject(indexToRemove);
     }
 
     menuBar: MenuBar {
@@ -178,19 +168,19 @@ ApplicationWindow {
         rows: 1
         z: 2  // do not clip glow animation (see below)
 
-        ColumnLayout {
-            Layout.preferredWidth: 2.6 * parent.width / 12  // ~1/5, probably should reduce or at least cast to the fraction of 10
-            Layout.fillHeight: true
-
+        // ColumnLayout {
             /*
                The dynamic list of projects (initially loaded from the QSettings, can be modified later)
             */
             ListView {
-                id: projectsListView
-                Layout.fillWidth: true
+                Layout.preferredWidth: 2.6 * parent.width / 12  // ~1/5, probably should reduce or at least cast to the fraction of 10
                 Layout.fillHeight: true
+
+                id: projectsListView
+                // Layout.fillWidth: true
+                // Layout.fillHeight: true
                 clip: true
-                keyNavigationWraps: true
+                // keyNavigationWraps: true
 
                 highlight: Rectangle { color: 'darkseagreen' }
                 highlightMoveDuration: 0  // turn off animations
@@ -225,7 +215,7 @@ ApplicationWindow {
                         anchors.centerIn: parent
                         Button {
                             text: 'Add'
-                            Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
+                            // Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
                             display: AbstractButton.TextBesideIcon
                             icon.source: '../icons/add.svg'
                             onClicked: addProjectFolderDialog.open()
@@ -235,15 +225,19 @@ ApplicationWindow {
                         Button {
                             text: 'Remove'
                             visible: projectsListView.currentIndex !== -1  // show only if any item is selected
-                            Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
+                            // Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
                             display: AbstractButton.TextBesideIcon
                             icon.source: '../icons/remove.svg'
-                            onClicked: removeCurrentProject()
+                            onClicked: {
+                                const indexToRemove = projectsListView.currentIndex;
+                                indexToRemove === 0 ? projectsListView.incrementCurrentIndex() : projectsListView.decrementCurrentIndex();
+                                projectsModel.removeProject(indexToRemove);
+                            }
                         }
                     }
                 }
             }
-        }
+        // }
 
 
         /*
@@ -262,17 +256,14 @@ ApplicationWindow {
             Repeater {
                 // Use similar to ListView pattern (same projects model, Loader component)
                 model: projectsModel
-                // delegate: Loader {
                 delegate: StackLayout {
-                    // onLoaded: setInitInfo(index, 'workspace')
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
 
-                    // readonly property ProjectListItem project: projectsModel.get(index)
-
-                    signal handleState()
-                    onHandleState: {
+                    function handleState() {
                         if (mainWindow.active &&  // the app got foreground
                             index === projectsWorkspaceView.currentIndex &&  // only for the current list item
-                            project.currentAction === ''
+                            !project.currentAction
                         ) {
                             project.updateState();
                         }
@@ -283,101 +274,46 @@ ApplicationWindow {
                         mainWindow.activeChanged.connect(handleState);  // the app window has got (or lost, filter in the handler) the focus
                     }
 
-                    ListModel {
-                        id: projActionsModel
-                        readonly property int statefulActionsStartIndex: 2
-                        ListElement {
-                            name: 'Clean'
-                            action: 'clean'
-                            icon: '../icons/trash-bin.svg'
-                            tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder \
-                                      except the current .ioc file and clear all logs"
-                        }
-                        ListElement {
-                            name: 'Open editor'
-                            action: 'start_editor'
-                            icon: '../icons/edit.svg'
-                            margin: 15  // margin to visually separate first 2 actions as they don't represent any stage
-                        }
-                        ListElement {
-                            name: 'Initialize'
-                            action: 'save_config'
-                            stageRepresented: 'INITIALIZED'  // the project stage this button is representing
-                            // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                            tooltip: "Saves the current configuration to the config file <b>stm32pio.ini</b>"
-                        }
-                        ListElement {
-                            name: 'Generate'
-                            action: 'generate_code'
-                            stageRepresented: 'GENERATED'
-                        }
-                        ListElement {
-                            name: 'Init PlatformIO'
-                            action: 'pio_init'
-                            stageRepresented: 'PIO_INITIALIZED'
-                        }
-                        ListElement {
-                            name: 'Patch'
-                            action: 'patch'
-                            stageRepresented: 'PATCHED'
-                        }
-                        ListElement {
-                            name: 'Build'
-                            action: 'build'
-                            stageRepresented: 'BUILT'
-                        }
-                    }
-
-                    // sourceComponent: StackLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-
+                    readonly property int loaderIndex: 0
+                    readonly property int initScreenIndex: 1
+                    readonly property int workspaceIndex: 2
                     DSM.StateMachine {
                         running: true
-                        initialState: wLoading
+                        initialState: workspace_loading
                         onStarted: {
                             if (!project.state.LOADING) {
                                 project.currentStageChanged();
                             }
                         }
                         DSM.State {
-                            id: wLoading
-                            onEntered: {
-                                wLoader.active = true;
-                                currentIndex = 0;
-                            }
+                            id: workspace_loading
+                            onEntered: workspaceLoader.active = true
                             DSM.SignalTransition {
-                                targetState: wInitPage
+                                targetState: workspace_emptyProject
                                 signal: project.currentStageChanged
                                 guard: project.currentStage === 'EMPTY' && !project.state.LOADING
                             }
                             DSM.SignalTransition {
-                                targetState: wMain
+                                targetState: workspace_main
                                 signal: project.currentStageChanged
                                 guard: project.currentStage !== 'EMPTY' && !project.state.LOADING
                             }
-                            onExited: {
-                                wLoader.sourceComponent = undefined;
-                            }
+                            onExited: workspaceLoader.sourceComponent = undefined
                         }
                         DSM.State {
-                            id: wInitPage
-                            onEntered: {
-                                currentIndex = 1;
-                            }
+                            id: workspace_emptyProject
+                            onEntered: currentIndex = initScreenIndex
                             DSM.SignalTransition {
-                                targetState: wMain
+                                targetState: workspace_main
                                 signal: project.stateChanged
                                 guard: project.currentStage !== 'EMPTY'
                             }
                         }
                         DSM.State {
-                            id: wMain
-                            onEntered: {
-                                currentIndex = 2;
-                            }
+                            id: workspace_main
+                            onEntered: currentIndex = workspaceIndex
                             DSM.SignalTransition {
-                                targetState: wInitPage
+                                targetState: workspace_emptyProject
                                 signal: project.stateChanged
                                 guard: project.currentStage === 'EMPTY'
                             }
@@ -385,10 +321,8 @@ ApplicationWindow {
                     }
 
                     Loader {
-                        id: wLoader
+                        id: workspaceLoader
                         sourceComponent: Item {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
                             BusyIndicator {
                                 anchors.centerIn: parent
                             }
@@ -449,8 +383,8 @@ ApplicationWindow {
                                     Component.onCompleted: {
                                         // Form the tool tip text using action names
                                         const actions = [];
-                                        for (let i = projActionsModel.statefulActionsStartIndex; i < projActionsModel.count; ++i) {
-                                            actions.push(`<b>${projActionsModel.get(i).name}</b>`);
+                                        for (let i = projectActionsModel.statefulActionsStartIndex; i < projectActionsModel.count; ++i) {
+                                            actions.push(`<b>${projectActionsModel.get(i).name}</b>`);
                                         }
                                         text = `Execute tasks: ${actions.join(' → ')}`;
                                     }
@@ -498,8 +432,8 @@ ApplicationWindow {
                                 }
 
                                 if (runCheckBox.checked) {
-                                    for (let i = projActionsModel.statefulActionsStartIndex + 1; i < projActionsModel.count; ++i) {
-                                        project.run(projActionsModel.get(i).action, []);
+                                    for (let i = projectActionsModel.statefulActionsStartIndex + 1; i < projectActionsModel.count; ++i) {
+                                        project.run(projectActionsModel.get(i).action, []);
                                     }
                                 }
 
@@ -519,8 +453,8 @@ ApplicationWindow {
                     }
 
                     ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
+                        // Layout.fillWidth: true
+                        // Layout.fillHeight: true
 
                         /*
                             Show this or action buttons
@@ -546,7 +480,9 @@ ApplicationWindow {
                             Layout.bottomMargin: 7
                             z: 1  // for the glowing animation
                             Repeater {
-                                model: projActionsModel
+                                model: ProjectActionsModel {
+                                    id: projectActionsModel
+                                }
                                 delegate: Button {
                                     text: model.name
                                     Layout.rightMargin: model.margin
@@ -667,10 +603,10 @@ ApplicationWindow {
                                                 // Erase highlighting if this action is the last in the series (or an error occurred)
                                                 if ((project.currentAction === model.action || !project.lastActionSucceed) &&
                                                     shouldBeHighlightedWhileRunning &&
-                                                    (buttonIndex === (projActionsModel.count - 1) ||
+                                                    (buttonIndex === (projectActionsModel.count - 1) ||
                                                         !projActionsRow.children[buttonIndex + 1].shouldBeHighlightedWhileRunning)
                                                 ) {
-                                                    for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                                    for (let i = projectActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                         projActionsRow.children[i].shouldBeHighlightedWhileRunning = false;
                                                         projActionsRow.children[i].background.border.width = 0;
                                                     }
@@ -705,18 +641,18 @@ ApplicationWindow {
                                         property bool shiftPressedLastState: false
                                         function shiftHandler() {
                                             // manage the appearance of all [stateful] buttons prior this one
-                                            for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                            for (let i = projectActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                 projActionsRow.children[i].shouldBeHighlighted = shiftPressed;
                                             }
                                         }
                                         onClicked: {
-                                            if (shiftPressed && buttonIndex >= projActionsModel.statefulActionsStartIndex) {
-                                                for (let i = projActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
+                                            if (shiftPressed && buttonIndex >= projectActionsModel.statefulActionsStartIndex) {
+                                                for (let i = projectActionsModel.statefulActionsStartIndex; i <= buttonIndex; ++i) {
                                                     projActionsRow.children[i].shouldBeHighlighted = false;
                                                     projActionsRow.children[i].shouldBeHighlightedWhileRunning = true;
                                                 }
-                                                for (let i = projActionsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
-                                                    project.run(projActionsModel.get(i).action, []);
+                                                for (let i = projectActionsModel.statefulActionsStartIndex; i < buttonIndex; ++i) {
+                                                    project.run(projectActionsModel.get(i).action, []);
                                                 }
                                             }
                                             parent.clicked();  // pass the event to the underlying button though all work can be done in-place
@@ -740,7 +676,7 @@ ApplicationWindow {
                                             if (model.action !== 'start_editor') {
                                                 let preparedText = `<b>Ctrl</b>-click to open the editor specified in the <b>Settings</b>
                                                                     after the operation`;
-                                                if (buttonIndex >= projActionsModel.statefulActionsStartIndex) {
+                                                if (buttonIndex >= projectActionsModel.statefulActionsStartIndex) {
                                                     preparedText +=
                                                         `, <b>Shift</b>-click to perform all actions prior this one (including).
                                                             <b>Ctrl</b>-<b>Shift</b>-click for both`;

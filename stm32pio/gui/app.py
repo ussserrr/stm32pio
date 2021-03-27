@@ -117,6 +117,7 @@ def create_app(sys_argv: List[str] = None) -> Application:
     engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.rootContext().setContextProperty('appSettings', settings)
 
+    # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'ProjectActionsModel.qml')))
     # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'AboutDialog.qml')))
     # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'SettingsDialog.qml')))
     # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'ProjectsListItem.qml')))

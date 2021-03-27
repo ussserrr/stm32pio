@@ -57,7 +57,7 @@ class ProjectListItem(QObject):
         self.workers_pool.setMaxThreadCount(1)
         self.workers_pool.setExpiryTimeout(-1)  # tasks wait forever for the available spot
 
-        self._current_action: str = ''
+        self._current_action: str = 'loading'
         self._last_action_succeed: bool = True
 
         # These values are valid only until the Stm32pio project initialize itself (or failed to) (see init_project)
@@ -102,6 +102,7 @@ class ProjectListItem(QObject):
             # Register some kind of the deconstruction handler
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
                                                self.name if self.project is None else str(self.project))
+            self._current_action = ''
             self.qml_ready.wait()  # wait for the GUI to initialize (which one is earlier, actually, back or front)
             self.updateState()
             self.initialized.emit()
