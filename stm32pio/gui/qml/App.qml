@@ -200,256 +200,10 @@ ApplicationWindow {
                        directly in the delegate
                     */
                     model: projectsModel  // backend-side
+                    // Loader for: DelegateModel.inPersistedItems and correct mouse click index change
                     delegate: Loader {
-                        /*
-                           (See setInitInfo docs) One of the two main widgets representing the project. Use Loader component
-                           as it can give us the reliable timestamp of all its children loading completion (unlike Component.onCompleted)
-                        */
-                        onLoaded: {
-                            DelegateModel.inPersistedItems = 1;  // TODO: = true (5.15)
-                        }
-                        sourceComponent: RowLayout {
-                            // TODO: maybe should use "display" (or custom) role everywhere so no need to specify "project" property
-                            //  (but extensive list.data() usage then)
-                            // readonly property ProjectListItem project: projectsModel.get(index)
-                            ColumnLayout {
-                                Layout.preferredHeight: 50
-
-                                Text {
-                                    id: projectName
-                                    leftPadding: 5
-                                    rightPadding: actionIndicator.visible ? 0 : leftPadding
-                                    Layout.alignment: Qt.AlignBottom
-                                    Layout.preferredWidth: actionIndicator.visible ?
-                                                           (projectsListView.width - parent.height - leftPadding) :
-                                                           projectsListView.width
-                                    elide: Text.ElideMiddle
-                                    maximumLineCount: 1
-                                    font.weight: Font.Bold
-                                    text: display.name
-                                    DSM.StateMachine {
-                                        running: true
-                                        initialState: normall
-                                        onStarted: {
-                                            setInitInfo(index, 'listElementProjectName');
-                                        }
-                                        DSM.State {
-                                            id: normall
-                                            onEntered: projectName.color = 'black'
-                                            DSM.SignalTransition {
-                                                targetState: added
-                                                signal: display.initialized
-                                                guard: !display.fromStartup && projectsListView.currentIndex !== index
-                                            }
-                                            DSM.SignalTransition {
-                                                targetState: initializationErrorr
-                                                signal: display.stateChanged
-                                                guard: !display.state['EMPTY'] && !display.state.LOADING
-                                            }
-                                        }
-                                        DSM.State {
-                                            id: added
-                                            onEntered: projectName.color = 'seagreen'
-                                            DSM.SignalTransition {
-                                                targetState: normall
-                                                signal: projectsListView.currentIndexChanged
-                                                guard: projectsListView.currentIndex === index && display.state['EMPTY']
-                                            }
-                                            DSM.SignalTransition {
-                                                targetState: initializationErrorr
-                                                signal: projectsListView.currentIndexChanged
-                                                guard: projectsListView.currentIndex === index && !display.state['EMPTY']
-                                            }
-                                        }
-                                        DSM.State {
-                                            id: initializationErrorr
-                                            onEntered: projectName.color = 'indianred'
-                                            DSM.SignalTransition {
-                                                targetState: normall
-                                                signal: display.stateChanged
-                                                guard: display.state['EMPTY']
-                                            }
-                                        }
-                                    }
-                                }
-                                Text {
-                                    id: projectCurrentStage
-                                    leftPadding: 5
-                                    rightPadding: actionIndicator.visible ? 0 : leftPadding
-                                    Layout.alignment: Qt.AlignTop
-                                    Layout.preferredWidth: actionIndicator.visible ?
-                                                           (projectsListView.width - parent.height - leftPadding) :
-                                                           projectsListView.width
-                                    elide: Text.ElideRight
-                                    maximumLineCount: 1
-                                    text: ProjectStage[display.currentStage] ?? display.currentStage
-                                    DSM.StateMachine {
-                                        running: true
-                                        initialState: projectsListView.currentIndex === index ? navigated : inactive
-                                        // onStarted: {
-                                        //     setInitInfo(index, 'listElementCurrentStage');
-                                        // }
-                                        DSM.State {
-                                            id: navigated
-                                            initialState: (display.state.EMPTY || display.state.LOADING) ? n1 : n2
-                                            DSM.State {
-                                                id: n1
-                                                onEntered: {
-                                                    projectCurrentStage.color = 'black';
-                                                }
-                                                DSM.SignalTransition {
-                                                    targetState: n2
-                                                    signal: display.stateChanged
-                                                    guard: !display.state['EMPTY']
-                                                }
-                                            }
-                                            DSM.State {
-                                                id: n2
-                                                onEntered: {
-                                                    projectCurrentStage.color = 'indianred';
-                                                }
-                                                DSM.SignalTransition {
-                                                    targetState: n1
-                                                    signal: display.stateChanged
-                                                    guard: display.state['EMPTY']
-                                                }
-                                            }
-                                            DSM.SignalTransition {
-                                                targetState: inactive
-                                                signal: projectsListView.currentIndexChanged
-                                                guard: projectsListView.currentIndex !== index
-                                            }
-                                        }
-                                        DSM.State {
-                                            id: inactive
-                                            initialState: (display.state.EMPTY || display.state.LOADING) ? i1 : i2
-                                            DSM.State {
-                                                id: i1
-                                                onEntered: {
-                                                    projectCurrentStage.color = 'darkgray';
-                                                }
-                                                DSM.SignalTransition {
-                                                    targetState: i2
-                                                    signal: display.stateChanged
-                                                    guard: !display.state['EMPTY']
-                                                }
-                                                DSM.SignalTransition {
-                                                    targetState: i3
-                                                    signal: display.stateChanged
-                                                    guard: display.state['EMPTY'] && !display.fromStartup
-                                                }
-                                            }
-                                            DSM.State {
-                                                id: i2
-                                                onEntered: {
-                                                    projectCurrentStage.color = 'indianred';
-                                                }
-                                                DSM.SignalTransition {
-                                                    targetState: i1
-                                                    signal: display.stateChanged
-                                                    guard: display.state['EMPTY']
-                                                }
-                                            }
-                                            DSM.State {
-                                                id: i3
-                                                onEntered: {
-                                                    projectCurrentStage.color = 'seagreen';
-                                                }
-                                            }
-                                            DSM.SignalTransition {
-                                                targetState: navigated
-                                                signal: projectsListView.currentIndexChanged
-                                                guard: projectsListView.currentIndex === index
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Show whether a busy indicator or a finished action notification
-                            StackLayout {
-                                id: actionIndicator
-                                Layout.alignment: Qt.AlignVCenter
-                                Layout.preferredWidth: parent.height
-                                Layout.preferredHeight: parent.height
-
-                                DSM.StateMachine {
-                                    running: true  // run immediately
-                                    initialState: busy  // seems like initialization process starts earlier then StateMachine runs so lets start from "busy"
-                                    onStarted: {
-                                        setInitInfo(index, 'listElementBusyIndicator');
-                                    }
-                                    DSM.State {
-                                        id: normal
-                                        onEntered: {
-                                            actionIndicator.visible = false;
-                                        }
-                                        DSM.SignalTransition {
-                                            targetState: busy
-                                            signal: display.actionStarted
-                                        }
-                                    }
-                                    DSM.State {
-                                        id: busy
-                                        onEntered: {
-                                            actionIndicator.currentIndex = 0;
-                                            actionIndicator.visible = true;
-                                        }
-                                        DSM.SignalTransition {
-                                            targetState: normal
-                                            signal: display.initialized
-                                        }
-                                        DSM.SignalTransition {
-                                            targetState: normal
-                                            signal: display.actionFinished
-                                            guard: projectsListView.currentIndex === index
-                                        }
-                                        DSM.SignalTransition {
-                                            targetState: indication
-                                            signal: display.actionFinished
-                                        }
-                                    }
-                                    DSM.State {
-                                        id: indication
-                                        onEntered: {
-                                            lastActionNotification.color = display.lastActionSucceed ? 'lightgreen' : 'lightcoral';
-                                            actionIndicator.currentIndex = 1;
-                                        }
-                                        DSM.SignalTransition {
-                                            targetState: normal
-                                            signal: projectsListView.currentIndexChanged
-                                            guard: projectsListView.currentIndex === index
-                                        }
-                                    }
-                                }
-
-                                BusyIndicator {
-                                    // Important note: if you toggle visibility frequently better use 'visible'
-                                    // instead of 'running' for a stable visual appearance
-                                    Layout.fillWidth: true
-                                    Layout.fillHeight: true
-                                }
-                                Item {
-                                    Layout.fillWidth: true
-                                    Layout.fillHeight: true
-                                    Rectangle {  // Circle :)
-                                        id: lastActionNotification
-                                        anchors.centerIn: parent
-                                        width: 10
-                                        height: width
-                                        radius: width * 0.5
-                                    }
-                                }
-                            }
-
-                            MouseArea {
-                                x: parent.x
-                                y: parent.y
-                                width: parent.width
-                                height: parent.height
-                                onClicked: projectsListView.currentIndex = index
-                            }
-                        }
+                        sourceComponent: ProjectsListItem {}
+                        onLoaded: DelegateModel.inPersistedItems = 1  // TODO: = true (5.15)
                     }
                 }
 
@@ -592,12 +346,12 @@ ApplicationWindow {
                                 DSM.SignalTransition {
                                     targetState: wInitPage
                                     signal: project.currentStageChanged
-                                    guard: project.currentStage === 'EMPTY'
+                                    guard: project.currentStage === 'EMPTY' && !project.state.LOADING
                                 }
                                 DSM.SignalTransition {
                                     targetState: wMain
                                     signal: project.currentStageChanged
-                                    guard: project.currentStage !== 'EMPTY'
+                                    guard: project.currentStage !== 'EMPTY' && !project.state.LOADING
                                 }
                                 onExited: {
                                     wLoader.sourceComponent = undefined;
@@ -769,9 +523,8 @@ ApplicationWindow {
                                 Show this or action buttons
                             */
                             Text {
-                                visible: project.state['EMPTY'] ? false : true
+                                visible: project.state.EMPTY ? false : true
                                 padding: 10
-                                // text: "<b>The project was removed from the outside. Remove it completely or restore the original .ioc file</b>"
                                 text: "<b>Project not found or no STM32CubeMX .ioc file is present</b>"
                                 color: 'indianred'
                             }
@@ -785,7 +538,7 @@ ApplicationWindow {
                             */
                             RowLayout {
                                 id: projActionsRow
-                                visible: project.state['EMPTY'] ? true : false
+                                visible: project.state.EMPTY ? true : false
                                 Layout.fillWidth: true
                                 Layout.bottomMargin: 7
                                 z: 1  // for the glowing animation
