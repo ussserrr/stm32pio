@@ -2,7 +2,6 @@ import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtQml.Models 2.14
 import QtQuick.Layouts 1.14
-import QtGraphicalEffects 1.14
 import QtQuick.Dialogs 1.3 as Dialogs
 import QtQml.StateMachine 1.14 as DSM
 
@@ -48,13 +47,9 @@ ApplicationWindow {
         }
     }
 
-    AboutDialog {
-        id: aboutDialog
-    }
+    AboutDialog { id: aboutDialog }
 
-    SettingsDialog {
-        id: settingsDialog
-    }
+    SettingsDialog { id: settingsDialog }
 
     /*
        The project visual representation is, in fact, split in two main parts: one in a list and one is
@@ -133,8 +128,8 @@ ApplicationWindow {
             Connections {
                 target: projectsModel
                 function onGoToProject(indexToGo) {
-                    currentIndex = indexToGo;
-                    // TODO: positionViewAtIndex
+                    projectsListView.currentIndex = indexToGo;
+                    projectsListView.positionViewAtIndex(indexToGo, ListView.Center);
                 }
             }
 
@@ -243,11 +238,7 @@ ApplicationWindow {
 
                     Loader {
                         id: workspaceLoader
-                        sourceComponent: Item {
-                            BusyIndicator {
-                                anchors.centerIn: parent
-                            }
-                        }
+                        sourceComponent: Item { BusyIndicator { anchors.centerIn: parent } }
                     }
 
                     InitScreen {}
@@ -277,9 +268,7 @@ ApplicationWindow {
                             Layout.bottomMargin: 7
                             z: 1  // for the glowing animation
                             Repeater {
-                                model: ProjectActionsModel {
-                                    id: projectActionsModel
-                                }
+                                model: ProjectActionsModel { id: projectActionsModel }
                                 delegate: ActionButton {
                                     Layout.rightMargin: model.margin
                                 }

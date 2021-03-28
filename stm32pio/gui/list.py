@@ -44,6 +44,7 @@ class ProjectsList(QAbstractListModel):
             ProjectsList.ProjectRole: b'project'
         }
 
+
     def _saveInSettings(self) -> None:
         """
         Get correct projects and save them to Settings. Intended to be run in a thread (as it blocks)
@@ -73,6 +74,7 @@ class ProjectsList(QAbstractListModel):
         """Spawn a thread to wait for all projects and save them in background"""
         self.workers_pool.start(Worker(self._saveInSettings, logger=module_logger, parent=self))
 
+
     def each_project_is_duplicate_of(self, path: str) -> Iterator[bool]:
         """
         Returns generator yielding an answer to the question "Is current project is a duplicate of one represented by a
@@ -89,6 +91,7 @@ class ProjectsList(QAbstractListModel):
                       path == list_item.name  # simply check strings if a path isn't available
             except OSError:
                 yield False
+
 
     def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None,
                     on_initialized: Callable[[ProjectID], None] = None) -> ProjectListItem:
