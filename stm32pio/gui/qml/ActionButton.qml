@@ -1,5 +1,5 @@
 // implicit ones:
-// index, model, project (+ mainWindow, settings, sysTrayIcon)
+// index, model, project, statusBar (+ mainWindow, settings, sysTrayIcon)
 
 import QtQuick 2.14
 import QtQuick.Controls 2.14

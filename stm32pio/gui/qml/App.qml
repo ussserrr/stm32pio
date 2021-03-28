@@ -8,8 +8,6 @@ import QtQml.StateMachine 1.14 as DSM
 
 import Qt.labs.platform 1.1 as Labs
 
-// import Settings 1.0
-
 
 ApplicationWindow {
     id: mainWindow
@@ -30,7 +28,7 @@ ApplicationWindow {
             backendLoadingErrorDialog.open();
         }
     }
-    Dialogs.MessageDialog {
+    Dialogs.MessageDialog {  // TODO: use Loader
         id: backendLoadingErrorDialog
         title: 'Warning'
         text: "There was an error during the initialization of the Python backend. Please see the terminal output for more details"
@@ -54,7 +52,6 @@ ApplicationWindow {
         id: aboutDialog
     }
 
-    // readonly property Settings settings: appSettings
     SettingsDialog {
         id: settingsDialog
     }
@@ -69,23 +66,21 @@ ApplicationWindow {
     */
     readonly property var componentsToWait: [
         'listElementProjectName',
-        // 'listElementCurrentStage',
-        'listElementBusyIndicator',
-        // 'workspace'
+        'listElementBusyIndicator'
     ]
-    readonly property var initInfo: ({})
+    readonly property var progressPerProject: ({})
     function registerAsReady(projectIndex, component) {
         if (componentsToWait.includes(component)) {
-            if (projectIndex in initInfo) {
-                initInfo[projectIndex]++;
+            if (projectIndex in progressPerProject) {
+                progressPerProject[projectIndex]++;
             } else {
-                initInfo[projectIndex] = 1;
+                progressPerProject[projectIndex] = 1;
             }
-            if (initInfo[projectIndex] === componentsToWait.length) {
+            if (progressPerProject[projectIndex] === componentsToWait.length) {
                 const indexInModel = projectsModel.index(projectIndex, 0);
                 const project = projectsModel.data(indexInModel);
                 project.qmlLoaded();
-                delete initInfo[projectIndex];  // index can be reused
+                delete progressPerProject[projectIndex];  // index can be reused
             }
         } else if (!component) {
             console.warn('Loaded component should identify itself. The call stack:', new Error().stack);
@@ -94,19 +89,12 @@ ApplicationWindow {
         }
     }
 
-    Connections {
-        target: projectsModel
-        function onGoToProject(indexToGo) {
-            projectsListView.currentIndex = indexToGo;
-        }
-    }
-
     menuBar: MenuBar {
         Menu {
             title: '&Menu'
             Action { text: '&Settings'; onTriggered: settingsDialog.open() }
             Action { text: '&About'; onTriggered: aboutDialog.open() }
-            MenuSeparator { }
+            MenuSeparator {}
             // Use mainWindow.close() instead of Qt.quit() to prevent segfaults (messed up shutdown order)
             Action { text: '&Quit'; onTriggered: mainWindow.close() }
         }
@@ -118,43 +106,7 @@ ApplicationWindow {
         visible: settings === null ? false : settings.get('notifications')
     }
 
-    DropArea {
-        id: dropArea
-        anchors.fill: parent
-        Popup {
-            visible: dropArea.containsDrag
-            parent: Overlay.overlay
-            anchors.centerIn: Overlay.overlay
-            modal: true
-            background: Rectangle { opacity: 0.0 }
-            Overlay.modal: Rectangle { color: "#aaffffff" }
-            contentItem: Column {
-                spacing: 20
-                Image {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    source: '../icons/drop-here.svg'
-                    fillMode: Image.PreserveAspectFit
-                    sourceSize.width: 64
-                }
-                Text {
-                    text: "Drop projects folders to add..."
-                    font.pointSize: 24  // different on different platforms, Qt's bug
-                    font.weight: Font.Black  // heaviest
-                }
-            }
-        }
-        onDropped: {
-            if (drop.urls.length) {
-                // We need to convert to an array of strings since typeof(drop.urls) === 'object'
-                projectsModel.addProjectsByPaths(Object.values(drop.urls));
-            } else if (drop.text) {
-                // Wrap into an array for consistency
-                projectsModel.addProjectsByPaths([drop.text]);
-            } else {
-                console.warn("Incorrect drag'n'drop event");
-            }
-        }
-    }
+    DropHereToAdd {}  // TODO: when dropping large amount of projects activate window loader (seems like GUI thread freeze though)
 
     /*
        All layouts and widgets try to be adaptive to variable parents, siblings, window and whatever else sizes
@@ -169,7 +121,7 @@ ApplicationWindow {
         ListView {
             id: projectsListView
 
-            Layout.preferredWidth: 2.6 * parent.width / 12  // ~1/5, probably should reduce or at least cast to the fraction of 10
+            Layout.preferredWidth: 0.217 * parent.width
             Layout.fillHeight: true
             clip: true
             // keyNavigationWraps: true
@@ -177,6 +129,14 @@ ApplicationWindow {
             highlight: Rectangle { color: 'darkseagreen' }
             highlightMoveDuration: 0  // turn off animations
             highlightMoveVelocity: -1
+
+            Connections {
+                target: projectsModel
+                function onGoToProject(indexToGo) {
+                    currentIndex = indexToGo;
+                    // TODO: positionViewAtIndex
+                }
+            }
 
             model: DelegateModel {
                 /*
@@ -197,35 +157,7 @@ ApplicationWindow {
                 onAccepted: projectsModel.addProjectsByPaths([folder])
             }
             footerPositioning: ListView.OverlayFooter
-            footer: Rectangle {  // Probably should use Pane but need to override default window color then
-                z: 2
-                width: projectsListView.width
-                implicitHeight: listFooter.implicitHeight
-                color: mainWindow.color
-                RowLayout {
-                    id: listFooter
-                    anchors.centerIn: parent
-                    Button {
-                        text: 'Add'
-                        display: AbstractButton.TextBesideIcon
-                        icon.source: '../icons/add.svg'
-                        onClicked: addProjectFolderDialog.open()
-                        ToolTip.visible: projectsListView.count === 0  // show when there is no items in the list
-                        ToolTip.text: "<b>Hint:</b> add your project using this button or drag'n'drop it into the window"
-                    }
-                    Button {
-                        text: 'Remove'
-                        visible: projectsListView.currentIndex !== -1  // show only if any item is selected
-                        display: AbstractButton.TextBesideIcon
-                        icon.source: '../icons/remove.svg'
-                        onClicked: {
-                            const indexToRemove = projectsListView.currentIndex;
-                            indexToRemove === 0 ? projectsListView.incrementCurrentIndex() : projectsListView.decrementCurrentIndex();
-                            projectsModel.removeProject(indexToRemove);
-                        }
-                    }
-                }
-            }
+            footer: ProjectsListFooter {}
         }
 
 
@@ -235,7 +167,7 @@ ApplicationWindow {
         */
         StackLayout {
             id: projectsWorkspaceView
-            Layout.preferredWidth: 9.4 * parent.width / 12
+            Layout.preferredWidth: parent.width - projectsListView.width
             Layout.fillHeight: true
             Layout.leftMargin: 5
             Layout.rightMargin: 10
@@ -318,128 +250,7 @@ ApplicationWindow {
                         }
                     }
 
-                    Column {
-                        topPadding: 10
-                        leftPadding: 10
-                        spacing: 11
-                        Text {
-                            text: "To complete project initialization you can provide the PlatformIO name of the board:"
-                        }
-                        ComboBox {
-                            id: board
-                            width: 200
-                            editable: true
-                            model: boardsModel  // backend-side (simple string model)
-                            textRole: 'display'
-                            onAccepted: focus = false
-                            onActivated: focus = false
-                            onFocusChanged: {
-                                if (focus) {
-                                    selectAll();
-                                } else {
-                                    if (find(editText) === -1) {
-                                        editText = textAt(0);  // should be 'None' at index 0 (TODO probably)
-                                    }
-                                }
-                            }
-                            Component.onCompleted: {
-                                // Board can be already specified in the config, in this case we should paste it
-                                const config = project.config;
-                                if (Object.keys(config['project']).length && config['project']['board']) {
-                                    editText = config['project']['board'];
-                                }
-                                forceActiveFocus();
-                            }
-                            // KeyNavigation.tab: runCheckBox  // not working...
-                        }
-                        Text {
-                            text: "Additional actions to perform next:"
-                            topPadding: 10
-                        }
-                        Row {
-                            topPadding: -6
-                            leftPadding: -6
-                            spacing: 10
-                            /*
-                                Trigger full run
-                            */
-                            CheckBox {
-                                id: runCheckBox
-                                text: 'Full run'
-                                enabled: false
-                                ToolTip {
-                                    visible: runCheckBox.hovered  // not working on Linux (Manjaro LXQt)
-                                    Component.onCompleted: {
-                                        // Form the tool tip text using action names
-                                        const actions = [];
-                                        for (let i = projectActionsModel.statefulActionsStartIndex; i < projectActionsModel.count; ++i) {
-                                            actions.push(`<b>${projectActionsModel.get(i).name}</b>`);
-                                        }
-                                        text = `Execute tasks: ${actions.join(' → ')}`;
-                                    }
-                                }
-                                Connections {
-                                    target: board
-                                    function onFocusChanged() {
-                                        if (!board.focus) {
-                                            if (board.editText === board.textAt(0)) {  // should be 'None' at index 0
-                                                runCheckBox.checked = false;
-                                                runCheckBox.enabled = false;
-                                            } else {
-                                                runCheckBox.enabled = true;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            CheckBox {
-                                id: openEditor
-                                text: 'Open editor'
-                                ToolTip {
-                                    text: "Start the editor specified in the <b>Settings</b> after the completion"
-                                    visible: openEditor.hovered  // not working on Linux (Manjaro LXQt)
-                                }
-                            }
-                        }
-                        Button {
-                            text: 'OK'
-                            topInset: 14
-                            topPadding: 20
-                            onClicked: {
-                                // All 'run' operations will be queued by the backend
-                                project.run('save_config', [{
-                                    'project': {
-                                        'board': board.editText === board.textAt(0) ? '' : board.editText
-                                    }
-                                }]);
-
-                                if (board.editText === board.textAt(0)) {
-                                    // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                                    project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                                        'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                                        Logging.WARNING);
-                                }
-
-                                if (runCheckBox.checked) {
-                                    for (let i = projectActionsModel.statefulActionsStartIndex + 1; i < projectActionsModel.count; ++i) {
-                                        project.run(projectActionsModel.get(i).action, []);
-                                    }
-                                }
-
-                                if (openEditor.checked) {
-                                    project.run('start_editor', [settings.get('editor')]);
-                                }
-
-                                const config = project.config;
-                                if (Object.keys(config['project']).length && !config['project']['board']) {
-                                    // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                                    project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                                    'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                                    Logging.WARNING);
-                                }
-                            }
-                        }
-                    }
+                    InitScreen {}
 
                     ColumnLayout {
                         /*
@@ -475,34 +286,9 @@ ApplicationWindow {
                             }
                         }
 
-                        Rectangle {
+                        LogArea {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-
-                            ScrollView {
-                                anchors.fill: parent
-                                TextArea {
-                                    id: log
-                                    readOnly: true
-                                    selectByMouse: true
-                                    wrapMode: Text.WordWrap
-                                    font.pointSize: 10  // different on different platforms, Qt's bug
-                                    font.weight: Font.DemiBold
-                                    textFormat: TextEdit.RichText
-                                    Connections {
-                                        target: project
-                                        function onLogAdded(message, level) {
-                                            if (level === Logging.WARNING) {
-                                                log.append('<font color="goldenrod"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
-                                            } else if (level >= Logging.ERROR) {
-                                                log.append('<font color="indianred"><pre style="white-space: pre-wrap">' + message + '</pre></font>');
-                                            } else {
-                                                log.append('<pre style="white-space: pre-wrap">' + message + '</pre>');
-                                            }
-                                        }
-                                    }
-                                }
-                            }
                         }
                     }
                 }

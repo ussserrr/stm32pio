@@ -170,12 +170,9 @@ class ProjectsList(QAbstractListModel):
 
 
     @Slot(int)
-    def removeProject(self, index: int):
-        """
-        Remove the project residing on the index both from the runtime list and QSettings
-        """
-        if index in range(len(self.projects)):
-            self.beginRemoveRows(QModelIndex(), index, index)
+    def removeRow(self, index: int, parent=QModelIndex()) -> bool:
+        if index < len(self.projects):
+            self.beginRemoveRows(parent, index, index)
             project = self.projects.pop(index)
             self.endRemoveRows()
 
@@ -185,3 +182,7 @@ class ProjectsList(QAbstractListModel):
 
             # It allows the project to be deconstructed (i.e. GC'ed) very soon, not at the app shutdown time
             project.deleteLater()
+
+            return True
+        else:
+            return False
