@@ -44,9 +44,9 @@ Column {
         topPadding: -6
         leftPadding: -6
         spacing: 10
-        /*
-            Trigger full run
-        */
+        /**
+         * Trigger full run
+         */
         CheckBox {
             id: runCheckBox
             text: 'Full run'

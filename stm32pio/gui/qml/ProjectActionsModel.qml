@@ -9,7 +9,7 @@ ListModel {
         action: 'clean'
         icon: '../icons/trash-bin.svg'
         tooltip: "<b>WARNING:</b> this will delete <b>ALL</b> content of the project folder \
-                    except the current .ioc file and clear all logs"
+                  except the current .ioc file and clear all logs"
     }
     ListElement {
         name: 'Open editor'

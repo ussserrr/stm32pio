@@ -13,13 +13,13 @@ ApplicationWindow {
     visible: true
     minimumWidth: 980  // comfortable initial size for all platforms (as the same style is used for any of them)
     minimumHeight: 310
-    height: 310  // 530
+    height: 310  // 530 TODO
     title: 'stm32pio'
     color: 'whitesmoke'
 
-    /*
-       Notify the front about the end of an initial loading
-    */
+    /**
+     * Notify the front about the end of an initial loading
+     */
     signal backendLoaded(bool success)
     onBackendLoaded: {
         loadingOverlay.close();
@@ -27,10 +27,10 @@ ApplicationWindow {
             backendLoadingErrorDialog.open();
         }
     }
-    Dialogs.MessageDialog {  // TODO: use Loader
+    Dialogs.MessageDialog {
         id: backendLoadingErrorDialog
         title: 'Warning'
-        text: "There was an error during the initialization of the Python backend. Please see the terminal output for more details"
+        text: "There was an error during the initialization of Python backend. Please see terminal output for more details"
         icon: Dialogs.StandardIcon.Warning
     }
     Popup {
@@ -51,14 +51,14 @@ ApplicationWindow {
 
     SettingsDialog { id: settingsDialog }
 
-    /*
-       The project visual representation is, in fact, split in two main parts: one in a list and one is
-       an actual workspace. To avoid some possible bloopers we should make sure that both of them are loaded
-       (at least at the subsistence level) before performing any actions with the project. To not reveal these
-       QML-side implementation details to the backend we define this helper function that counts and stores
-       a number of widgets currently loaded for each project in model and informs the Qt-side right after all
-       necessary components become ready.
-    */
+    /**
+     * The project visual representation is, in fact, split in two main parts: one in a list and one is
+     * an actual workspace. To avoid some possible bloopers we should make sure that both of them are loaded
+     * (at least at the core level) before performing any actions with the project. To not reveal these
+     * QML-side implementation details to the backend we define this helper function that counts and stores
+     * a number of widgets currently loaded for each project in model and informs the Qt-side right after all
+     * necessary components become ready.
+     */
     readonly property var componentsToWait: [
         'listElementProjectName',
         'listElementBusyIndicator'
@@ -101,13 +101,16 @@ ApplicationWindow {
         visible: settings === null ? false : settings.get('notifications')
     }
 
-    DropHereToAdd {}  // TODO: when dropping large amount of projects activate window loader (seems like GUI thread freeze though)
+    /**
+     * TODO: activate window loader when dropping large amount of projects (seems like the GUI thread freezes, though)
+     */
+    DropHereToAdd {}
 
-    /*
-       All layouts and widgets try to be adaptive to variable parents, siblings, window and whatever else sizes
-       so we extensively use Grid, Column and Row layouts. The most high-level one is a composition of the list
-       and the workspace in two columns
-    */
+    /**
+     * All layouts and widgets try to be adaptive to variable parents, siblings, window and whatever else sizes
+     * so we extensively use Grid, Column and Row layouts. The most high-level one is a composition of the list
+     * and the workspace in two columns
+     */
     GridLayout {
         anchors.fill: parent
         rows: 1
@@ -119,7 +122,7 @@ ApplicationWindow {
             Layout.preferredWidth: 0.217 * parent.width
             Layout.fillHeight: true
             clip: true
-            // keyNavigationWraps: true
+            // keyNavigationWraps: true  // TODO
 
             highlight: Rectangle { color: 'darkseagreen' }
             highlightMoveDuration: 0  // turn off animations
@@ -134,15 +137,15 @@ ApplicationWindow {
             }
 
             model: DelegateModel {
-                /*
-                    Use DelegateModel as it has a feature to always preserve specified list items in memory so we can store an actual state
-                    directly in the delegate
-                */
+                /**
+                 * Use DelegateModel as it has a feature to always preserve specified list items in memory
+                 * so we can store an actual state directly in the delegate
+                 */
                 model: projectsModel  // backend-side
-                // Loader for: DelegateModel.inPersistedItems and correct mouse click index change
+                // Here Loader is used for: DelegateModel.inPersistedItems and correct mouse click index change
                 delegate: Loader {
                     sourceComponent: ProjectsListItem {}
-                    onLoaded: DelegateModel.inPersistedItems = 1  // TODO: = true (5.15)
+                    onLoaded: DelegateModel.inPersistedItems = 1  // TODO: = true (only >5.15)
                 }
             }
 
@@ -157,9 +160,9 @@ ApplicationWindow {
 
 
         /*
-           Main workspace. StackLayout's Repeater component seamlessly uses the same projects model (showing one -
-           current - project per screen) as the list so all data is synchronized without any additional effort
-        */
+         * Main workspace. StackLayout's Repeater component seamlessly uses the same projects model (showing one -
+         * current - project per screen) as for list so all data is synchronized without any additional effort
+         */
         StackLayout {
             id: projectsWorkspaceView
             Layout.preferredWidth: parent.width - projectsListView.width
@@ -184,10 +187,12 @@ ApplicationWindow {
                             project.updateState();
                         }
                     }
+                    // Several events lead to a single handler
                     Component.onCompleted: {
-                        // Several events lead to a single handler
-                        projectsWorkspaceView.currentIndexChanged.connect(handleState);  // the project was selected in the list
-                        mainWindow.activeChanged.connect(handleState);  // the app window has got (or lost, filter in the handler) the focus
+                        // the project was selected in the list
+                        projectsWorkspaceView.currentIndexChanged.connect(handleState);
+                        // the app window has got (or lost, filter this case in the handler) the focus
+                        mainWindow.activeChanged.connect(handleState);
                     }
 
                     readonly property int loaderIndex: 0
@@ -244,9 +249,9 @@ ApplicationWindow {
                     InitScreen {}
 
                     ColumnLayout {
-                        /*
-                            Show this or action buttons
-                        */
+                        /**
+                         * Show this or action buttons
+                         */
                         Text {
                             visible: project.state.EMPTY ? false : true
                             padding: 10
@@ -255,12 +260,12 @@ ApplicationWindow {
                         }
 
                         /*
-                            The core widget - a group of buttons mapping all main actions that can be performed on the given project.
-                            They also serve the project state displaying - each button indicates a stage associated with it:
-                                - green (and green glow): done
-                                - yellow: in progress right now
-                                - red glow: an error has occurred during the last execution
-                        */
+                         * The core widget - a group of buttons mapping all main actions that can be performed on the given project.
+                         * They also serve the project state displaying - each button indicates a stage associated with it:
+                         *   - green (and green glow): done
+                         *   - yellow: in progress right now
+                         *   - red glow: an error has occurred during the last execution
+                         */
                         RowLayout {
                             id: projActionsRow
                             visible: project.state.EMPTY ? true : false
@@ -285,10 +290,10 @@ ApplicationWindow {
         }
     }
 
-    /*
-       Improvised status bar - simple text line. Currently, doesn't support smart intrinsic properties
-       of a fully-fledged status bar, but is used only for a single feature so not a big deal right now
-    */
+    /**
+     * Improvised status bar - simple text line. Currently, doesn't support smart intrinsic properties
+     * of a fully-fledged status bar, but is used only for a single feature so not a big deal right now
+     */
     footer: Text {
         id: statusBar
         padding: 10

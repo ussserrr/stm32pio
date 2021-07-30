@@ -1,6 +1,7 @@
-/*
-    Slightly customized QSettings
-*/
+/**
+ * Slightly customized QSettings
+ */
+
 import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.14
@@ -74,7 +75,7 @@ Dialogs.Dialog {
         settings.set('verbose', verbose.checked);
         if (settings.get('notifications') !== notifications.checked) {
             settings.set('notifications', notifications.checked);
-            // sysTrayIcon.visible = notifications.checked;  // TODO
+            sysTrayIcon.visible = notifications.checked;
         }
     }
     onReset: {

@@ -22,7 +22,7 @@ DropArea {
             }
             Text {
                 text: "Drop projects here to add..."
-                font.pointSize: 24  // different on different platforms, Qt's bug
+                font.pointSize: 24  // different on different platforms, Qt's "feature"
                 font.weight: Font.Black  // heaviest
             }
         }
