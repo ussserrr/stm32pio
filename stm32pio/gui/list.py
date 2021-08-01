@@ -93,8 +93,7 @@ class ProjectsList(QAbstractListModel):
                 yield False
 
 
-    def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None,
-                    on_initialized: Callable[[ProjectID], None] = None) -> ProjectListItem:
+    def addListItem(self, path: str, list_item_kwargs: Mapping[str, Any] = None) -> ProjectListItem:
         """
         Create and append to the list tail a new ProjectListItem instance. This doesn't save in QSettings, it's an up to
         the caller task (e.g. if we adding a bunch of projects, it make sense to store them once in the end).
@@ -102,7 +101,6 @@ class ProjectsList(QAbstractListModel):
         Args:
             path: path as string
             list_item_kwargs: keyword arguments passed to the ProjectListItem constructor
-            on_initialized: optional callback to run after the complete project initialization
         """
 
         # Shallow copy, dict makes it mutable
@@ -139,9 +137,6 @@ class ProjectsList(QAbstractListModel):
             # The project is ready to be appended to the model right after the main constructor (wrapper) finished.
             # The underlying Stm32pio class will be initialized soon later in the dedicated thread
             project = ProjectListItem(**list_item_kwargs)
-
-            if on_initialized is not None:
-                project.initialized.connect(on_initialized)
 
             self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
             self.projects.append(project)

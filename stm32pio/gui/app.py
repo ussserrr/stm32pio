@@ -49,17 +49,6 @@ from stm32pio.gui.list import ProjectsList
 from stm32pio.gui.project import ProjectListItem
 
 
-class Application(QApplicationClass):
-
-    loaded = Signal(str, bool, arguments=['action', 'success'])
-
-    def quit(self):
-        """Shutdown"""
-        # TODO: logging.shutdown() ?
-        for window in self.allWindows():
-            window.close()
-
-
 def parse_args(args: list) -> Optional[argparse.Namespace]:
     parser = argparse.ArgumentParser(description=inspect.cleandoc('''stm32pio GUI version.
         Visit https://github.com/ussserrr/stm32pio for more information.'''))
@@ -74,13 +63,13 @@ def parse_args(args: list) -> Optional[argparse.Namespace]:
     return parser.parse_args(args) if len(args) else None
 
 
-def create_app(sys_argv: List[str] = None) -> Application:
+def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     if sys_argv is None:
         sys_argv = sys.argv[1:]
 
     args = parse_args(sys_argv)
 
-    app = Application(sys.argv)
+    app = QApplicationClass(sys.argv)
     # These are used as a settings identifier too
     app.organizationName = 'ussserrr'
     app.applicationName = 'stm32pio'
@@ -124,6 +113,7 @@ def create_app(sys_argv: List[str] = None) -> Application:
     # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'ProjectsListItem.qml')))
     engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'App.qml')))
 
+    # engine.rootObjects() == [<PySide2.QtGui.QWindow(0x7fef80bb4150) at 0x10cdc56c0>]
     main_window = engine.rootObjects()[-1]  # TODO: meh...
 
 
@@ -139,25 +129,17 @@ def create_app(sys_argv: List[str] = None) -> Application:
     def loaded(action_name: str, success: bool):
         try:
             cli_project_provided = args is not None
-            initialized_projects_counter = 0
-            def on_initialized():
-                nonlocal initialized_projects_counter
-                initialized_projects_counter += 1
-                if initialized_projects_counter == (len(restored_projects_paths) + (1 if cli_project_provided else 0)):
-                    app.loaded.emit(action_name, all((list_item.project is not None for list_item in projects_model.projects)))
 
             # Qt objects cannot be parented from the different thread so we restore the projects list in the main thread
             for path in restored_projects_paths:
-                projects_model.addListItem(path, on_initialized=on_initialized,
-                                           list_item_kwargs={ 'from_startup': True })
+                projects_model.addListItem(path, list_item_kwargs={ 'from_startup': True })
 
             # At the end, append (or jump to) a CLI-provided project, if there is one
             if cli_project_provided:
                 list_item_kwargs = { 'from_startup': True }
                 if args.board:
                     list_item_kwargs['project_kwargs'] = { 'parameters': { 'project': { 'board': args.board } } }  # pizdec konechno...
-                projects_model.addListItem(str(pathlib.Path(args.path)), on_initialized=on_initialized,
-                                           list_item_kwargs=list_item_kwargs)
+                projects_model.addListItem(str(pathlib.Path(args.path)), list_item_kwargs=list_item_kwargs)
                 # Append always happens to the end of list and we want to jump to the last added project (CLI one). The
                 # resulting length of the list is (len(restored_projects_paths) + 1) so the last index is that minus 1
                 projects_model.goToProject.emit((len(restored_projects_paths) + 1) - 1)
