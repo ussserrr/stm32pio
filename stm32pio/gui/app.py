@@ -71,8 +71,8 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
 
     app = QApplicationClass(sys.argv)
     # These are used as a settings identifier too
-    app.organizationName = 'ussserrr'
-    app.applicationName = 'stm32pio'
+    app.setOrganizationName('ussserrr')
+    app.setApplicationName('stm32pio')
     app.windowIcon = QIcon(str(MODULE_PATH.joinpath('icons/icon.svg')))
 
     settings = init_settings(app)
