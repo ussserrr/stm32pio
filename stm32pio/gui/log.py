@@ -41,10 +41,9 @@ def qt_message_handler(mode, context, message):
 
 def setup_logging(initial_verbosity):
     module_log_handler = logging.StreamHandler()
-    module_log_handler.setFormatter(logging.Formatter("%(levelname)s %(funcName)s %(message)s"))
+    module_log_handler.setFormatter(logging.Formatter("%(levelname)s %(module)s %(funcName)s %(message)s"))
     module_logger.addHandler(module_log_handler)
     module_logger.setLevel(logging.INFO)  # set this again later after getting QSettings
-    # module_logger.info('Starting stm32pio GUI...')
 
     # Apparently Windows version of PySide2 doesn't have QML logging feature turn on so we fill this gap
     if platform.system() == 'Windows':

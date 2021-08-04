@@ -1,4 +1,4 @@
-// implicit ones:
+// Implicit references:
 // project, index, projectsListView, registerAsReady
 
 import QtQuick 2.14

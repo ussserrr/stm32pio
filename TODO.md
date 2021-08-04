@@ -119,8 +119,10 @@
 
 ### Tests
  - [ ] Closely audit the test suite (e.g. CLI tests doesn't verify ALL available commands because some of them will be considered redundant in the presence of unit tests and so on)
+ - [ ] Prolonged tests: measure performance/memory consumption (profiling)
 
 ### Other
+ - [ ] Use %(module)s in log format string (see GUI)
  - [ ] Remove casts to string where we can use path-like objects (seems like Python 3.6 on Windows is delaying this)
  - [ ] DISCUSSION. Colored CLI logs, maybe (3rd-party) (breaks zero-dependency principle though...)
  - [ ] `__init__`' `parameters` dict argument schema (Python 3.8 feature).

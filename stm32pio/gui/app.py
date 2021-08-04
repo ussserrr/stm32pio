@@ -11,10 +11,9 @@ from typing import Optional, List
 
 try:
     from PySide2.QtCore import Signal, QtInfoMsg, QtWarningMsg, QtCriticalMsg, QtFatalMsg, qInstallMessageHandler, \
-        QStringListModel, QUrl, QThreadPool, QSettings
+        QStringListModel, QUrl, QThreadPool, QSettings, QByteArray
+    # PySide environment is slightly different among OSes
     if platform.system() == 'Linux':
-        # Most UNIX systems does not provide QtDialogs implementation so the program should be 'linked' against
-        # the QApplication...
         from PySide2.QtWidgets import QApplication
         QApplicationClass = QApplication
     else:
@@ -36,7 +35,7 @@ try:
     import stm32pio.core.util
     import stm32pio.core.state
 except ModuleNotFoundError:
-    sys.path.append(str(ROOT_PATH))  # hack to run the app as 'python path/to/app.py'
+    sys.path.append(str(ROOT_PATH))  # hack to resolve imports if the app was launched as 'python path/to/app.py'
     import stm32pio.core.settings
     import stm32pio.core.logging
     import stm32pio.core.util
@@ -44,7 +43,7 @@ except ModuleNotFoundError:
 
 from stm32pio.gui.settings import init_settings, Settings
 from stm32pio.gui.util import Worker
-from stm32pio.gui.log import setup_logging
+from stm32pio.gui.log import setup_logging, module_logger
 from stm32pio.gui.list import ProjectsList
 from stm32pio.gui.project import ProjectListItem
 
@@ -70,12 +69,14 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     args = parse_args(sys_argv)
 
     app = QApplicationClass(sys.argv)
-    # These are used as a settings identifier too
+
+    # These are used as an identifier for QSettings, too
     app.setOrganizationName('ussserrr')
     app.setApplicationName('stm32pio')
-    app.windowIcon = QIcon(str(MODULE_PATH.joinpath('icons/icon.svg')))
+    app.setWindowIcon(QIcon(str(MODULE_PATH.joinpath('icons/icon.svg'))))
 
     settings = init_settings(app)
+
     setup_logging(initial_verbosity=settings.get('verbose'))
 
     # Restore projects list
@@ -94,7 +95,11 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
 
     projects_model = ProjectsList(parent=engine)
     boards_model = QStringListModel(parent=engine)
+
+    # Convert to QML-compatible format
     project_stages = { stage.name: str(stage) for stage in stm32pio.core.state.ProjectStage }
+
+    # Fake stages: these are not present in the original enum of possible states
     project_stages['LOADING'] = 'Loading...'
     project_stages['INIT_ERROR'] = 'Initialization error'
 
@@ -106,36 +111,35 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     engine.rootContext().setContextProperty('boardsModel', boards_model)
     engine.rootContext().setContextProperty('settings', settings)
 
-    # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'ActionButton.qml')))
-    # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'ProjectActionsModel.qml')))
-    # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'AboutDialog.qml')))
-    # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'SettingsDialog.qml')))
-    # engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'ProjectsListItem.qml')))
     engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'App.qml')))
 
-    # engine.rootObjects() == [<PySide2.QtGui.QWindow(0x7fef80bb4150) at 0x10cdc56c0>]
+    # Example: engine.rootObjects() == [<PySide2.QtGui.QWindow(0x7fef80bb4150) at 0x10cdc56c0>]
+    print('engine.rootObjects()', engine.rootObjects())  # TODO
     main_window = engine.rootObjects()[-1]  # TODO: meh...
 
+    def onClose():
+        print('Closing...')  # TODO
+        for project in projects_model.projects:
+            project.should_be_destroyed.set()
+    main_window.closing.connect(onClose)
 
     # Getting PlatformIO boards can take a long time when the PlatformIO cache is outdated but it is important to have
     # them before the projects list is restored, so we start a dedicated loading thread. We actually can add other
     # start-up operations here if there will be a need to. Use the same Worker class to spawn the thread at the pool
+    # TODO: this uses default platformio command but it might be unavailable.
+    #  Also, it unnecessarily slows down the startup
     def loading():
-        # TODO: this uses default platformio command but it might be unavailable.
-        #  Also, unnecessarily slows down the startup
         boards = ['None'] + stm32pio.core.util.get_platformio_boards()
         boards_model.setStringList(boards)
 
     def loaded(action_name: str, success: bool):
         try:
-            cli_project_provided = args is not None
-
             # Qt objects cannot be parented from the different thread so we restore the projects list in the main thread
             for path in restored_projects_paths:
                 projects_model.addListItem(path, list_item_kwargs={ 'from_startup': True })
 
             # At the end, append (or jump to) a CLI-provided project, if there is one
-            if cli_project_provided:
+            if args is not None and 'path' in args:
                 list_item_kwargs = { 'from_startup': True }
                 if args.board:
                     list_item_kwargs['project_kwargs'] = { 'parameters': { 'project': { 'board': args.board } } }  # pizdec konechno...
@@ -144,14 +148,14 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
                 # resulting length of the list is (len(restored_projects_paths) + 1) so the last index is that minus 1
                 projects_model.goToProject.emit((len(restored_projects_paths) + 1) - 1)
                 projects_model.saveInSettings()
-        except Exception:
+        except:
             stm32pio.core.logging.log_current_exception(logging.getLogger('stm32pio.gui.app'))
             success = False
 
         main_window.backendLoaded.emit(success)  # inform the GUI
         print('stm32pio GUI started')
 
-    loader = Worker(loading, logger=logging.getLogger('stm32pio.gui.app'), parent=app)
+    loader = Worker(loading, logger=module_logger, parent=app)
     loader.finished.connect(loaded)
     QThreadPool.globalInstance().start(loader)
 
@@ -159,6 +163,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
 
 
 def main():
+    print('Starting stm32pio GUI...')
     app = create_app()
     return app.exec_()
 
@@ -166,5 +171,4 @@ def main():
 
 
 if __name__ == '__main__':
-    print('Starting stm32pio GUI...')
     sys.exit(main())

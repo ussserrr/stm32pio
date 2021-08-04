@@ -60,4 +60,5 @@ class Worker(QObject, QRunnable):
             # Pause the thread and, therefore, the parent QThreadPool queue so the caller can decide whether we should
             # proceed or stop. This should not cause any problems as we've already perform all necessary tasks and this
             # just delaying the QRunnable removal from the pool
+            # TODO: looks like a hack...
             time.sleep(1.0)

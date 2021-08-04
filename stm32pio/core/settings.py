@@ -35,7 +35,7 @@ config_default = collections.OrderedDict(  # guarantees printing to the file in 
         # direct link). STM32CubeMX will be invoked as 'java -jar [cubemx_cmd]'
         'cubemx_cmd':
             # macOS default: 'Applications' folder
-            '/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX' if my_os == 'Darwin' else
+            '/Applications/STMicroelectronics/STM32CubeMX.app/Contents/MacOs/STM32CubeMX' if my_os == 'Darwin' else
             # Linux (Ubuntu) default: home directory
             str(Path.home() / 'STM32CubeMX/STM32CubeMX') if my_os == 'Linux' else
             # Windows default: Program Files

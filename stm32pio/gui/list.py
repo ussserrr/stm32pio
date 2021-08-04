@@ -1,19 +1,19 @@
 import pathlib
-from typing import List, Iterator, Mapping, Any, Callable
+import time
+from typing import List, Iterator, Mapping, Any
 
 from PySide2.QtCore import QAbstractListModel, Signal, Slot, QObject, QThreadPool, QModelIndex, Qt, QUrl
 
+from stm32pio.core.logging import log_current_exception
+
 from stm32pio.gui.project import ProjectListItem
-from stm32pio.gui.util import Worker, ProjectID
+from stm32pio.gui.util import Worker
 from stm32pio.gui.log import module_logger
 import stm32pio.gui.settings
 
 
 class ProjectsList(QAbstractListModel):
-    """
-    QAbstractListModel implementation - describe basic operations and delegate all main functionality to the
-    ProjectListItem
-    """
+    """QAbstractListModel implementation"""
 
     ProjectRole = Qt.UserRole + 1
     goToProject = Signal(int, arguments=['indexToGo'])
@@ -40,9 +40,7 @@ class ProjectsList(QAbstractListModel):
             return self.projects[index.row()]
 
     def roleNames(self) -> Mapping[int, bytes]:
-        return {
-            ProjectsList.ProjectRole: b'project'
-        }
+        return { ProjectsList.ProjectRole: b'project' }
 
 
     def _saveInSettings(self) -> None:
@@ -50,12 +48,12 @@ class ProjectsList(QAbstractListModel):
         Get correct projects and save them to Settings. Intended to be run in a thread (as it blocks)
         """
 
-        # Wait for all projects to be loaded (project.init_project is finished), whether successful or not
-        while any(project.currentStage == 'LOADING' for project in self.projects):
-            pass
+        # Wait for all projects to be initialized, whether successfully or not
+        while any(project.currentAction == 'loading' for project in self.projects):
+            time.sleep(0.1)  # throttle the thread a little bit
 
-        # Only correct ones (inner Stm32pio instance has been successfully constructed)
-        projects_to_save = [project for project in self.projects if project.currentStage != 'INIT_ERROR']
+        # Only correct ones (i.e. inner Stm32pio instance has been successfully constructed)
+        projects_to_save = [project for project in self.projects if project.project is not None]
 
         settings = stm32pio.gui.settings.global_instance()
         settings.beginGroup('app')
@@ -63,7 +61,7 @@ class ProjectsList(QAbstractListModel):
         settings.beginWriteArray('projects')
         for idx, project in enumerate(projects_to_save):
             settings.setArrayIndex(idx)
-            # This ensures that we always save paths in pathlib form
+            # This ensures that we always save paths in the pathlib-compatible format
             settings.setValue('path', str(project.project.path))
         settings.endArray()
         settings.endGroup()
@@ -99,14 +97,14 @@ class ProjectsList(QAbstractListModel):
         the caller task (e.g. if we adding a bunch of projects, it make sense to store them once in the end).
 
         Args:
-            path: path as string
+            path: path as a string
             list_item_kwargs: keyword arguments passed to the ProjectListItem constructor
         """
 
         # Shallow copy, dict makes it mutable
         list_item_kwargs = dict(list_item_kwargs if list_item_kwargs is not None else {})
 
-        # Parent is always this model so we implicitly pass it there
+        # Parent is always this model so we implicitly pass it there (unless it was explicitly set)
         if 'parent' not in list_item_kwargs or not list_item_kwargs['parent']:
             list_item_kwargs['parent'] = self
 
@@ -169,11 +167,14 @@ class ProjectsList(QAbstractListModel):
 
     @Slot(int)
     def removeRow(self, index: int, parent=QModelIndex()) -> bool:
-        if index < len(self.projects):
+        try:
             self.beginRemoveRows(parent, index, index)
             project = self.projects.pop(index)
             self.endRemoveRows()
-
+        except:
+            log_current_exception(module_logger, show_traceback=True)
+            return False
+        else:
             # Re-save the settings only if this project is saved in the settings
             if project.project is not None or project.fromStartup:
                 self.saveInSettings()
@@ -182,5 +183,3 @@ class ProjectsList(QAbstractListModel):
             project.deleteLater()
 
             return True
-        else:
-            return False

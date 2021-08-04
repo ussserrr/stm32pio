@@ -48,7 +48,7 @@ class ProjectListItem(QObject):
         self._from_startup = from_startup
 
         underlying_logger = logging.getLogger('stm32pio.gui.projects')
-        self.logger = stm32pio.core.logging.ProjectLoggerAdapter(underlying_logger, {'project_id': id(self)})
+        self.logger = stm32pio.core.logging.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self)} )
         self.logging_worker = LoggingWorker(project_id=id(self))
         self.logging_worker.sendLog.connect(self.logAdded)
 
@@ -68,6 +68,7 @@ class ProjectListItem(QObject):
         self._current_stage = 'LOADING'
 
         self.qml_ready = threading.Event()  # the front and the back both should know when each other is initialized
+        self.should_be_destroyed = threading.Event()  # currently, is used just to "cancel" the initialization thread
 
         # Register some kind of the deconstruction handler (later, after the project initialization, see init_project)
         self._finalizer = None
@@ -103,11 +104,19 @@ class ProjectListItem(QObject):
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,
                                                self.name if self.project is None else str(self.project))
             self._current_action = ''
-            self.qml_ready.wait()  # wait for the GUI to initialize (which one is earlier, actually, back or front)
-            self.updateState()
-            self.initialized.emit()
-            self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
 
+            # Wait for the GUI to initialize (which one is earlier, actually, back or front)
+            while not self.qml_ready.wait(timeout=0.050):
+                # When item is located out of visible scope then QML doesn't load its visual representation so this
+                # initialization thread is kept hanging. This is OK except when the app shutting down, it prevents
+                # Python GC of calling weakref for finalization process. So we introduce additional flag to be able
+                # to quit the thread
+                if self.should_be_destroyed.is_set():
+                    break
+            if not self.should_be_destroyed.is_set():
+                self.updateState()
+                self.initialized.emit()
+                self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
 
     @staticmethod
     def at_exit(workers_pool: QThreadPool, logging_worker: LoggingWorker, name: str):
@@ -120,8 +129,13 @@ class ProjectListItem(QObject):
         workers_pool.waitForDone(msecs=-1)
         logging_worker.stopped.set()  # post the event in the logging worker to inform it...
         logging_worker.thread.wait()  # ...and wait for it to exit, too
-        module_logger.info(f"destroyed {name}")
+        module_logger.debug(f"destroyed {name}")
 
+    @Slot()
+    def qmlLoaded(self):
+        """Event signaling the complete loading of the needed frontend components"""
+        self.qml_ready.set()
+        self.logging_worker.can_flush_log.set()
 
     @Property(bool)
     def fromStartup(self) -> bool:
@@ -214,12 +228,6 @@ class ProjectListItem(QObject):
         # when the signal will be handled in StateMachine) (probably, should be resolved later as it is bad to be bound
         # to such a specific logic)
         self._current_action = ''
-
-    @Slot()
-    def qmlLoaded(self):
-        """Event signaling the complete loading of the needed frontend components"""
-        self.qml_ready.set()
-        self.logging_worker.can_flush_log.set()
 
 
     @Slot(str, 'QVariantList')

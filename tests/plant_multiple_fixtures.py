@@ -1,7 +1,8 @@
 import pathlib
 
 FIXTURE = (pathlib.Path(__file__).parent / 'fixtures' / 'nucleo_f031k6' / 'nucleo_f031k6.ioc').resolve(strict=True)
-LOCATION = (pathlib.Path.home() / 'stm32pio-gui-test-projects').resolve(strict=True)
+LOCATION = (pathlib.Path.home() / 'stm32pio-gui-test-projects').resolve()
+LOCATION.mkdir(exist_ok=True)
 NAMES = ['Avocado',
          'Blackberry',
          'Orange',
