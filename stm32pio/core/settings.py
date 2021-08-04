@@ -23,7 +23,8 @@ config_default = collections.OrderedDict(  # guarantees printing to the file in 
     app={
         # How do you start Java from the command line? (edit if Java not in PATH). Can be safely set to 'None' (string)
         # if in your setup the CubeMX can be invoked directly
-        'java_cmd': 'None',
+        'java_cmd': 'C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/jre/bin/java.exe'
+            if my_os == 'Windows' else 'None',
 
         # How do you start PlatformIO from the command line? (edit if not in PATH, if you use PlatformIO IDE see
         # https://docs.platformio.org/en/latest/core/installation.html#piocore-install-shell-commands).
