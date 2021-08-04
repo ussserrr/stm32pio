@@ -101,9 +101,6 @@ ApplicationWindow {
         visible: settings === null ? false : settings.get('notifications')
     }
 
-    /**
-     * TODO: activate window loader when dropping large amount of projects (seems like the GUI thread freezes, though)
-     */
     DropHereToAdd {}
 
     /**
@@ -281,6 +278,7 @@ ApplicationWindow {
                         }
 
                         LogArea {
+                            id: log
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                         }

@@ -16,7 +16,7 @@ class Settings(QSettings):
     DEFAULTS = {
         'editor': '',
         'verbose': False,
-        'notifications': True  # TODO: use_notifications
+        'notifications': True  # TODO: rename to use_notifications?
     }
 
     def __init__(self, prefix: str, defaults: Mapping[str, Any] = None, qs_args: List[Any] = None,

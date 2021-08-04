@@ -103,7 +103,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     project_stages['LOADING'] = 'Loading...'
     project_stages['INIT_ERROR'] = 'Initialization error'
 
-    # TODO: use setContextProperties()
+    # TODO: use setContextProperties() (see in Qt6, not present in Qt5...)
     engine.rootContext().setContextProperty('appVersion', stm32pio.core.util.get_version())
     engine.rootContext().setContextProperty('Logging', stm32pio.core.logging.logging_levels)
     engine.rootContext().setContextProperty(stm32pio.core.state.ProjectStage.__name__, project_stages)
@@ -114,11 +114,10 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'App.qml')))
 
     # Example: engine.rootObjects() == [<PySide2.QtGui.QWindow(0x7fef80bb4150) at 0x10cdc56c0>]
-    print('engine.rootObjects()', engine.rootObjects())  # TODO
     main_window = engine.rootObjects()[-1]  # TODO: meh...
 
     def onClose():
-        print('Closing...')  # TODO
+        print('Closing...')
         for project in projects_model.projects:
             project.should_be_destroyed.set()
     main_window.closing.connect(onClose)

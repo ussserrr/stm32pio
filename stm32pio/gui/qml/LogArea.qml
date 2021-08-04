@@ -3,6 +3,9 @@ import QtQuick.Controls 2.14
 
 
 Rectangle {
+    function clear() {
+        log.clear();
+    }
     ScrollView {
         anchors.fill: parent
         TextArea {
