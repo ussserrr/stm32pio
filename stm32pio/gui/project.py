@@ -1,5 +1,4 @@
 import logging
-import time
 import threading
 import weakref
 from typing import List, Mapping, Any, Optional
@@ -93,9 +92,8 @@ class ProjectListItem(QObject):
             **kwargs: keyword arguments of the Stm32pio constructor
         """
         try:
-            # time.sleep(3)
             self.project = stm32pio.core.project.Stm32pio(*args, **kwargs)
-        except Exception:
+        except:
             stm32pio.core.logging.log_current_exception(self.logger)
             self._state = { 'INIT_ERROR': True }  # pseudo-stage
             self._current_stage = 'INIT_ERROR'
@@ -113,10 +111,12 @@ class ProjectListItem(QObject):
                 # to quit the thread
                 if self.should_be_destroyed.is_set():
                     break
+
             if not self.should_be_destroyed.is_set():
                 self.updateState()
                 self.initialized.emit()
                 self.nameChanged.emit()  # in any case we should notify the GUI part about the initialization ending
+
 
     @staticmethod
     def at_exit(workers_pool: QThreadPool, logging_worker: LoggingWorker, name: str):

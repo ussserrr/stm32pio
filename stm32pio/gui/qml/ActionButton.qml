@@ -1,4 +1,4 @@
-// implicit ones:
+// Implicit references:
 // index, model, project, statusBar (+ mainWindow, settings, sysTrayIcon)
 
 import QtQuick 2.14
