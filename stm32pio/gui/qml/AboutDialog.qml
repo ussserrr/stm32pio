@@ -23,7 +23,12 @@ Dialogs.Dialog {
                 text: `v.${appVersion}<br>
                        2018 - 2021 © ussserrr<br>
                        <a href='https://github.com/ussserrr/stm32pio'>GitHub</a><br><br>
-                       Powered by Python, PlatformIO, PySide2, FlatIcons and other awesome technologies`
+
+                       Powered by <b>Python</b>, <b>PlatformIO</b>, <b>PySide2</b>, <b>FlatIcons</b> and other awesome
+                       technologies.<br><br>
+
+                       Please refer to supplied <a href='file:///${rootPath}/LICENSE'>LICENSE</a> file for more
+                       information. This software should be distributed alongside with its license`
                 onLinkActivated: {
                     Qt.openUrlExternally(link);
                     aboutDialog.close();

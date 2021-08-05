@@ -105,6 +105,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
 
     # TODO: use setContextProperties() (see in Qt6, not present in Qt5...)
     engine.rootContext().setContextProperty('appVersion', stm32pio.core.util.get_version())
+    engine.rootContext().setContextProperty('rootPath', str(ROOT_PATH))
     engine.rootContext().setContextProperty('Logging', stm32pio.core.logging.logging_levels)
     engine.rootContext().setContextProperty(stm32pio.core.state.ProjectStage.__name__, project_stages)
     engine.rootContext().setContextProperty('projectsModel', projects_model)

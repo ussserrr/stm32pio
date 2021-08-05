@@ -58,7 +58,8 @@ Dialogs.Dialog {
             topPadding: 30
             bottomPadding: 10
             wrapMode: Text.Wrap
-            text: `To clear ALL app settings including the list of added projects click "Reset" then restart the app`
+            text: `To clear <b>ALL</b> app settings including <b>the list of
+                   added projects</b> click "Reset" then restart the app`
         }
     }
     // Set UI values there so they are always reflect the actual parameters
