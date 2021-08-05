@@ -13,7 +13,7 @@ ApplicationWindow {
     visible: true
     minimumWidth: 980  // comfortable initial size for all platforms (as the same style is used for any of them)
     minimumHeight: 310
-    height: 310  // 530 TODO
+    height: 530
     title: 'stm32pio'
     color: 'whitesmoke'
 
@@ -119,7 +119,6 @@ ApplicationWindow {
             Layout.preferredWidth: 0.217 * parent.width
             Layout.fillHeight: true
             clip: true
-            // keyNavigationWraps: true  // TODO
 
             highlight: Rectangle { color: 'darkseagreen' }
             highlightMoveDuration: 0  // turn off animations
@@ -229,7 +228,17 @@ ApplicationWindow {
                         }
                         DSM.State {
                             id: workspace_main
-                            onEntered: currentIndex = workspaceIndex
+                            onEntered: {
+                                currentIndex = workspaceIndex;
+
+                                const config = project.config;
+                                if (Object.keys(config['project']).length && !config['project']['board']) {
+                                    // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
+                                    project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
+                                                     'project creation. You can set it in "stm32pio.ini" file in the project directory',
+                                                     Logging.WARNING);
+                                }
+                            }
                             DSM.SignalTransition {
                                 targetState: workspace_emptyProject
                                 signal: project.stateChanged

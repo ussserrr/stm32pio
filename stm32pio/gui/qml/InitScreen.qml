@@ -22,7 +22,7 @@ Column {
                 selectAll();
             } else {
                 if (find(editText) === -1) {
-                    editText = textAt(0);  // should be 'None' at index 0 (TODO probably)
+                    editText = textAt(0);  // should be 'None' at index 0 (TODO: looks like a hack)
                 }
             }
         }
@@ -34,7 +34,6 @@ Column {
             }
             forceActiveFocus();
         }
-        // KeyNavigation.tab: runCheckBox  // not working...
     }
     Text {
         text: "Additional actions to perform next:"
@@ -97,13 +96,6 @@ Column {
                 }
             }]);
 
-            if (board.editText === board.textAt(0)) {
-                // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                 'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                 Logging.WARNING);
-            }
-
             if (runCheckBox.checked) {
                 for (let i = projectActionsModel.statefulActionsStartIndex + 1; i < projectActionsModel.count; ++i) {
                     project.run(projectActionsModel.get(i).action, []);
@@ -112,14 +104,6 @@ Column {
 
             if (openEditor.checked) {
                 project.run('start_editor', [settings.get('editor')]);
-            }
-
-            const config = project.config;
-            if (Object.keys(config['project']).length && !config['project']['board']) {
-                // TODO: stm32pio.ini is hard-coded here though it is a parameter (settings.py)
-                project.logAdded('WARNING  STM32 PlatformIO board is not specified, it will be needed on PlatformIO ' +
-                                 'project creation. You can set it in "stm32pio.ini" file in the project directory',
-                                 Logging.WARNING);
             }
         }
     }
