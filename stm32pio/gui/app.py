@@ -103,9 +103,11 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     project_stages['LOADING'] = 'Loading...'
     project_stages['INIT_ERROR'] = 'Initialization error'
 
+    root_path = ('/' + str(ROOT_PATH).replace('\\', '/')) if platform.system() == 'Windows' else str(ROOT_PATH)
+
     # TODO: use setContextProperties() (see in Qt6, not present in Qt5...)
     engine.rootContext().setContextProperty('appVersion', stm32pio.core.util.get_version())
-    engine.rootContext().setContextProperty('rootPath', str(ROOT_PATH))
+    engine.rootContext().setContextProperty('rootPath', root_path)
     engine.rootContext().setContextProperty('Logging', stm32pio.core.logging.logging_levels)
     engine.rootContext().setContextProperty(stm32pio.core.state.ProjectStage.__name__, project_stages)
     engine.rootContext().setContextProperty('projectsModel', projects_model)
