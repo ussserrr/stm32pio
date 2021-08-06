@@ -1,7 +1,7 @@
 # TODO list
 
 ## Business logic, general features
- - [ ] GitHub CHANGELOG - separate New, Fixed, Changed into paragraphs
+ - [x] CHANGELOG.md: separate New, Fixed, Changed into paragraphs (also Core, CLI and GUI)
  - [ ] Middleware support (FreeRTOS, etc.)
  - [ ] Arduino framework support (needs research to check if it is possible)
  - [ ] Create VSCode plugin

@@ -27,7 +27,7 @@ Dialogs.Dialog {
                        Powered by <b>Python</b>, <b>PlatformIO</b>, <b>PySide2</b>, <b>FlatIcons</b> and other awesome
                        technologies.<br><br>
 
-                       Please refer to supplied <a href='file:///${rootPath}/LICENSE'>LICENSE</a> file for more
+                       Please refer to supplied <a href='file://${rootPath}/LICENSE'>LICENSE</a> file for more
                        information. This software should be distributed alongside with its license`
                 onLinkActivated: {
                     Qt.openUrlExternally(link);

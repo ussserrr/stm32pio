@@ -336,5 +336,36 @@
  - Changed: GUI. Remove `go_to_this` option for the `addListItem` method (instead invoke on the list model)
  - Changed: GUI. Implicitly pass the parent to the project constructor in `addListItem` method
 
-## ver. 2.x.x
- - Fixed: GUI-invoking scripts
+
+## ver. 2.1.1 (08.2021)
+Mostly a maintenance release. It focuses mainly on GUI codebase reorganization and structuring, also fixes some old GUI bugs.
+
+### Core/CLI
+#### Changes
+ - Improve `__main__.py`
+ - As usual, update test `.ioc` file
+ - Reflect new CubeMX Java politics (it is now included in the bundle)
+
+### GUI
+#### New
+ - Structured codebase:
+   - dedicated QML folder
+   - QML modules in separate files
+   - split Python backend, too
+ - Add a link to the LICENSE file in the "About" window
+#### Fixes
+ - GUI-invoking scripts
+ - Explicitly stop project initialization thread on app shutdown
+ - Do not use `QApplicaion` subclass (causes segfaults)
+
+### Tests
+#### New
+ - `plant_multiple_fixtures.py` script - auto-create a bunch of identical projects for manual testing
+#### Changes
+ - Remove GUI invocation test (GUI codebase is not really ready and the test is not so useful anyway)
+
+### Meta
+#### New
+ - Migrate TODOs to GitHub issues/discussions
+#### Changes
+ - Update LICENSE (explicitly mention Qt as they have strong intentions about legal aspects)
