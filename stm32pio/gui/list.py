@@ -66,7 +66,7 @@ class ProjectsList(QAbstractListModel):
         settings.endArray()
         settings.endGroup()
 
-        module_logger.info(f"{len(projects_to_save)} projects have been saved to Settings")  # total amount
+        module_logger.debug(f"{len(projects_to_save)} projects have been saved to Settings")  # total amount
 
     def saveInSettings(self) -> None:
         """Spawn a thread to wait for all projects and save them in background"""

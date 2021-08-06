@@ -355,10 +355,13 @@ Mostly a maintenance release. It focuses mainly on GUI codebase reorganization a
  - Add a link to the LICENSE file in the "About" window
 #### Changes
  - More extensive usage of Qt abstract models API 
+ - Less console logs on non-verbose mode
 #### Fixes
  - GUI-invoking scripts
  - Explicitly stop project initialization thread on app shutdown
  - Do not use `QApplicaion` subclass (causes segfaults)
+ - `Qt.quit()` can now be used safely
+ - Fix several freshly introduced errors caused by accessing already destroyed objects from the QML side
 
 ### Tests
 #### New
