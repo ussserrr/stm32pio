@@ -116,8 +116,8 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
 
     engine.load(QUrl.fromLocalFile(str(MODULE_PATH/'qml'/'App.qml')))
 
-    # Example: engine.rootObjects() == [<PySide2.QtGui.QWindow(0x7fef80bb4150) at 0x10cdc56c0>]
-    main_window = engine.rootObjects()[-1]  # TODO: meh...
+    main_window = engine.rootObjects()[0]  # only child
+    app.aboutToQuit.connect(main_window.close)  # Qt.quit() can now be successfully used
 
     def onClose():
         print('Closing...')

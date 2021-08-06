@@ -353,6 +353,8 @@ Mostly a maintenance release. It focuses mainly on GUI codebase reorganization a
    - QML modules in separate files
    - split Python backend, too
  - Add a link to the LICENSE file in the "About" window
+#### Changes
+ - More extensive usage of Qt abstract models API 
 #### Fixes
  - GUI-invoking scripts
  - Explicitly stop project initialization thread on app shutdown

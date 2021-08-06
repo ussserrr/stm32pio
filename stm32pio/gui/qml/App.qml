@@ -90,8 +90,7 @@ ApplicationWindow {
             Action { text: '&Settings'; onTriggered: settingsDialog.open() }
             Action { text: '&About'; onTriggered: aboutDialog.open() }
             MenuSeparator {}
-            // Use mainWindow.close() instead of Qt.quit() to prevent segfaults (messed up shutdown order)
-            Action { text: '&Quit'; onTriggered: mainWindow.close() }
+            Action { text: '&Quit'; onTriggered: Qt.quit() }
         }
     }
 
@@ -175,7 +174,8 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
-                    function handleState() {
+                    signal handleState()
+                    onHandleState: {
                         if (mainWindow.active &&  // the app got foreground
                             index === projectsWorkspaceView.currentIndex &&  // only for the current list item
                             !project.currentAction
