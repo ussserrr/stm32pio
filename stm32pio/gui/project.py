@@ -20,6 +20,7 @@ class ProjectListItem(QObject):
 
     logAdded = Signal(str, int, arguments=['message', 'level'])  # send the log message to the front-end
     initialized = Signal()
+    destructed = Signal()
 
     def __init__(self, project_args: List[Any] = None, project_kwargs: Mapping[str, Any] = None,
                  from_startup: bool = False, parent: QObject = None):
@@ -130,6 +131,10 @@ class ProjectListItem(QObject):
         logging_worker.stopped.set()  # post the event in the logging worker to inform it...
         logging_worker.thread.wait()  # ...and wait for it to exit, too
         module_logger.debug(f"destroyed {name}")
+
+    def deleteLater(self) -> None:
+        self.destructed.emit()
+        return super().deleteLater()
 
     @Slot()
     def qmlLoaded(self):

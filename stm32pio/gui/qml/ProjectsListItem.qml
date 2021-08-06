@@ -82,6 +82,7 @@ RowLayout {
             text: ProjectStage[project.currentStage]
             DSM.StateMachine {
                 running: true
+                Component.onCompleted: project.destructed.connect(stop)
                 initialState: projectsListView.currentIndex === index
                     ? projectCurrentStage_navigated
                     : projectCurrentStage_inactive
