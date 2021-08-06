@@ -92,6 +92,7 @@
  - [ ] Switch between input fields on Tab
  - [ ] Jump to project on system notification click
  - [ ] Explain why we \[partially\] store a project state in the QML delegate (because these properties are so specific and related to the GUI stuff)
+ - [ ] `Must construct a QGuiApplication first` is still sometimes present...
 
 
 ## Core library and CLI

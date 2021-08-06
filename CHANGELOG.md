@@ -368,9 +368,13 @@ Mostly a maintenance release. It focuses mainly on GUI codebase reorganization a
  - `plant_multiple_fixtures.py` script - auto-create a bunch of identical projects for manual testing
 #### Changes
  - Remove GUI invocation test (GUI codebase is not really ready and the test is not so useful anyway)
+ - Turn off CI (Azure Pipelines). Unfortunately, new versions of STM32CubeMX are not available via direct links so any automated tests seems impossible for now
 
 ### Meta
 #### New
  - Migrate TODOs to GitHub issues/discussions
+ - Migrate to newer build/packaging pipeline:
+   - `PyPA/build` package for building both wheel and source distributions
+   - `setup.py` is not needed anymore
 #### Changes
  - Update LICENSE (explicitly mention Qt as they have strong intentions about legal aspects)
