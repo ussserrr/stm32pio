@@ -295,7 +295,7 @@
  - Changed: take out to the `settings.py` a strings that we looked for to determine successful CubeMX code generation
  - Changed: use newer `platformio project init` command, use verbose versions of CLI arguments
 
-## ver. 2.1.0
+## ver. 2.1.0 (01.2021)
  - New: "validate environment" API. Allows to quickly verify tools specified in the config (+ corresponding test). Currently, implemented only for the CLI version
  - New: store the most recent exception in the `last_error` config file parameter (currently CLI-only) (+ corresponding test)
  - New: add shorthands for all CLI options (single-letters, e.g. `-c/--with-build`)
@@ -337,8 +337,8 @@
  - Changed: GUI. Implicitly pass the parent to the project constructor in `addListItem` method
 
 
-## ver. 2.1.1 (08.2021)
-Mostly a maintenance release. It focuses mainly on GUI codebase reorganization and structuring, also fixes some old GUI bugs.
+## v2.1.1 (08.2021)
+Mostly a maintenance release. It focuses mainly on GUI codebase reorganization and structuring, also fixes some old GUI bugs and modernizes a build process.
 
 ### Core/CLI
 #### Changes
@@ -376,5 +376,6 @@ Mostly a maintenance release. It focuses mainly on GUI codebase reorganization a
  - Migrate to newer build/packaging pipeline:
    - `PyPA/build` package for building both wheel and source distributions
    - `setup.py` is not needed anymore
+ - CHANGELOG.md: separate New, Fixed, Changed into paragraphs (also Core, CLI, GUI, etc.)
 #### Changes
  - Update LICENSE (explicitly mention Qt as they have strong intentions about legal aspects)
