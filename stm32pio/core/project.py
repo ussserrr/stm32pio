@@ -45,6 +45,7 @@ class Stm32pio:
         'logger': None
     }
 
+    # TODO: is instance_options ugly?
     def __init__(self, dirty_path: Union[str, pathlib.Path], parameters: Mapping[str, Any] = None,
                  instance_options: Mapping[str, Any] = None):
         """

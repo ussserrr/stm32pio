@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2018-2020 Andrey Chufyrev aka ussserrr
+Copyright (c) 2018-present Andrey Chufyrev aka ussserrr
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,17 +21,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
+All parts of the source code using Qt libraries are regulated by the
+respective Qt license. Please refer to Qt company contacts (e.g. website) to
+obtain relevant legal resources (licenses, etc.). This project does not use
+any commercial editions of Qt products.
+
 
 Icons for GUI version by
-
  - Flat Icons
  - Google
  - Pixel Perfect
  - Freepik
-
 from www.flaticon.com. All rights belong to their respective owners. I do not
 own any of this content.
 
 
-
-All other components that are used/involved in the project are subjects of their respective owners licenses unless the opposite is explicitly stated.
+All other components that are used/involved in the project are subjects of
+their respective owners' licenses unless the opposite is explicitly stated.

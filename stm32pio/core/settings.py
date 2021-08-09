@@ -23,7 +23,8 @@ config_default = collections.OrderedDict(  # guarantees printing to the file in 
     app={
         # How do you start Java from the command line? (edit if Java not in PATH). Can be safely set to 'None' (string)
         # if in your setup the CubeMX can be invoked directly
-        'java_cmd': 'java',
+        'java_cmd': 'C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/jre/bin/java.exe'
+            if my_os == 'Windows' else 'None',
 
         # How do you start PlatformIO from the command line? (edit if not in PATH, if you use PlatformIO IDE see
         # https://docs.platformio.org/en/latest/core/installation.html#piocore-install-shell-commands).
@@ -35,7 +36,7 @@ config_default = collections.OrderedDict(  # guarantees printing to the file in 
         # direct link). STM32CubeMX will be invoked as 'java -jar [cubemx_cmd]'
         'cubemx_cmd':
             # macOS default: 'Applications' folder
-            '/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources/STM32CubeMX' if my_os == 'Darwin' else
+            '/Applications/STMicroelectronics/STM32CubeMX.app/Contents/MacOs/STM32CubeMX' if my_os == 'Darwin' else
             # Linux (Ubuntu) default: home directory
             str(Path.home() / 'STM32CubeMX/STM32CubeMX') if my_os == 'Linux' else
             # Windows default: Program Files

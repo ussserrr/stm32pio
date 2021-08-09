@@ -66,8 +66,8 @@ def log_current_exception(logger: logging.Logger, show_traceback: bool = None, c
         logger.error(exc_str)
         retcode = config.save({'project': {'last_error': f"{exc_str}\n{exc_tb}"}})
         if retcode == 0:
-            logger.info(f"Traceback has been saved to the {config.path.name}. It will be cleared on the next successful"
-                        "run")
+            logger.info(f"Traceback has been saved to the {config.path.name}. It will be cleared on the next "
+                        "successful run")
         else:
             logger.warning(f"Traceback has not been saved to the {config.path.name}")
     else:
