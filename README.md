@@ -6,7 +6,7 @@ Small cross-platform Python app that can create and update [PlatformIO](https://
 
 It uses the STM32CubeMX to generate a HAL-framework-based code and alongside creates the PlatformIO project with compatible parameters to bind them both together.
 
-The [GUI version](/docs/GUI/README.md) is available, too (please, read this main introduction first).
+The [GUI version](/docs/GUI/README.md) is available, too (but read this main introduction first, please).
 
 ![Logo](/logo/logo.png)
 
@@ -40,7 +40,7 @@ The app introduces zero dependencies by itself. Of course, you need to have all 
   - Java (JRE, Java runtime environment) for the CubeMX. Starting from CubeMX v6.3.0 Java is included in the bundle (in form of a `jre` folder sitting alongside the executable) so you don't need to install it by yourself from now on. Hence, it can be omitted in the `stm32pio.ini` config file **except Windows** where it is still **highly recommended** to run CubeMX via `java.exe`. As mentioned, Java exists already, the only difference is that it is still will be listed in the default `stm32pio.ini` config. You can refer to STM32CubeMX own documentation to obtain more information on current situation if, suddenly, something will change in this regard
   - PlatformIO (4.2.0 and above) CLI (most likely is already present if you have installed it via some package manager (`pip`, `apt`, `brew`, etc.) or need to be installed as a "command line extension" from the PlatformIO IDE (see its [docs](https://docs.platformio.org/en/latest/core/installation.html#piocore-install-shell-commands) for more information))
 
-If you, for some reasons, don't want to (or simply cannot) install (i.e. register in PATH) command line versions of these applications in your system, you can always specify the direct paths to them overriding the default values in the project configuration file `stm32pio.ini`. Check the [config reference](/docs/CONFIG.md) to see all possible ways of telling stm32pio where the tools are residing on your machine.
+If you, for some reasons, don't want to (or cannot) install (i.e. register in PATH) command line versions of these applications in your system, you can always specify the direct paths to them overriding the default values in the project configuration file `stm32pio.ini`. Check the [config reference](/docs/CONFIG.md) to see all possible ways of telling stm32pio where the tools are residing on your machine.
 
 
 ## Documentation
