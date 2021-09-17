@@ -53,11 +53,10 @@ If you, for some reasons, don't want to (or cannot) install (i.e. register in PA
 ## Installation
 As a normal Python package the app can be run in a completely portable way by downloading (or cloning) the snapshot of this repository and invoking the main script:
 ```shell script
-stm32pio-repo/ $   python3 stm32pio/cli/app.py
-stm32pio-repo/ $   python3 -m stm32pio.cli  # or as the Python module
-any-path/ $   python3 path/to/stm32pio-repo/stm32pio/cli/app.py
+stm32pio-repo/ $   python stm32pio/cli/app.py
+stm32pio-repo/ $   python -m stm32pio.cli  # or as the Python module
+any-path/ $   python path/to/stm32pio-repo/stm32pio/cli/app.py
 ```
-Note: we will assume `python3` and `pip3` hereinafter.
 
 However, it's handier to install the utility to be able to run from anywhere. The PyPI distribution is available:
 ```shell script

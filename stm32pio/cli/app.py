@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -12,13 +12,13 @@ MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. root/stm32pio/c
 ROOT_PATH = MODULE_PATH.parent.parent  # repo's or the site-package's entry root
 try:
     import stm32pio.core.settings
-    import stm32pio.core.logging
+    import stm32pio.core.log
     import stm32pio.core.project
     import stm32pio.core.util
 except ModuleNotFoundError:
     sys.path.append(str(ROOT_PATH))  # hack to be able to run the app as 'python path/to/app.py'
     import stm32pio.core.settings
-    import stm32pio.core.logging
+    import stm32pio.core.log
     import stm32pio.core.project
     import stm32pio.core.util
 
@@ -104,11 +104,11 @@ def setup_logging(verbose: int = 0, dummy: bool = False) -> logging.Logger:
         logger = logging.getLogger('stm32pio')
         logger.setLevel(logging.DEBUG if verbose else logging.INFO)
         handler = logging.StreamHandler()
-        formatter = stm32pio.core.logging.DispatchingFormatter(
-            verbosity=stm32pio.core.logging.Verbosity.VERBOSE if verbose else stm32pio.core.logging.Verbosity.NORMAL,
+        formatter = stm32pio.core.log.DispatchingFormatter(
+            verbosity=stm32pio.core.log.Verbosity.VERBOSE if verbose else stm32pio.core.log.Verbosity.NORMAL,
             general={
-                stm32pio.core.logging.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
-                stm32pio.core.logging.Verbosity.VERBOSE: logging.Formatter(
+                stm32pio.core.log.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
+                stm32pio.core.log.Verbosity.VERBOSE: logging.Formatter(
                     f"%(levelname)-8s %(funcName)-{stm32pio.core.settings.log_fieldwidth_function}s %(message)s")
             })
         handler.setFormatter(formatter)
@@ -223,7 +223,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
     # Global errors catching. Core library is designed to throw the exception in cases when there is no sense to
     # proceed. Of course this also suppose to handle any unexpected behavior, too
     except Exception:
-        stm32pio.core.logging.log_current_exception(
+        stm32pio.core.log.log_current_exception(
             logger, config=project.config if (project is not None and hasattr(project, 'config')) else None)
         return -1
 

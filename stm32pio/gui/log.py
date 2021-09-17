@@ -8,7 +8,7 @@ from PySide2.QtCore import QObject, Signal, QThread, QtInfoMsg, QtWarningMsg, Qt
     qInstallMessageHandler
 
 from stm32pio.core.settings import log_fieldwidth_function
-from stm32pio.core.logging import Verbosity, DispatchingFormatter
+from stm32pio.core.log import Verbosity, DispatchingFormatter
 
 from stm32pio.gui.util import ProjectID
 

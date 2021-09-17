@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -31,13 +31,13 @@ MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. root/stm32pio/g
 ROOT_PATH = MODULE_PATH.parent.parent  # repo's or the site-package's entry root
 try:
     import stm32pio.core.settings
-    import stm32pio.core.logging
+    import stm32pio.core.log
     import stm32pio.core.util
     import stm32pio.core.state
 except ModuleNotFoundError:
     sys.path.append(str(ROOT_PATH))  # hack to resolve imports if the app was launched as 'python path/to/app.py'
     import stm32pio.core.settings
-    import stm32pio.core.logging
+    import stm32pio.core.log
     import stm32pio.core.util
     import stm32pio.core.state
 
@@ -108,7 +108,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     # TODO: use setContextProperties() (see in Qt6, not present in Qt5...)
     engine.rootContext().setContextProperty('appVersion', stm32pio.core.util.get_version())
     engine.rootContext().setContextProperty('rootPath', root_path)
-    engine.rootContext().setContextProperty('Logging', stm32pio.core.logging.logging_levels)
+    engine.rootContext().setContextProperty('Logging', stm32pio.core.log.logging_levels)
     engine.rootContext().setContextProperty(stm32pio.core.state.ProjectStage.__name__, project_stages)
     engine.rootContext().setContextProperty('projectsModel', projects_model)
     engine.rootContext().setContextProperty('boardsModel', boards_model)
@@ -151,7 +151,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
                 projects_model.goToProject.emit((len(restored_projects_paths) + 1) - 1)
                 projects_model.saveInSettings()
         except:
-            stm32pio.core.logging.log_current_exception(logging.getLogger('stm32pio.gui.app'))
+            stm32pio.core.log.log_current_exception(logging.getLogger('stm32pio.gui.app'))
             success = False
 
         main_window.backendLoaded.emit(success)  # inform the GUI

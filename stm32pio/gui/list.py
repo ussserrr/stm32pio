@@ -4,7 +4,7 @@ from typing import List, Iterator, Mapping, Any
 
 from PySide2.QtCore import QAbstractListModel, Signal, Slot, QObject, QThreadPool, QModelIndex, Qt, QUrl
 
-from stm32pio.core.logging import log_current_exception
+from stm32pio.core.log import log_current_exception
 
 from stm32pio.gui.project import ProjectListItem
 from stm32pio.gui.util import Worker
@@ -73,6 +73,7 @@ class ProjectsList(QAbstractListModel):
         self.workers_pool.start(Worker(self._saveInSettings, logger=module_logger, parent=self))
 
 
+    # TODO: simplify?
     def each_project_is_duplicate_of(self, path: str) -> Iterator[bool]:
         """
         Returns generator yielding an answer to the question "Is current project is a duplicate of one represented by a

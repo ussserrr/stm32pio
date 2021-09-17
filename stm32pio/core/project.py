@@ -16,7 +16,7 @@ import tempfile
 import weakref
 from typing import Mapping, Any, Union, Tuple
 
-import stm32pio.core.logging
+import stm32pio.core.log
 import stm32pio.core.settings
 import stm32pio.core.util
 import stm32pio.core.validate
@@ -80,7 +80,7 @@ class Stm32pio:
             self.logger = instance_options['logger']
         else:
             underlying_logger = logging.getLogger('stm32pio.projects')
-            self.logger = stm32pio.core.logging.ProjectLoggerAdapter(underlying_logger, {'project_id': id(self)})
+            self.logger = stm32pio.core.log.ProjectLoggerAdapter(underlying_logger, {'project_id': id(self)})
 
         # The path is a primary entity of the project so we process it first and foremost. Handle 'path/to/proj',
         # 'path/to/proj/', '.', '../proj', etc., make the path absolute and check for existence. Also, the .ioc file can
@@ -128,7 +128,6 @@ class Stm32pio:
     def state(self) -> ProjectState:
         """Constructing and returning the current state of the project (tweaked dict, see ProjectState docs)"""
 
-        pio_is_initialized = False
         with contextlib.suppress(Exception):  # we just want to know the status and don't care about the details
             # Is present, is correct and is not empty
             pio_is_initialized = len(self.platformio_ini_config.sections()) != 0
@@ -252,7 +251,7 @@ class Stm32pio:
                 # -q: read the commands from the file, -s: silent performance
                 command_arr += [self.config.get('app', 'cubemx_cmd'), '-q', cubemx_script_name, '-s']
                 # Redirect the output of the subprocess into the logging module (with DEBUG level)
-                with stm32pio.core.logging.LogPipe(self.logger, logging.DEBUG) as log:
+                with stm32pio.core.log.LogPipe(self.logger, logging.DEBUG) as log:
                     completed_process = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
                     std_output = log.value
 
@@ -308,6 +307,7 @@ class Stm32pio:
             raise Exception(error_msg)
 
 
+    # TODO: rename all "pio" to "platformio"?
     def pio_init(self) -> int:
         """
         Call PlatformIO CLI to initialize a new project. It uses parameters (path, board) collected earlier so the
@@ -485,7 +485,7 @@ class Stm32pio:
         # In the non-verbose mode (logging.INFO) there would be a '--silent' option so if the PlatformIO will decide to
         # output something then it's really important and we use logging.WARNING as a level
         log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
-        with stm32pio.core.logging.LogPipe(self.logger, log_level) as log:
+        with stm32pio.core.log.LogPipe(self.logger, log_level) as log:
             completed_process = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
 
         if completed_process.returncode == 0:
@@ -512,7 +512,7 @@ class Stm32pio:
 
         self.logger.info(f"starting an editor '{sanitized_input}'...")
         try:
-            with stm32pio.core.logging.LogPipe(self.logger, logging.DEBUG) as log:
+            with stm32pio.core.log.LogPipe(self.logger, logging.DEBUG) as log:
                 # Works unstable on some Windows 7 systems, but correct on Win10...
                 # result = subprocess.run([editor_command, self.path], check=True)
                 completed_process = subprocess.run(f'{sanitized_input} "{self.path}"', shell=True, check=True,
@@ -545,7 +545,7 @@ class Stm32pio:
                 args.append('--interactive')
             if not self.logger.isEnabledFor(logging.DEBUG):
                 args.append('--quiet')
-            with stm32pio.core.logging.LogPipe(self.logger, logging.INFO) as log:
+            with stm32pio.core.log.LogPipe(self.logger, logging.INFO) as log:
                 # TODO: str(self.path) - 3.6 compatibility
                 subprocess.run(args, check=True, cwd=str(self.path), stdout=log.pipe, stderr=log.pipe)
             self.logger.info("Done", extra={ 'from_subprocess': True })
@@ -578,7 +578,7 @@ class Stm32pio:
         """Verify tools specified in the 'app' section of the current configuration"""
 
         def java_runner(java_cmd):
-            with stm32pio.core.logging.LogPipe(self.logger, logging.DEBUG) as log:
+            with stm32pio.core.log.LogPipe(self.logger, logging.DEBUG) as log:
                 completed_process = subprocess.run([java_cmd, '-version'], stdout=log.pipe, stderr=log.pipe)
                 std_output = log.value
             return completed_process, std_output
@@ -587,7 +587,7 @@ class Stm32pio:
             return self._cubemx_execute_script('exit\n')  # just start and exit
 
         def platformio_runner(platformio_cmd):
-            with stm32pio.core.logging.LogPipe(self.logger, logging.DEBUG) as log:
+            with stm32pio.core.log.LogPipe(self.logger, logging.DEBUG) as log:
                 completed_process = subprocess.run([platformio_cmd], stdout=log.pipe, stderr=log.pipe)
                 std_output = log.value
             return completed_process, std_output

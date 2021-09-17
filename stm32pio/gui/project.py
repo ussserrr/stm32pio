@@ -5,7 +5,7 @@ from typing import List, Mapping, Any, Optional
 
 from PySide2.QtCore import QObject, Signal, QThreadPool, Property, Slot
 
-import stm32pio.core.logging
+import stm32pio.core.log
 import stm32pio.core.project
 import stm32pio.core.state
 
@@ -48,7 +48,7 @@ class ProjectListItem(QObject):
         self._from_startup = from_startup
 
         underlying_logger = logging.getLogger('stm32pio.gui.projects')
-        self.logger = stm32pio.core.logging.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self)} )
+        self.logger = stm32pio.core.log.ProjectLoggerAdapter(underlying_logger, {'project_id': id(self)})
         self.logging_worker = LoggingWorker(project_id=id(self))
         self.logging_worker.sendLog.connect(self.logAdded)
 
@@ -95,7 +95,7 @@ class ProjectListItem(QObject):
         try:
             self.project = stm32pio.core.project.Stm32pio(*args, **kwargs)
         except:
-            stm32pio.core.logging.log_current_exception(self.logger)
+            stm32pio.core.log.log_current_exception(self.logger)
             self._state = { 'INIT_ERROR': True }  # pseudo-stage
             self._current_stage = 'INIT_ERROR'
         finally:

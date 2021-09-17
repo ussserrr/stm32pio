@@ -9,7 +9,7 @@ import subprocess
 from tests.common import *
 
 import stm32pio.cli.app
-import stm32pio.core.logging
+import stm32pio.core.log
 import stm32pio.core.settings
 import stm32pio.core.util
 import stm32pio.core.project
@@ -89,7 +89,7 @@ class TestCLI(CustomTestCase):
         # execution
         methods = dir(stm32pio.core.project.Stm32pio) + ['main']
 
-        with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.NORMAL):
+        with self.subTest(verbosity_level=stm32pio.core.log.Verbosity.NORMAL):
             result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, 'generate', '--directory', str(STAGE_PATH)],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
 
@@ -106,7 +106,7 @@ class TestCLI(CustomTestCase):
             # The snippet of the actual STM32CubeMX output
             self.assertNotIn('Starting STM32CubeMX', result.stderr, msg="STM32CubeMX has printed its logs")
 
-        with self.subTest(verbosity_level=stm32pio.core.logging.Verbosity.VERBOSE):
+        with self.subTest(verbosity_level=stm32pio.core.log.Verbosity.VERBOSE):
             result = subprocess.run([PYTHON_EXEC, STM32PIO_MAIN_SCRIPT, '-v', 'new',
                                      '--directory', str(STAGE_PATH),
                                      '--board', PROJECT_BOARD],
