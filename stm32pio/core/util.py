@@ -48,6 +48,7 @@ def get_version() -> str:
 _pio_boards_cache: List[str] = []
 _pio_boards_cache_fetched_at: float = 0
 
+# TODO: is there some std lib implementation of temp cache?
 def get_platformio_boards(platformio_cmd: str = config_default['app']['platformio_cmd']) -> List[str]:
     """
     Obtain the PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the others. Additionally,
@@ -118,7 +119,7 @@ def get_folder_contents(path: pathlib.Path, pattern: str = '*',
 
     for child in sorted(path.rglob(pattern)):  # all files and folders, recursively
 
-        # Check such cases:
+        # Here we check such cases:
         #   1) current child:        a/b/
         #      ignore list entry:    a/b/c/d.txt
         #

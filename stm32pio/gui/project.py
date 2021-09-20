@@ -8,6 +8,7 @@ from PySide2.QtCore import QObject, Signal, QThreadPool, Property, Slot
 import stm32pio.core.log
 import stm32pio.core.project
 import stm32pio.core.state
+import stm32pio.core.settings
 
 from stm32pio.gui.log import LoggingWorker, module_logger
 from stm32pio.gui.util import Worker
@@ -98,6 +99,10 @@ class ProjectListItem(QObject):
             stm32pio.core.log.log_current_exception(self.logger)
             self._state = { 'INIT_ERROR': True }  # pseudo-stage
             self._current_stage = 'INIT_ERROR'
+        else:
+            if self.project.config.get('project', 'inspect_ioc').lower() in stm32pio.core.settings.yes_options and \
+               self.project.state.current_stage > stm32pio.core.state.ProjectStage.EMPTY:
+                self.project.inspect_ioc_config()
         finally:
             # Register some kind of the deconstruction handler
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,

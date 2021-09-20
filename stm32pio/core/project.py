@@ -19,8 +19,9 @@ from typing import Mapping, Any, Union, Tuple
 import stm32pio.core.log
 import stm32pio.core.settings
 import stm32pio.core.util
-import stm32pio.core.validate
 import stm32pio.core.config
+import stm32pio.core.cubemx
+import stm32pio.core.validate
 from stm32pio.core.state import ProjectStage, ProjectState
 
 
@@ -99,6 +100,7 @@ class Stm32pio:
         self.config = stm32pio.core.config.Config(self.path, runtime_parameters=parameters, logger=self.logger)
 
         self.ioc_file = self._find_ioc_file(explicit_file=ioc_file)
+        self.ioc_config = stm32pio.core.cubemx.IocConfig(self.ioc_file, self.logger)
         self.config.set('project', 'ioc_file', self.ioc_file.name)  # save only the name of file to the config
 
         if len(self.config.get('project', 'cleanup_ignore', fallback='')) == 0:
@@ -128,6 +130,7 @@ class Stm32pio:
     def state(self) -> ProjectState:
         """Constructing and returning the current state of the project (tweaked dict, see ProjectState docs)"""
 
+        pio_is_initialized = False
         with contextlib.suppress(Exception):  # we just want to know the status and don't care about the details
             # Is present, is correct and is not empty
             pio_is_initialized = len(self.platformio_ini_config.sections()) != 0
@@ -572,6 +575,19 @@ class Stm32pio:
                 self.logger.info("project has been cleaned")
             else:
                 self.logger.info("no files/folders to remove")
+
+
+    def inspect_ioc_config(self):
+        """
+        Check the current .ioc configuration PlatformIO compatibility. MCU matching is not used at the moment as we
+        don't have a reliable way to obtain one from the platformio.ini (where it can be possibly specified?)
+
+        :return: None (outputs warnings through the logging module)
+        """
+
+        # TODO: use platformio_mcu matching, too
+        #  (see https://docs.platformio.org/en/latest/projectconf/section_env_platform.html#board-build-mcu)
+        self.ioc_config.inspect(platformio_board=self.config.get('project', 'board'))
 
 
     def validate_environment(self) -> stm32pio.core.validate.ToolsValidationResults:

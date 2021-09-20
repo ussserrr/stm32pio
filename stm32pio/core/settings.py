@@ -67,7 +67,9 @@ config_default = collections.OrderedDict(  # guarantees printing to the file in 
         'ioc_file': '',  # required, the file name (relative to the project path)
 
         'cleanup_ignore': '',
-        'cleanup_use_git': False  # if True, 'clean' command use git to perform the task
+        'cleanup_use_git': False,  # if True, 'clean' command will use git to perform the task
+
+        'inspect_ioc': True  # TODO: use getboolean, remove yes/no options? (this config will also change, need to check backwards compatibility)
     }
 )
 

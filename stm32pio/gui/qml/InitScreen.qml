@@ -96,6 +96,8 @@ Column {
                 }
             }]);
 
+            project.run('inspect_ioc_config', []);
+
             if (runCheckBox.checked) {
                 for (let i = projectActionsModel.statefulActionsStartIndex + 1; i < projectActionsModel.count; ++i) {
                     project.run(projectActionsModel.get(i).action, []);

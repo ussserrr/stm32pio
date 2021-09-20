@@ -1,6 +1,9 @@
 import collections.abc
 import configparser
+import contextlib
 import inspect
+import io
+import logging
 import platform
 import string
 import subprocess
@@ -16,6 +19,7 @@ from tests.common import *
 
 import stm32pio.core.settings
 import stm32pio.core.project
+import stm32pio.core.cubemx
 import stm32pio.core.util
 
 
@@ -251,7 +255,7 @@ class TestUnit(CustomTestCase):
             self.assertTrue(result_should_be_ok.succeed, msg="All the tools are correct but the validation says "
                                                              "otherwise")
 
-        with self.subTest(mag="Invalid config"):
+        with self.subTest(msg="Invalid config"):
             project.config.set('app', 'platformio_cmd', 'this_command_doesnt_exist')
             result_should_fail = project.validate_environment()
             self.assertFalse(result_should_fail.succeed, msg="One tool is incorrect and the results should reflect "
@@ -259,6 +263,44 @@ class TestUnit(CustomTestCase):
             platformio_result = next((result for result in result_should_fail if result.name == 'platformio_cmd'), None)
             self.assertIsNotNone(platformio_result, msg="PlatformIO validation results not found")
             self.assertFalse(platformio_result.succeed, msg="PlatformIO validation results should be False")
+
+    def test_inspect_ioc(self):
+        with self.subTest(msg="Parsing an .ioc file"):
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH / PROJECT_IOC_FILENAME)
+            self.assertSequenceEqual(config.sections(), [stm32pio.core.cubemx.IocConfig.fake_section],
+                                     msg="Incorrect set of config sections", seq_type=list)
+            self.assertGreater(len(config[config.fake_section].keys()), 10, msg="There should be a lot of keys")
+
+        with self.subTest(msg="Inspecting a proper config"):
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH / PROJECT_IOC_FILENAME, logger=logging.getLogger('any'))
+            with contextlib.redirect_stderr(io.StringIO()) as logs:
+                config.inspect(PROJECT_BOARD)
+            self.assertEqual(logs.getvalue(), '', msg="Correctly set config shouldn't produce any warnings")
+
+        with self.subTest(msg="Inspecting an invalid config"):
+            invalid_content = inspect.cleandoc('''
+                board=SOME-BOARD-123
+                # board is wrong and no other parameters at all
+            ''') + '\n'
+            invalid_ioc = STAGE_PATH / 'invalid.ioc'
+            invalid_ioc.write_text(invalid_content)
+            config = stm32pio.core.cubemx.IocConfig(invalid_ioc, logger=logging.getLogger('any'))
+            with self.assertLogs(logger='any', level=logging.WARNING) as logs:
+                config.inspect(PROJECT_BOARD)
+            self.assertEqual(len(logs.records), 4, msg="There should be 4 warning log messages")
+
+        with self.subTest(msg="Saving the config back"):
+            ioc_file = STAGE_PATH / PROJECT_IOC_FILENAME
+            initial_content = ioc_file.read_text()
+            config = stm32pio.core.cubemx.IocConfig(ioc_file)
+
+            config.save()
+            self.assertEqual(ioc_file.read_text(), initial_content, msg="Configs should be identical")
+
+            changed_board = "INTEL-8086"
+            config[config.fake_section]['board'] = changed_board
+            config.save()
+            self.assertIn(f'board={changed_board}', ioc_file.read_text(), msg="Edited parameters weren't preserved")
 
     def test_clean(self):
         def plant_fs_tree(path: Path, tree: Mapping[str, Union[str, Mapping]], exist_ok: bool = True):

@@ -164,6 +164,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
                                "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
                                "identifier")
+            project.inspect_ioc_config()
             logger.info(f"project has been initialized. You can now edit {stm32pio.core.settings.config_file_name} "
                         "config file")
             if args.editor:
@@ -171,6 +172,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
 
         elif args.subcommand == 'generate':
             project = stm32pio.core.project.Stm32pio(args.path)
+            if project.config.get('project', 'inspect_ioc', fallback='0').lower() in stm32pio.core.settings.yes_options:
+                project.inspect_ioc_config()
             project.generate_code()
             if args.with_build:
                 project.build()
@@ -180,10 +183,14 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
         elif args.subcommand == 'pio_init':
             project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
                                                      instance_options={'save_on_destruction': True})
+            if project.config.get('project', 'inspect_ioc', fallback='0').lower() in stm32pio.core.settings.yes_options:
+                project.inspect_ioc_config()
             project.pio_init()
 
         elif args.subcommand == 'patch':
             project = stm32pio.core.project.Stm32pio(args.path)
+            if project.config.get('project', 'inspect_ioc', fallback='0').lower() in stm32pio.core.settings.yes_options:
+                project.inspect_ioc_config()
             project.patch()
 
         elif args.subcommand == 'new':
@@ -197,6 +204,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
                 raise Exception("PlatformIO board identifier is not specified, it is needed for PlatformIO project "
                                 "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
                                 "identifier")
+            if project.config.get('project', 'inspect_ioc', fallback='0').lower() in stm32pio.core.settings.yes_options:
+                project.inspect_ioc_config()
             project.generate_code()
             project.pio_init()
             project.patch()
@@ -222,7 +231,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
 
     # Global errors catching. Core library is designed to throw the exception in cases when there is no sense to
     # proceed. Of course this also suppose to handle any unexpected behavior, too
-    except Exception:
+    except:
         stm32pio.core.log.log_current_exception(
             logger, config=project.config if (project is not None and hasattr(project, 'config')) else None)
         return -1
