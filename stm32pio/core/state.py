@@ -4,7 +4,10 @@ sit in.
 """
 
 import collections
+import contextlib
 import enum
+
+import stm32pio.core.project
 
 _stages_string_representations = {
     'UNDEFINED': 'The project is messed up',
@@ -67,13 +70,48 @@ class ProjectState(collections.OrderedDict):
     (i.e. creating) only by the internal code of this library so there shouldn't be any worries.
     """
 
+    def __init__(self, project: 'stm32pio.core.project.Stm32pio'):
+        """Constructing and returning the current state of the project (tweaked dict, see ProjectState docs)"""
+        super().__init__()
+
+        try:
+            pio_is_initialized = project.platformio.ini.is_initialized
+        except:  # we just want to know the status and don't care about the details
+            pio_is_initialized = False
+
+        platformio_ini_is_patched = False
+        if pio_is_initialized:  # make no sense to proceed if there is something happened in the first place
+            with contextlib.suppress(Exception):  # we just want to know the status and don't care about the details
+                platformio_ini_is_patched = project.platformio.ini.is_patched
+
+        inc_dir = project.path / 'Inc'
+        src_dir = project.path / 'Src'
+        include_dir = project.path / 'include'
+        pio_dir = project.path / '.pio'
+
+        # Create the temporary ordered dictionary and fill it with the conditions results arrays
+        # TODO: dicts are insertion ordered (3.6+ CPython, 3.7+ language-wise)
+        self[ProjectStage.UNDEFINED] = [True]
+        self[ProjectStage.EMPTY] = [project.cubemx.ioc.path.is_file()]
+        self[ProjectStage.INITIALIZED] = [project.config.path.is_file()]
+        self[ProjectStage.GENERATED] = [inc_dir.is_dir() and len(list(inc_dir.iterdir())) > 0,
+                                        src_dir.is_dir() and len(list(src_dir.iterdir())) > 0]
+        self[ProjectStage.PIO_INITIALIZED] = [pio_is_initialized]
+        self[ProjectStage.PATCHED] = [platformio_ini_is_patched, not include_dir.is_dir()]
+        # Hidden folder. Can be not visible in your file manager and cause a confusion
+        self[ProjectStage.BUILT] = [pio_dir.is_dir() and any(item.is_file() for item in pio_dir.rglob('*firmware*'))]
+
+        # Fold arrays and save results in ProjectState instance
+        for stage, conditions in self.items():
+            self[stage] = all(conditions)
+
     def __str__(self):
         """
         Pretty human-readable complete representation of the project state (not including the service one UNDEFINED to
         not confuse the end-user)
         """
         # Need 2 spaces between the icon and the text to look fine
-        return '\n'.join(f"{'[*]' if stage_value else '[ ]'}  {str(stage_name)}"
+        return '\n'.join(f"{'[*]' if stage_value else '[ ]'}  {stage_name}"
                          for stage_name, stage_value in self.items() if stage_name != ProjectStage.UNDEFINED)
 
     @property

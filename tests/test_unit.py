@@ -1,7 +1,6 @@
 import collections.abc
 import configparser
 import contextlib
-import inspect
 import io
 import logging
 import platform
@@ -11,7 +10,6 @@ import time
 import unittest.mock
 
 from functools import reduce
-from pathlib import Path
 from typing import Mapping, Union
 
 # Provides test constants and definitions
@@ -73,8 +71,10 @@ class TestUnit(CustomTestCase):
 
             [platformio]
             include_dir = this s;789hould be replaced
+                let's add some tricky content
             ; there should appear a new parameter
             test_key3 = this should be preserved
+                alright?
 
             [test_section]
             test_key1 = test_value1
@@ -242,7 +242,7 @@ class TestUnit(CustomTestCase):
         shutil.copy(STAGE_PATH.joinpath(PROJECT_IOC_FILENAME), STAGE_PATH.joinpath('Abracadabra.ioc'))
 
         project = stm32pio.core.project.Stm32pio(STAGE_PATH.joinpath('42.ioc'))  # pick just one
-        self.assertTrue(project.ioc_file.samefile(STAGE_PATH.joinpath('42.ioc')),
+        self.assertTrue(project.cubemx.ioc.path.samefile(STAGE_PATH.joinpath('42.ioc')),
                         msg="Provided .ioc file hasn't been chosen")
         self.assertEqual(project.config.get('project', 'ioc_file'), '42.ioc',
                          msg="Provided .ioc file is not in the config")
@@ -266,13 +266,13 @@ class TestUnit(CustomTestCase):
 
     def test_inspect_ioc(self):
         with self.subTest(msg="Parsing an .ioc file"):
-            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH / PROJECT_IOC_FILENAME)
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logging.getLogger())
             self.assertSequenceEqual(config.sections(), [stm32pio.core.cubemx.IocConfig.fake_section],
                                      msg="Incorrect set of config sections", seq_type=list)
             self.assertGreater(len(config[config.fake_section].keys()), 10, msg="There should be a lot of keys")
 
         with self.subTest(msg="Inspecting a proper config"):
-            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH / PROJECT_IOC_FILENAME, logger=logging.getLogger('any'))
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logger=logging.getLogger('any'))
             with contextlib.redirect_stderr(io.StringIO()) as logs:
                 config.inspect(PROJECT_BOARD)
             self.assertEqual(logs.getvalue(), '', msg="Correctly set config shouldn't produce any warnings")
@@ -284,7 +284,7 @@ class TestUnit(CustomTestCase):
             ''') + '\n'
             invalid_ioc = STAGE_PATH / 'invalid.ioc'
             invalid_ioc.write_text(invalid_content)
-            config = stm32pio.core.cubemx.IocConfig(invalid_ioc, logger=logging.getLogger('any'))
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, 'invalid.ioc', logger=logging.getLogger('any'))
             with self.assertLogs(logger='any', level=logging.WARNING) as logs:
                 config.inspect(PROJECT_BOARD)
             self.assertEqual(len(logs.records), 4, msg="There should be 4 warning log messages")
@@ -292,7 +292,7 @@ class TestUnit(CustomTestCase):
         with self.subTest(msg="Saving the config back"):
             ioc_file = STAGE_PATH / PROJECT_IOC_FILENAME
             initial_content = ioc_file.read_text()
-            config = stm32pio.core.cubemx.IocConfig(ioc_file)
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logging.getLogger())
 
             config.save()
             self.assertEqual(ioc_file.read_text(), initial_content, msg="Configs should be identical")
@@ -349,7 +349,7 @@ class TestUnit(CustomTestCase):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             project.clean()
             self.assertTrue(tree_not_exists_fully(STAGE_PATH, test_tree), msg="Test tree hasn't been removed")
-            self.assertTrue(project.ioc_file.exists(), msg=".ios file wasn't preserved")
+            self.assertTrue(project.cubemx.ioc.path.exists(), msg=".ios file wasn't preserved")
 
         self.setUp()  # same actions we perform between test cases (external cleaning)
         plant_fs_tree(STAGE_PATH, test_tree)
@@ -363,7 +363,7 @@ class TestUnit(CustomTestCase):
                 self.assertTrue(all(endpoint.name in input_prompt for endpoint in test_tree_endpoints),
                                 msg="Paths for removal should be reported to the user")
             self.assertTrue(tree_not_exists_fully(STAGE_PATH, test_tree), msg="Test tree hasn't been removed")
-            self.assertTrue(project.ioc_file.exists(), msg=".ios file wasn't preserved")
+            self.assertTrue(project.cubemx.ioc.path.exists(), msg=".ios file wasn't preserved")
 
         self.setUp()
         plant_fs_tree(STAGE_PATH, test_tree)
@@ -372,7 +372,7 @@ class TestUnit(CustomTestCase):
             with unittest.mock.patch('builtins.input', return_value=stm32pio.core.settings.no_options[0]):
                 project.clean(quiet_on_cli=False)
             self.assertTrue(tree_exists_fully(STAGE_PATH, test_tree), msg="Test tree wasn't preserved")
-            self.assertTrue(project.ioc_file.exists(), msg=".ios file wasn't preserved")
+            self.assertTrue(project.cubemx.ioc.path.exists(), msg=".ios file wasn't preserved")
 
         self.setUp()
         plant_fs_tree(STAGE_PATH, test_tree)

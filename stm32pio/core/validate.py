@@ -7,6 +7,9 @@ import subprocess
 from typing import Optional, Callable, Tuple, List
 
 import stm32pio.core.settings
+from stm32pio.core.config import Config
+from stm32pio.core.cubemx import CubeMX
+from stm32pio.core.log import LogPipe
 
 
 class ToolValidator:
@@ -30,7 +33,8 @@ class ToolValidator:
                       even if it is not set
             logger: optional logging.Logger instance to indicate the progress
         """
-        # TODO: dataclass can be used (https://stackoverflow.com/questions/1389180/automatically-initialize-instance-variables)
+        # TODO: dataclass can be used
+        #  (https://stackoverflow.com/questions/1389180/automatically-initialize-instance-variables)
         self.name = name
         self.command = command
         self.runner = runner
@@ -91,10 +95,45 @@ class ToolsValidationResults(List[ToolValidator]):
             basic_report += f"{tool_str}\n"
 
         verbose_report = ''
-        errored_tools = [tool for tool in self if tool.error is not None]
-        if len(errored_tools):
+        faulty_tools = [tool for tool in self if tool.error is not None]
+        if len(faulty_tools):
             verbose_report += '\n\nTools output:\n\n'
-            for tool in errored_tools:
+            for tool in faulty_tools:
                 verbose_report += f"{tool.name}\n    {tool.error}\n\n"
 
         return basic_report + verbose_report
+
+
+def validate_environment(config: Config, cubemx: CubeMX, logger: logging.Logger) -> ToolsValidationResults:
+    """Verify tools specified in the 'app' section of the current configuration"""
+
+    def java_runner(java_cmd):
+        with LogPipe(logger, logging.DEBUG) as log:
+            completed_process = subprocess.run([java_cmd, '-version'], stdout=log.pipe, stderr=log.pipe)
+            std_output = log.value
+        return completed_process, std_output
+
+    def cubemx_runner(_):
+        return cubemx.execute_script('exit\n')  # just start and exit
+
+    def platformio_runner(platformio_cmd):
+        with LogPipe(logger, logging.DEBUG) as log:
+            completed_process = subprocess.run([platformio_cmd], stdout=log.pipe, stderr=log.pipe)
+            std_output = log.value
+        return completed_process, std_output
+
+    if not config.path.exists():
+        logger.warning("config file not found. Validation will be performed against the runtime configuration")
+
+    return ToolsValidationResults(
+        ToolValidator(
+            name=param,
+            command=config.get('app', param),
+            runner=runner,
+            required=required,
+            logger=logger
+        ).validate() for param, runner, required in [
+            ('java_cmd', java_runner, False),
+            ('cubemx_cmd', cubemx_runner, True),
+            ('platformio_cmd', platformio_runner, True)
+        ])

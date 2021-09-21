@@ -199,7 +199,7 @@ class LogPipe(threading.Thread, contextlib.AbstractContextManager):
     messages in the string for using it after an execution
     """
 
-    def __init__(self, logger: logging.Logger, level: int, *args, **kwargs):
+    def __init__(self, logger: logging.Logger = None, level: int = logging.INFO, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.logger = logger
@@ -224,7 +224,8 @@ class LogPipe(threading.Thread, contextlib.AbstractContextManager):
         """
         for line in iter(self.pipe_reader.readline, ''):  # stops the iterator when empty string will occur
             self.rc.value += line  # accumulate the string
-            self.logger.log(self.level, line.strip('\n'), extra={'from_subprocess': True})  # mark the message origin
+            if self.logger:
+                self.logger.log(self.level, line.strip('\n'), extra={'from_subprocess': True})  # mark the message origin
         self.pipe_reader.close()
 
     def __exit__(self, exc_type, exc_val, exc_tb):

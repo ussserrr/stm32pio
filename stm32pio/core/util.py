@@ -5,12 +5,15 @@ Some auxiliary entities not falling into the other categories
 import collections.abc
 import copy
 import json
+import logging
 import pathlib
+import shlex
 import subprocess
 import sys
 import time
 from typing import Any, List, Mapping
 
+import stm32pio.core.log
 from stm32pio.core.settings import pio_boards_cache_lifetime, config_default
 
 
@@ -49,6 +52,7 @@ _pio_boards_cache: List[str] = []
 _pio_boards_cache_fetched_at: float = 0
 
 # TODO: is there some std lib implementation of temp cache?
+# TODO: move to pio.py
 def get_platformio_boards(platformio_cmd: str = config_default['app']['platformio_cmd']) -> List[str]:
     """
     Obtain the PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the others. Additionally,
@@ -132,3 +136,33 @@ def get_folder_contents(path: pathlib.Path, pattern: str = '*',
             folder_contents.append(child)
 
     return folder_contents
+
+
+def start_editor(editor_command: str, path: pathlib.Path, logger: logging.Logger) -> int:
+    """
+    Start the editor specified by the 'editor_command' with a project directory opened (assuming that
+        $ [editor] [folder]
+    syntax just works)
+
+    Args:
+        editor_command: editor command as you start it in the terminal
+
+    Returns:
+        passes a return code of the command
+    """
+
+    sanitized_input = shlex.quote(editor_command)
+
+    logger.info(f"starting an editor '{sanitized_input}'...")
+    try:
+        with stm32pio.core.log.LogPipe(logger, logging.DEBUG) as log:
+            # Works unstable on some Windows 7 systems, but correct on Win10...
+            # result = subprocess.run([editor_command, self.path], check=True)
+            completed_process = subprocess.run(f'{sanitized_input} "{path}"', shell=True, check=True,
+                                               stdout=log.pipe, stderr=log.pipe)
+        logger.debug(completed_process.stdout, extra={'from_subprocess': True})
+
+        return completed_process.returncode
+    except subprocess.CalledProcessError as e:
+        logger.error(f"failed to start the editor '{sanitized_input}': {e.stdout}")
+        return e.returncode
