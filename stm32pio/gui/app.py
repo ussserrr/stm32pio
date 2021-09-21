@@ -9,6 +9,8 @@ import platform
 import sys
 from typing import Optional, List
 
+import stm32pio.core.pio
+
 try:
     from PySide2.QtCore import Signal, QtInfoMsg, QtWarningMsg, QtCriticalMsg, QtFatalMsg, qInstallMessageHandler, \
         QStringListModel, QUrl, QThreadPool, QSettings, QByteArray
@@ -131,7 +133,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     # TODO: this uses default platformio command but it might be unavailable.
     #  Also, it unnecessarily slows down the startup
     def loading():
-        boards = ['None'] + stm32pio.core.util.get_platformio_boards()
+        boards = ['None'] + stm32pio.core.pio.get_boards()
         boards_model.setStringList(boards)
 
     def loaded(action_name: str, success: bool):

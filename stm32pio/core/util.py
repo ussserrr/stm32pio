@@ -3,18 +3,14 @@ Some auxiliary entities not falling into the other categories
 """
 
 import collections.abc
-import copy
-import json
 import logging
 import pathlib
 import shlex
 import subprocess
 import sys
-import time
 from typing import Any, List, Mapping
 
 import stm32pio.core.log
-from stm32pio.core.settings import pio_boards_cache_lifetime, config_default
 
 
 def _get_version_from_scm() -> str:
@@ -25,6 +21,7 @@ def _get_version_from_scm() -> str:
     else:
         # Calculate the version in real-time from the Git repo state
         return setuptools_scm.get_version(root='../..', relative_to=__file__)
+
 
 def get_version() -> str:
     """Retrieve the app version as string"""
@@ -46,38 +43,6 @@ def get_version() -> str:
             return _get_version_from_scm()
         else:
             return stm32pio.core.version.version
-
-
-_pio_boards_cache: List[str] = []
-_pio_boards_cache_fetched_at: float = 0
-
-# TODO: is there some std lib implementation of temp cache?
-# TODO: move to pio.py
-def get_platformio_boards(platformio_cmd: str = config_default['app']['platformio_cmd']) -> List[str]:
-    """
-    Obtain the PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the others. Additionally,
-    establish a short-time "cache" to prevent the over-flooding with requests to subprocess.
-
-    IMPORTANT NOTE: PlatformIO can go to the Internet from time to time when it decides that its own cache is out of
-    date. So it may take a long time to execute.
-    """
-
-    global _pio_boards_cache_fetched_at, _pio_boards_cache
-    cache_is_empty = len(_pio_boards_cache) == 0
-    current_time = time.time()
-    cache_is_outdated = current_time - _pio_boards_cache_fetched_at >= pio_boards_cache_lifetime
-
-    if cache_is_empty or cache_is_outdated:
-        # Windows 7, as usual, correctly works only with shell=True...
-        completed_process = subprocess.run(
-            f"{platformio_cmd} boards --json-output stm32cube",
-            encoding='utf-8', shell=True, stdout=subprocess.PIPE, check=True)
-        _pio_boards_cache = [board['id'] for board in json.loads(completed_process.stdout)]
-        _pio_boards_cache_fetched_at = current_time
-
-    # Caller can mutate the array and damage our cache so we give it a copy (as the values are strings it is equivalent
-    # to the deep copy of this list)
-    return copy.copy(_pio_boards_cache)
 
 
 def cleanup_mapping(mapping: Mapping[str, Any]) -> dict:

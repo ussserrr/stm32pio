@@ -13,6 +13,7 @@ from functools import reduce
 from typing import Mapping, Union
 
 # Provides test constants and definitions
+import stm32pio.core.pio
 from tests.common import *
 
 import stm32pio.core.settings
@@ -226,7 +227,7 @@ class TestUnit(CustomTestCase):
         """
         PlatformIO identifiers of boards are requested using PlatformIO CLI in JSON format
         """
-        boards = stm32pio.core.util.get_platformio_boards()
+        boards = stm32pio.core.pio.get_boards()
 
         self.assertIsInstance(boards, collections.abc.MutableSequence)
         self.assertGreater(len(boards), 0, msg="boards list is empty")
