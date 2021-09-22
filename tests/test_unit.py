@@ -65,11 +65,12 @@ class TestUnit(CustomTestCase):
         """
         project = stm32pio.core.project.Stm32pio(STAGE_PATH)
 
-        test_content = inspect.cleandoc('''
+        header = inspect.cleandoc('''
             ; This is a test config .ini file
             ; with a comment. It emulates a real
             ; platformio.ini file
-
+        ''') + '\n'
+        test_content = header + inspect.cleandoc('''
             [platformio]
             include_dir = this s;789hould be replaced
                 let's add some tricky content
@@ -96,7 +97,9 @@ class TestUnit(CustomTestCase):
         patch_config = configparser.ConfigParser(interpolation=None)
         patch_config.read_string(project.config.get('project', 'platformio_ini_patch_content'))
 
-        self.assertGreater(len(patched_config.read(STAGE_PATH.joinpath('platformio.ini'))), 0)
+        patched_content = STAGE_PATH.joinpath('platformio.ini').read_text()
+        patched_config.read_string(patched_content)
+        self.assertGreater(len(patched_content), 0)
 
         for patch_section in patch_config.sections():
             self.assertTrue(patched_config.has_section(patch_section), msg=f"{patch_section} is missing")
@@ -113,6 +116,8 @@ class TestUnit(CustomTestCase):
                 if not patch_config.has_option(original_section, original_key):
                     self.assertEqual(patched_config.get(original_section, original_key), original_value,
                                      msg=f"{original_section}: {original_key}={original_value} is corrupted")
+
+        self.assertIn(header, patched_content, msg='Header should be preserved')
 
     def test_build_should_handle_error(self):
         """

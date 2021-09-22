@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import time
 from configparser import ConfigParser
+from io import StringIO
 from pathlib import Path
 from typing import List
 
@@ -13,8 +14,9 @@ import stm32pio.core.settings
 
 
 class PlatformioINI(ConfigParser):
+    header = ''
+
     def __init__(self, path: Path, patch_content: str, logger: logging.Logger):
-        # TODO: save comments header (see IOC parsing)
         self.logger = logger
         self.path = path
         try:
@@ -30,8 +32,14 @@ class PlatformioINI(ConfigParser):
     def sync(self):
         for section in self.sections():
             self.remove_section(section)
-        self.path.resolve(strict=True)  # existing .ini file
-        self.read(self.path)
+        content = self.path.read_text()
+        self.read_string(content)
+        if not self.header and content.startswith(';'):
+            for line in content.splitlines(keepends=True):
+                if line.startswith(';'):
+                    self.header += line
+                else:
+                    break
 
     @property
     def is_initialized(self):
@@ -52,6 +60,10 @@ class PlatformioINI(ConfigParser):
             throws errors on non-existing file and on incorrect patch/file
         """
 
+        if self.patch_config_exception is not None:
+            raise Exception("Cannot determine is project patched: desired patch content is invalid (should satisfy "
+                            "INI-format requirements)") from self.patch_config_exception
+
         try:
             if not self.is_initialized:
                 self.logger.warning('platformio.ini file is empty')
@@ -59,10 +71,6 @@ class PlatformioINI(ConfigParser):
             raise Exception("Cannot determine is project patched: 'platformio.ini' file not found") from e
         except Exception as e:
             raise Exception("Cannot determine is project patched: 'platformio.ini' file is incorrect") from e
-
-        if self.patch_config_exception is not None:
-            raise Exception("Cannot determine is project patched: desired patch content is invalid (should satisfy "
-                            "INI-format requirements)") from self.patch_config_exception
 
         for patch_section in self.patch_config.sections():
             if self.has_section(patch_section):
@@ -90,11 +98,6 @@ class PlatformioINI(ConfigParser):
         else:
             self.logger.debug("patching 'platformio.ini' file...")
 
-            # for s in self.sections():
-            #     print(f'[{s}]')
-            #     for k, v in self[s].items():
-            #         print(f'{k}: {v}')
-            #     print()
             # Merge 2 configs
             for patch_section in self.patch_config.sections():
                 if not self.has_section(patch_section):
@@ -104,10 +107,13 @@ class PlatformioINI(ConfigParser):
                     self.logger.debug(f"set [{patch_section}]{patch_key} = {patch_value}")
                     self.set(patch_section, patch_key, patch_value)
 
-            # Save, overwriting (mode='w') the original file (deletes all comments!)
-            with self.path.open(mode='w') as platformio_ini_file:
-                self.write(platformio_ini_file)
-                self.logger.debug("'platformio.ini' has been patched")
+            fake_file = StringIO()
+            self.write(fake_file)
+            config_text = fake_file.getvalue()
+            restored_header = (self.header + '\n') if self.header else ''
+            self.path.write_text(restored_header + config_text[:-1])
+            fake_file.close()
+            self.logger.debug("'platformio.ini' has been patched")
 
         try:
             shutil.rmtree(self.path.parent / 'include')
@@ -217,8 +223,6 @@ _pio_boards_cache_fetched_at: float = 0
 def get_boards(platformio_cmd: str = stm32pio.core.settings.config_default['app']['platformio_cmd']) -> List[str]:
     # TODO: is there some std lib implementation of temp cache?
     #  (no, look at 3rd-party alternative: https://github.com/tkem/cachetools)
-    #
-    # TODO: move to pio.py
     """
     Obtain the PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the
     others. Additionally, establish a short-time "cache" to prevent the over-flooding with requests to subprocess.
