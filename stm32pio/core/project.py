@@ -150,7 +150,32 @@ class Stm32pio:
         return self.platformio.init(board=self.config.get('project', 'board'))
 
     def patch(self) -> None:
+        """
+        Patch the 'platformio.ini' config file with a user's patch. By default, it sets the created earlier (by CubeMX
+        'Src' and 'Inc') folders as build sources for PlatformIO specifying it in the [platformio] INI section.
+        configparser doesn't preserve any comments unfortunately so keep in mind that all of them will be lost at this
+        point. Also, the order may be violated. In the end, removes these old empty folders.
+        """
+
         self.platformio.ini.patch()
+
+        try:
+            shutil.rmtree(self.path / 'include')
+            self.logger.debug("'include' folder has been removed")
+        except Exception:
+            self.logger.info("cannot delete 'include' folder",
+                             exc_info=self.logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level))
+
+        # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
+        if not self.path.joinpath('SRC').is_dir():
+            try:
+                shutil.rmtree(self.path / 'src')
+                self.logger.debug("'src' folder has been removed")
+            except Exception:
+                self.logger.info("cannot delete 'src' folder", exc_info=
+                                 self.logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level))
+
+        self.logger.info("project has been patched")
 
     def build(self) -> int:
         return self.platformio.build()

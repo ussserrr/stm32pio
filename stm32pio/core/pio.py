@@ -1,35 +1,57 @@
+"""
+This module encapsulates logic needed by stm32pio to interact with PlatformIO CLI. It is called ``pio.py`` to prevent
+possible import confusions with the real ``platformio.py`` package.
+"""
+
 import copy
 import json
 import logging
-import shutil
 import subprocess
 import time
-from configparser import ConfigParser
+import configparser
 from io import StringIO
 from pathlib import Path
 from typing import List
 
-import stm32pio.core.log
 import stm32pio.core.settings
+from stm32pio.core.log import LogPipe
 
 
-class PlatformioINI(ConfigParser):
+class PlatformioINI(configparser.ConfigParser):
+    """
+    ``platformio.ini`` file is a generic INI-style config and can be parsed using builtin ``configparser`` module. The
+    real capabilities of this file implemented by PlatformIO is very sophisticated but for our purposes it is enough to
+    use just a basic ``ConfigParser``. This class is intended to be used as a part of ``PlatformIO`` class.
+    """
+
     header = ''
+    patch_config_exception = None
 
     def __init__(self, path: Path, patch_content: str, logger: logging.Logger):
+        """
+        Majority of properties might become invalid if will be changed after construction so they are intended to be set
+        "once and for all" at the construction stage. In case they should be dynamic, one should reimplement them as
+        "@property" with proper getters/setters/etc.
+
+        :param path: path to the platformio.ini file. It will NOT be read on initialization but lazy evaluated during
+        requested operations
+        :param patch_content: INI-style string that should be merged with the platformio.ini file
+        :param logger: logging.Logger-compatible entity
+        """
         self.logger = logger
         self.path = path
         try:
-            self.patch_config = ConfigParser(interpolation=None)  # our patch has the INI config format, too
+            self.patch_config = configparser.ConfigParser(interpolation=None)
             self.patch_config.read_string(patch_content)
         except Exception as e:
             self.patch_config = None
             self.patch_config_exception = e
-        else:
-            self.patch_config_exception = None
         super().__init__(interpolation=None)
 
-    def sync(self):
+    def sync(self) -> None:
+        """
+        Clean itself and re-read the config from self.path. Store first N consecutive lines starting with ; as a header
+        """
         for section in self.sections():
             self.remove_section(section)
         content = self.path.read_text()
@@ -42,23 +64,14 @@ class PlatformioINI(ConfigParser):
                     break
 
     @property
-    def is_initialized(self):
-        """Is present, is correct and is not empty"""
+    def is_initialized(self) -> bool:
+        """Config considered to be initialized when the file is present, correct and not empty"""
         self.sync()
         return len(self.sections()) > 0
 
     @property
     def is_patched(self) -> bool:
-        """
-        Check whether 'platformio.ini' config file is patched or not. It doesn't check for complete project patching
-        (e.g. unnecessary folders deletion).
-
-        Returns:
-            boolean indicating a result
-
-        Raises:
-            throws errors on non-existing file and on incorrect patch/file
-        """
+        """The config is patched when it contains all pairs from a given earlier patch"""
 
         if self.patch_config_exception is not None:
             raise Exception("Cannot determine is project patched: desired patch content is invalid (should satisfy "
@@ -66,37 +79,37 @@ class PlatformioINI(ConfigParser):
 
         try:
             if not self.is_initialized:
-                self.logger.warning('platformio.ini file is empty')
+                self.logger.warning(f"{self.path.name} file is empty")
+                return False
         except FileNotFoundError as e:
-            raise Exception("Cannot determine is project patched: 'platformio.ini' file not found") from e
+            raise Exception(f"Cannot determine is project patched: {self.path.name} file not found") from e
         except Exception as e:
-            raise Exception("Cannot determine is project patched: 'platformio.ini' file is incorrect") from e
+            raise Exception(f"Cannot determine is project patched: {self.path.name} file is incorrect") from e
 
         for patch_section in self.patch_config.sections():
             if self.has_section(patch_section):
                 for patch_key, patch_value in self.patch_config.items(patch_section):
                     platformio_ini_value = self.get(patch_section, patch_key, fallback=None)
+                    # TODO: #58: strict equality is an unreliable characteristic
                     if platformio_ini_value != patch_value:
                         self.logger.debug(f"[{patch_section}]{patch_key}: patch value is\n  {patch_value}\nbut "
-                                          f"platformio.ini contains\n  {platformio_ini_value}")
+                                          f"{self.path.name} contains\n  {platformio_ini_value}")
                         return False
             else:
-                self.logger.debug(f"platformio.ini has no '{patch_section}' section")
+                self.logger.debug(f"{self.path.name} has no '{patch_section}' section")
                 return False
         return True
 
     def patch(self) -> None:
         """
-        Patch the 'platformio.ini' config file with a user's patch. By default, it sets the created earlier (by CubeMX
-        'Src' and 'Inc') folders as build sources for PlatformIO specifying it in the [platformio] INI section.
-        configparser doesn't preserve any comments unfortunately so keep in mind that all of them will be lost at this
-        point. Also, the order may be violated. In the end, removes these old empty folders.
+        Apply a given earlier patch. This will try to restore the initial platformio.ini header but all other comments
+        throughout the file will be lost
         """
 
         if self.is_patched:
-            self.logger.info("'platformio.ini' has been already patched")
+            self.logger.info(f"{self.path.name} has been already patched")
         else:
-            self.logger.debug("patching 'platformio.ini' file...")
+            self.logger.debug(f"patching {self.path.name} file...")
 
             # Merge 2 configs
             for patch_section in self.patch_config.sections():
@@ -113,29 +126,22 @@ class PlatformioINI(ConfigParser):
             restored_header = (self.header + '\n') if self.header else ''
             self.path.write_text(restored_header + config_text[:-1])
             fake_file.close()
-            self.logger.debug("'platformio.ini' has been patched")
-
-        try:
-            shutil.rmtree(self.path.parent / 'include')
-            self.logger.debug("'include' folder has been removed")
-        except Exception:
-            self.logger.info("cannot delete 'include' folder",
-                             exc_info=self.logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level))
-
-        # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
-        if not self.path.parent.joinpath('SRC').is_dir():
-            try:
-                shutil.rmtree(self.path.parent / 'src')
-                self.logger.debug("'src' folder has been removed")
-            except Exception:
-                self.logger.info("cannot delete 'src' folder", exc_info=
-                                 self.logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level))
-
-        self.logger.info("project has been patched")
+            self.logger.debug(f"{self.path.name} has been patched")
 
 
 class PlatformIO:
+    """
+    Interface to execute some [related to application] PlatformIO CLI commands. It also creates a PlatformioINI instance
+    so the hierarchy is nice-looking and reflects real objects relations.
+    """
+
     def __init__(self, exe_cmd: str, project_path: Path, patch_content: str, logger: logging.Logger):
+        """
+        :param exe_cmd: PlatformIO CLI command or a path to the executable. This shouldn't be an arbitrary shell command
+        :param project_path: Project folder. Typically, same as the stm32pio project directory
+        :param patch_content: INI-style string that should be merged with the platformio.ini file
+        :param logger: logging.Logger-compatible entity
+        """
         self.exe_cmd = exe_cmd
         self.project_path = project_path
         self.logger = logger
@@ -143,26 +149,23 @@ class PlatformIO:
 
     def init(self, board: str) -> int:
         """
-        Call PlatformIO CLI to initialize a new project. It uses parameters (path, board) collected earlier so the
-        confirmation about data presence is lying on the invoking code.
+        Initialize a new project (can also be safely run on an existing project, too). Actual command: ``platformio
+        project init``.
 
-        Returns:
-            return code of the PlatformIO
-
-        Raises:
-            Exception: if the return code of subprocess is not 0
+        :param board: PlatformIO name of the board (e.g. nucleo_f031k6)
+        :return: Return code of the executed command
         """
 
         self.logger.info("starting PlatformIO project initialization...")
 
         try:
             if len(self.ini.sections()):
-                self.logger.warning("'platformio.ini' file already exist")
-            # else: file is empty (PlatformIO should overwrite it)
+                self.logger.warning(f"{self.ini.path.name} file already exist")
+            # else: file is empty – PlatformIO should overwrite it
         except FileNotFoundError:
-            pass  # no file, see above
-        except Exception:
-            self.logger.warning("'platformio.ini' file is incorrect")
+            pass  # no file – PlatformIO will create it
+        except configparser.Error:
+            self.logger.warning(f"{self.ini.path.name} file is incorrect, trying to proceed now...")
 
         command_arr = [self.exe_cmd, 'project', 'init',
                        '--project-dir', str(self.project_path),
@@ -184,16 +187,15 @@ class PlatformIO:
             self.logger.info("successful PlatformIO project initialization")
             return completed_process.returncode
         else:
-            self.logger.error(f"Return code is {completed_process.returncode}. Output:\n\n{completed_process.stdout}",
+            self.logger.error(f"return code is {completed_process.returncode}. Output:\n\n{completed_process.stdout}",
                               extra={'from_subprocess': True})
             raise Exception(error_msg)
 
     def build(self) -> int:
         """
-        Initiate a build by the PlatformIO ('platformio run' command)
+        Initiate a build (``platformio run`` command)
 
-        Returns:
-            passes a return code of the PlatformIO
+        :return: Return code of the executed command
         """
 
         self.logger.info("starting PlatformIO project build...")
@@ -205,7 +207,7 @@ class PlatformIO:
         # In the non-verbose mode (logging.INFO) there would be a '--silent' option so if the PlatformIO will decide to
         # output something then it's really important and we use logging.WARNING as a level
         log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
-        with stm32pio.core.log.LogPipe(self.logger, log_level) as log:
+        with LogPipe(self.logger, log_level) as log:
             completed_process = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
 
         if completed_process.returncode == 0:
@@ -220,9 +222,9 @@ _pio_boards_cache: List[str] = []
 _pio_boards_cache_fetched_at: float = 0
 
 
+# TODO: is there some std lib implementation of temp cache?
+#  (no, look at 3rd-party alternative: https://github.com/tkem/cachetools, just like lru_cache)
 def get_boards(platformio_cmd: str = stm32pio.core.settings.config_default['app']['platformio_cmd']) -> List[str]:
-    # TODO: is there some std lib implementation of temp cache?
-    #  (no, look at 3rd-party alternative: https://github.com/tkem/cachetools)
     """
     Obtain the PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the
     others. Additionally, establish a short-time "cache" to prevent the over-flooding with requests to subprocess.
@@ -232,6 +234,7 @@ def get_boards(platformio_cmd: str = stm32pio.core.settings.config_default['app'
     """
 
     global _pio_boards_cache_fetched_at, _pio_boards_cache
+
     cache_is_empty = len(_pio_boards_cache) == 0
     current_time = time.time()
     cache_is_outdated = current_time - _pio_boards_cache_fetched_at >= stm32pio.core.settings.pio_boards_cache_lifetime
