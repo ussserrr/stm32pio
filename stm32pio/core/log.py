@@ -15,13 +15,13 @@ import os
 import threading
 import traceback
 import warnings
-from typing import Any, MutableMapping, Tuple, Mapping, Optional
+from typing import Any, MutableMapping, Tuple, Mapping, Optional, List
 
 from stm32pio.core.config import Config
 from stm32pio.core.settings import show_traceback_threshold_level
 
 
-module_logger = logging.getLogger(__name__)  # this module logger
+_module_logger = logging.getLogger(__name__)  # this module logger
 
 logging_levels = {  # for exposing the levels to the GUI
     logging.getLevelName(logging.CRITICAL): logging.CRITICAL,
@@ -179,16 +179,20 @@ class DispatchingFormatter(logging.Formatter):
         else:
             if not self._warn_was_shown:
                 self._warn_was_shown = True
-                module_logger.warning("No formatter found, use default one hereinafter")
+                _module_logger.warning("No formatter found, use default one hereinafter")
             return super().format(record)
 
 
 class LogPipeRC:
     """Small class suitable for passing to the caller when the LogPipe context manager is invoked"""
-    value = ''  # string accumulating all incoming messages
+    accumulator: List[str] = []  # string accumulating all incoming messages
 
     def __init__(self, fd: int):
         self.pipe = fd  # writable half of os.pipe
+
+    @property
+    def value(self):
+        return ''.join(self.accumulator)
 
 
 class LogPipe(threading.Thread, contextlib.AbstractContextManager):
@@ -223,9 +227,11 @@ class LogPipe(threading.Thread, contextlib.AbstractContextManager):
         Routine of the thread, logging everything
         """
         for line in iter(self.pipe_reader.readline, ''):  # stops the iterator when empty string will occur
-            self.rc.value += line  # accumulate the string
+            # TODO: We don't always need an accumulated value, don't we? This can be quite large, actually
+            self.rc.accumulator.append(line)  # accumulate the string
             if self.logger:
-                self.logger.log(self.level, line.strip('\n'), extra={'from_subprocess': True})  # mark the message origin
+                # Mark the message origin
+                self.logger.log(self.level, line.strip('\n'), extra={'from_subprocess': True})
         self.pipe_reader.close()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
