@@ -170,7 +170,8 @@ class PlatformIO:
         command_arr = [self.exe_cmd, 'project', 'init',
                        '--project-dir', str(self.project_path),
                        '--board', board,
-                       '--project-option', 'framework=stm32cube']
+                       '--project-option', 'framework=stm32cube',
+                       '--project-option', 'board_build.stm32cube.custom_config_header=yes']
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 

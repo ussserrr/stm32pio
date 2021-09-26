@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Any, List, Mapping
 
-from stm32pio.core.log import LogPipe
+import stm32pio.core.log
 
 
 def _get_version_from_scm() -> str:
@@ -122,7 +122,7 @@ def run_command(command: str, path: Path, logger: logging.Logger) -> int:
 
     logger.info(f"starting '{executable_name}'...")
     try:
-        with LogPipe(logger, logging.DEBUG) as log:
+        with stm32pio.core.log.LogPipe(logger, logging.DEBUG) as log:
             # Works unstable on some Windows 7 systems, but correct on Win10...
             # result = subprocess.run([command, self.path], check=True)
             completed_process = subprocess.run(f'{sanitized_input} "{path}"', shell=True, check=True,
