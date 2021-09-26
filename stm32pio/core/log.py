@@ -56,15 +56,15 @@ def log_current_exception(logger: logging.Logger, show_traceback: bool = None, c
     if show_traceback is None:
         show_traceback = logger.isEnabledFor(show_traceback_threshold_level)
 
-    exc_full_str = traceback.format_exc()
-    exc_str = exc_full_str.splitlines()[-1]
-    if exc_str.startswith('Exception') and not show_traceback:
-        exc_str = exc_str[len('Exception: '):]  # meaningless information
-    exc_tb = ''.join(exc_full_str.splitlines(keepends=True)[:-1])
+    lines = traceback.format_exc().splitlines()
+    message = lines[-1]
+    if message.startswith('Exception') and not show_traceback:
+        message = message[len('Exception: '):]  # meaningless information
+    tb = '\n'.join(lines[:-1])
 
     if config is not None:
-        logger.error(exc_str)
-        retcode = config.save({'project': {'last_error': f"{exc_str}\n{exc_tb}"}})
+        logger.error(message)
+        retcode = config.save({'project': {'last_error': f"{message}\n{tb}"}})
         if retcode == 0:
             logger.info(f"Traceback has been saved to the {config.path.name}. It will be cleared on the next "
                         "successful run")
@@ -72,9 +72,9 @@ def log_current_exception(logger: logging.Logger, show_traceback: bool = None, c
             logger.warning(f"Traceback has not been saved to the {config.path.name}")
     else:
         if show_traceback:
-            logger.error(f"{exc_str}\n{exc_tb}")
+            logger.error(f"{message}\n{tb}")
         else:
-            logger.error(exc_str)
+            logger.error(message)
 
 
 class ProjectLoggerAdapter(logging.LoggerAdapter):

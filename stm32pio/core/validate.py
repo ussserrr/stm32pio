@@ -33,7 +33,7 @@ class ToolValidator:
                       even if it is not set
             logger: optional logging.Logger instance to indicate the progress
         """
-        # TODO: dataclass can be used
+        # TODO: dataclass can be used (3.7+)
         #  (https://stackoverflow.com/questions/1389180/automatically-initialize-instance-variables)
         self.name = name
         self.command = command

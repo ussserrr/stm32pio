@@ -2,7 +2,6 @@
 Core class representing a single stm32pio project.
 """
 
-import collections
 import copy
 import logging
 import pathlib
@@ -159,21 +158,10 @@ class Stm32pio:
 
         self.platformio.ini.patch()
 
-        try:
-            shutil.rmtree(self.path / 'include')
-            self.logger.debug("'include' folder has been removed")
-        except Exception:
-            self.logger.info("cannot delete 'include' folder",
-                             exc_info=self.logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level))
-
-        # Remove 'src' directory too but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
+        stm32pio.core.util.remove_folder(self.path / 'include', logger=self.logger)
+        # Remove 'src' directory as well but on case-sensitive file systems 'Src' == 'src' == 'SRC' so we need to check
         if not self.path.joinpath('SRC').is_dir():
-            try:
-                shutil.rmtree(self.path / 'src')
-                self.logger.debug("'src' folder has been removed")
-            except Exception:
-                self.logger.info("cannot delete 'src' folder", exc_info=
-                                 self.logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level))
+            stm32pio.core.util.remove_folder(self.path / 'src', logger=self.logger)
 
         self.logger.info("project has been patched")
 
@@ -181,7 +169,7 @@ class Stm32pio:
         return self.platformio.build()
 
     def start_editor(self, editor_command: str) -> int:
-        return stm32pio.core.util.start_editor(editor_command, self.path, self.logger)
+        return stm32pio.core.util.run_command(editor_command, self.path, self.logger)
 
     def clean(self, quiet_on_cli: bool = True) -> None:
         """

@@ -36,7 +36,7 @@ class PlatformioINI(configparser.ConfigParser):
         :param path: path to the platformio.ini file. It will NOT be read on initialization but lazy evaluated during
         requested operations
         :param patch_content: INI-style string that should be merged with the platformio.ini file
-        :param logger: logging.Logger-compatible entity
+        :param logger: logging.Logger-compatible object
         """
         self.logger = logger
         self.path = path
@@ -140,7 +140,7 @@ class PlatformIO:
         :param exe_cmd: PlatformIO CLI command or a path to the executable. This shouldn't be an arbitrary shell command
         :param project_path: Project folder. Typically, same as the stm32pio project directory
         :param patch_content: INI-style string that should be merged with the platformio.ini file
-        :param logger: logging.Logger-compatible entity
+        :param logger: logging.Logger-compatible object
         """
         self.exe_cmd = exe_cmd
         self.project_path = project_path
