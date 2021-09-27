@@ -74,10 +74,8 @@ class ProjectListItem(QObject):
         # Register some kind of the deconstruction handler (later, after the project initialization, see init_project)
         self._finalizer = None
 
-        if 'instance_options' not in project_kwargs:
-            project_kwargs['instance_options'] = { 'logger': self.logger }
-        elif 'logger' not in project_kwargs['instance_options']:
-            project_kwargs['instance_options']['logger'] = self.logger
+        if 'logger' not in project_kwargs:
+            project_kwargs['logger'] = self.logger
 
         # Start the Stm32pio part initialization right after. It can take some time so we schedule it in a dedicated
         # thread

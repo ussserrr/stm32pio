@@ -1,7 +1,5 @@
 import configparser
 import gc
-import inspect
-import shutil
 
 # Provides test constants and definitions
 from tests.common import *
@@ -59,7 +57,7 @@ class TestIntegration(CustomTestCase):
 
         # On project creation we should interpret the CLI-provided values as superseding to the saved ones and
         # saved ones, in turn, as superseding to the default ones (BUT only non-empty values)
-        project = stm32pio.core.project.Stm32pio(STAGE_PATH, instance_options={'save_on_destruction': True}, parameters={
+        project = stm32pio.core.project.Stm32pio(STAGE_PATH, save_on_destruction=True, parameters={
             'app': {
                 'cubemx_cmd': ''
             },

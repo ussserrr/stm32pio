@@ -9,6 +9,7 @@ import enum
 
 import stm32pio.core.project
 
+
 _stages_string_representations = {
     'UNDEFINED': 'The project is messed up',
     'EMPTY': '.ioc file is present',
@@ -76,7 +77,7 @@ class ProjectState(collections.OrderedDict):
 
         try:
             pio_is_initialized = project.platformio.ini.is_initialized
-        except:  # we just want to know the status and don't care about the details
+        except (Exception,):  # we just want to know the status and don't care about the details
             pio_is_initialized = False
 
         platformio_ini_is_patched = False

@@ -145,7 +145,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
             # At the end, append (or jump to) a CLI-provided project, if there is one
             if args is not None and 'path' in args:
                 list_item_kwargs = { 'from_startup': True }
-                if args.board:
+                if args.board:  # TODO: test this
                     list_item_kwargs['project_kwargs'] = { 'parameters': { 'project': { 'board': args.board } } }  # pizdec konechno...
                 projects_model.addListItem(str(pathlib.Path(args.path)), list_item_kwargs=list_item_kwargs)
                 # Append always happens to the end of list and we want to jump to the last added project (CLI one). The

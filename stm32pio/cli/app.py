@@ -157,7 +157,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
     try:
         if args.subcommand == 'init':
             project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
-                                                     instance_options={'save_on_destruction': True})
+                                                     save_on_destruction=True)
             if args.store_content:
                 project.config.save_content_as_ignore_list()
             if project.config.get('project', 'board') == '':
@@ -182,7 +182,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
 
         elif args.subcommand == 'pio_init':
             project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
-                                                     instance_options={'save_on_destruction': True})
+                                                     save_on_destruction=True)
             if project.config.get('project', 'inspect_ioc', fallback='0').lower() in stm32pio.core.settings.yes_options:
                 project.inspect_ioc_config()
             project.pio_init()
@@ -195,7 +195,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
 
         elif args.subcommand == 'new':
             project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
-                                                     instance_options={'save_on_destruction': True})
+                                                     save_on_destruction=True)
             if args.store_content:
                 project.config.save_content_as_ignore_list()
             if project.config.get('project', 'board') == '':

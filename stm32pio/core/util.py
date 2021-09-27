@@ -94,7 +94,7 @@ def get_folder_contents(path: Path, pattern: str = '*', ignore_list: List[Path] 
     return folder_contents
 
 
-def remove_folder(path: Path, logger: logging.Logger):
+def remove_folder(path: Path, logger: 'stm32pio.core.log.Logger'):
     """Remove specified directory (empty or not) logging a result"""
     try:
         shutil.rmtree(path)
@@ -106,7 +106,7 @@ def remove_folder(path: Path, logger: logging.Logger):
         logger.debug(f"'{path.name}' folder has been removed")
 
 
-def run_command(command: str, path: Path, logger: logging.Logger) -> int:
+def run_command(command: str, path: Path, logger: 'stm32pio.core.log.Logger') -> int:
     """
     Launch the command consisting of the given executable and some path as its argument:
         $  [editor] [folder]

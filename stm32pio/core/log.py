@@ -15,10 +15,10 @@ import os
 import threading
 import traceback
 import warnings
-from typing import Any, MutableMapping, Tuple, Mapping, Optional, List
+from typing import Any, MutableMapping, Tuple, Mapping, Optional, List, Union
 
-from stm32pio.core.config import Config
-from stm32pio.core.settings import show_traceback_threshold_level
+import stm32pio.core.config
+import stm32pio.core.settings
 
 
 _module_logger = logging.getLogger(__name__)  # this module logger
@@ -33,48 +33,16 @@ logging_levels = {  # for exposing the levels to the GUI
 }
 
 
-def log_current_exception(logger: logging.Logger, show_traceback: bool = None, config: Config = None) -> None:
-    """
-    Print format is:
+# Currently available verbosity levels. Verbosity determines how every LogRecord will be formatted (regardless its
+# logging level)
+@enum.unique
+class Verbosity(enum.IntEnum):
+    NORMAL = enum.auto()
+    VERBOSE = enum.auto()
 
-        ExceptionName: message
-        [optional] traceback
 
-    We do not explicitly retrieve an exception info via sys.exc_info() as it immediately stores a reference to the
-    current Python frame and/or variables causing some possible weird errors (objects are not GC'ed) and memory leaks.
-    See https://cosmicpercolator.com/2016/01/13/exception-leaks-in-python-2-and-3/ for more information.
-
-    Args:
-        logger: the logging.Logger (or compatible) instance to use
-        show_traceback: whether print the traceback or not. Ignored if the config is given (will output it there anyway)
-        config: stm32pio Config instance to save. The traceback will be written to its corresponding INI file
-
-    Returns:
-        None
-    """
-
-    if show_traceback is None:
-        show_traceback = logger.isEnabledFor(show_traceback_threshold_level)
-
-    lines = traceback.format_exc().splitlines()
-    message = lines[-1]
-    if message.startswith('Exception') and not show_traceback:
-        message = message[len('Exception: '):]  # meaningless information
-    tb = '\n'.join(lines[:-1])
-
-    if config is not None:
-        logger.error(message)
-        retcode = config.save({'project': {'last_error': f"{message}\n{tb}"}})
-        if retcode == 0:
-            logger.info(f"Traceback has been saved to the {config.path.name}. It will be cleared on the next "
-                        "successful run")
-        else:
-            logger.warning(f"Traceback has not been saved to the {config.path.name}")
-    else:
-        if show_traceback:
-            logger.error(f"{message}\n{tb}")
-        else:
-            logger.error(message)
+# Do not add or remove any information from the message and simply pass it "as-is"
+as_is_formatter = logging.Formatter('%(message)s')
 
 
 class ProjectLoggerAdapter(logging.LoggerAdapter):
@@ -96,16 +64,7 @@ class ProjectLoggerAdapter(logging.LoggerAdapter):
         return msg, kwargs
 
 
-# Currently available verbosity levels. Verbosity determines how every LogRecord will be formatted (regardless its
-# logging level)
-@enum.unique
-class Verbosity(enum.IntEnum):
-    NORMAL = enum.auto()
-    VERBOSE = enum.auto()
-
-
-# Do not add or remove any information from the message and simply pass it "as-is"
-as_is_formatter = logging.Formatter('%(message)s')
+Logger = Union[logging.Logger, logging.LoggerAdapter]
 
 
 class DispatchingFormatter(logging.Formatter):
@@ -203,7 +162,7 @@ class LogPipe(threading.Thread, contextlib.AbstractContextManager):
     messages in the string for using it after an execution
     """
 
-    def __init__(self, logger: logging.Logger = None, level: int = logging.INFO, *args, **kwargs):
+    def __init__(self, logger: 'stm32pio.core.log.Logger' = None, level: int = logging.INFO, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.logger = logger
@@ -240,3 +199,47 @@ class LogPipe(threading.Thread, contextlib.AbstractContextManager):
         tear-down process will be done anyway
         """
         os.close(self.fd_write)
+
+
+def log_current_exception(logger: 'stm32pio.core.log.Logger', show_traceback: bool = None, config: stm32pio.core.config.Config = None) -> None:
+    """
+    Print format is:
+
+        ExceptionName: message
+        [optional] traceback
+
+    We do not explicitly retrieve an exception info via sys.exc_info() as it immediately stores a reference to the
+    current Python frame and/or variables causing some possible weird errors (objects are not GC'ed) and memory leaks.
+    See https://cosmicpercolator.com/2016/01/13/exception-leaks-in-python-2-and-3/ for more information.
+
+    Args:
+        logger: the logging.Logger (or compatible) instance to use
+        show_traceback: whether print the traceback or not. Ignored if the config is given (will output it there anyway)
+        config: stm32pio Config instance to save. The traceback will be written to its corresponding INI file
+
+    Returns:
+        None
+    """
+
+    if show_traceback is None:
+        show_traceback = logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level)
+
+    lines = traceback.format_exc().splitlines()
+    message = lines[-1]
+    if message.startswith('Exception') and not show_traceback:
+        message = message[len('Exception: '):]  # meaningless information
+    tb = '\n'.join(lines[:-1])
+
+    if config is not None:
+        logger.error(message)
+        retcode = config.save({'project': {'last_error': f"{message}\n{tb}"}})
+        if retcode == 0:
+            logger.info(f"Traceback has been saved to the {config.path.name}. It will be cleared on the next "
+                        "successful run")
+        else:
+            logger.warning(f"Traceback has not been saved to the {config.path.name}")
+    else:
+        if show_traceback:
+            logger.error(f"{message}\n{tb}")
+        else:
+            logger.error(message)

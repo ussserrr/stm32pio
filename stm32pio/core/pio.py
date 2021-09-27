@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import List
 
 import stm32pio.core.settings
-from stm32pio.core.log import LogPipe
+import stm32pio.core.log
 
 
 class PlatformioINI(configparser.ConfigParser):
@@ -27,7 +27,7 @@ class PlatformioINI(configparser.ConfigParser):
     header = ''
     patch_config_exception = None
 
-    def __init__(self, path: Path, patch_content: str, logger: logging.Logger):
+    def __init__(self, path: Path, patch_content: str, logger: stm32pio.core.log.Logger):
         """
         Majority of properties might become invalid if will be changed after construction so they are intended to be set
         "once and for all" at the construction stage. In case they should be dynamic, one should reimplement them as
@@ -135,15 +135,15 @@ class PlatformIO:
     so the hierarchy is nice-looking and reflects real objects relations.
     """
 
-    def __init__(self, exe_cmd: str, project_path: Path, patch_content: str, logger: logging.Logger):
+    def __init__(self, project_path: Path, exe_cmd: str, patch_content: str, logger: stm32pio.core.log.Logger):
         """
         :param exe_cmd: PlatformIO CLI command or a path to the executable. This shouldn't be an arbitrary shell command
         :param project_path: Project folder. Typically, same as the stm32pio project directory
         :param patch_content: INI-style string that should be merged with the platformio.ini file
         :param logger: logging.Logger-compatible object
         """
-        self.exe_cmd = exe_cmd
         self.project_path = project_path
+        self.exe_cmd = exe_cmd
         self.logger = logger
         self.ini = PlatformioINI(project_path / 'platformio.ini', patch_content, logger)
 
@@ -208,7 +208,7 @@ class PlatformIO:
         # In the non-verbose mode (logging.INFO) there would be a '--silent' option so if the PlatformIO will decide to
         # output something then it's really important and we use logging.WARNING as a level
         log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
-        with LogPipe(self.logger, log_level) as log:
+        with stm32pio.core.log.LogPipe(self.logger, log_level) as log:
             completed_process = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
 
         if completed_process.returncode == 0:

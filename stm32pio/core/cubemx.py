@@ -8,7 +8,7 @@ from pathlib import Path
 from string import Template
 from typing import Tuple
 
-from stm32pio.core.log import LogPipe
+import stm32pio.core.log
 import stm32pio.core.settings
 
 
@@ -21,7 +21,7 @@ class IocConfig(ConfigParser):
 
     fake_section = 'me'
 
-    def __init__(self, parent_path: Path, file_name: str, logger: logging.Logger):
+    def __init__(self, parent_path: Path, file_name: str, logger: stm32pio.core.log.Logger):
         # self.logger.debug(f"using explicitly provided '{explicit_file.name}' file")
         self.logger = logger
         self.path = self._find_ioc_file(parent_path, file_name)
@@ -128,7 +128,7 @@ class IocConfig(ConfigParser):
 
 
 class CubeMX:
-    def __init__(self, work_dir: Path, ioc_file_name: str, exe_cmd: str, java_cmd: str, logger: logging.Logger):
+    def __init__(self, work_dir: Path, ioc_file_name: str, exe_cmd: str, java_cmd: str, logger: stm32pio.core.log.Logger):
         self.logger = logger
         self.work_dir = work_dir
         self.ioc = IocConfig(work_dir, ioc_file_name, logger)
