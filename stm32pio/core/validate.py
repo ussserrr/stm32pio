@@ -6,10 +6,10 @@ import logging
 import subprocess
 from typing import Optional, Callable, Tuple, List
 
-import stm32pio.core.config
-import stm32pio.core.cubemx
-import stm32pio.core.log
 import stm32pio.core.settings
+from stm32pio.core.config import Config
+from stm32pio.core.cubemx import CubeMX
+from stm32pio.core.log import Logger, LogPipe
 
 
 Runner = Callable[[Optional[str]], Tuple[subprocess.CompletedProcess, str]]
@@ -22,7 +22,7 @@ class ToolValidator:
     text: str = None  # some optional additional description of the tool state
     error: Exception = None  # optional exception in case some error happened
 
-    def __init__(self, name: str, command: Optional[str], runner: Runner, required: bool = True, logger: stm32pio.core.log.Logger = None):
+    def __init__(self, name: str, command: Optional[str], runner: Runner, required: bool = True, logger: Logger = None):
         """
         The constructor does nothing to check the tool. Invoke the validate() method to fill the meaningful fields.
 
@@ -105,11 +105,11 @@ class ToolsValidationResults(List[ToolValidator]):
         return basic_report + verbose_report
 
 
-def validate_environment(config: stm32pio.core.config.Config, cubemx: stm32pio.core.cubemx.CubeMX, logger: stm32pio.core.log.Logger) -> ToolsValidationResults:
+def validate_environment(config: Config, cubemx: CubeMX, logger: Logger) -> ToolsValidationResults:
     """Verify tools specified in the 'app' section of the current configuration"""
 
     def java_runner(java_cmd):
-        with stm32pio.core.log.LogPipe(logger, logging.DEBUG) as log:
+        with LogPipe(logger, logging.DEBUG) as log:
             completed_process = subprocess.run([java_cmd, '-version'], stdout=log.pipe, stderr=log.pipe)
             std_output = log.value
         return completed_process, std_output
@@ -118,7 +118,7 @@ def validate_environment(config: stm32pio.core.config.Config, cubemx: stm32pio.c
         return cubemx.execute_script('exit\n')  # just start and exit
 
     def platformio_runner(platformio_cmd):
-        with stm32pio.core.log.LogPipe(logger, logging.DEBUG) as log:
+        with LogPipe(logger, logging.DEBUG) as log:
             completed_process = subprocess.run([platformio_cmd], stdout=log.pipe, stderr=log.pipe)
             std_output = log.value
         return completed_process, std_output

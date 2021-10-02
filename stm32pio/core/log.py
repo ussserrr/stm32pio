@@ -17,8 +17,8 @@ import traceback
 import warnings
 from typing import Any, MutableMapping, Tuple, Mapping, Optional, List, Union
 
-import stm32pio.core.config
-import stm32pio.core.settings
+from stm32pio.core.config import Config
+from stm32pio.core.settings import show_traceback_threshold_level
 
 
 _module_logger = logging.getLogger(__name__)  # this module logger
@@ -162,11 +162,13 @@ class LogPipe(threading.Thread, contextlib.AbstractContextManager):
     messages in the string for using it after an execution
     """
 
-    def __init__(self, logger: 'stm32pio.core.log.Logger' = None, level: int = logging.INFO, *args, **kwargs):
+    # TODO: use new "accumulate_logs" flag
+    def __init__(self, logger: Logger = None, level: int = logging.INFO, accumulate_logs: bool = True, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.logger = logger
         self.level = level
+        self.accumulate_logs = accumulate_logs
 
         self.fd_read, self.fd_write = os.pipe()  # create 2 ends of the pipe and setup the reading one
         self.pipe_reader = os.fdopen(self.fd_read)
@@ -186,8 +188,8 @@ class LogPipe(threading.Thread, contextlib.AbstractContextManager):
         Routine of the thread, logging everything
         """
         for line in iter(self.pipe_reader.readline, ''):  # stops the iterator when empty string will occur
-            # TODO: We don't always need an accumulated value, don't we? This can be quite large, actually
-            self.rc.accumulator.append(line)  # accumulate the string
+            if self.accumulate_logs:
+                self.rc.accumulator.append(line)  # accumulate the string
             if self.logger:
                 # Mark the message origin
                 self.logger.log(self.level, line.strip('\n'), extra={'from_subprocess': True})
@@ -201,7 +203,7 @@ class LogPipe(threading.Thread, contextlib.AbstractContextManager):
         os.close(self.fd_write)
 
 
-def log_current_exception(logger: 'stm32pio.core.log.Logger', show_traceback: bool = None, config: stm32pio.core.config.Config = None) -> None:
+def log_current_exception(logger: Logger, show_traceback: bool = None, config: Config = None) -> None:
     """
     Print format is:
 
@@ -222,7 +224,7 @@ def log_current_exception(logger: 'stm32pio.core.log.Logger', show_traceback: bo
     """
 
     if show_traceback is None:
-        show_traceback = logger.isEnabledFor(stm32pio.core.settings.show_traceback_threshold_level)
+        show_traceback = logger.isEnabledFor(show_traceback_threshold_level)
 
     lines = traceback.format_exc().splitlines()
     message = lines[-1]
@@ -232,8 +234,8 @@ def log_current_exception(logger: 'stm32pio.core.log.Logger', show_traceback: bo
 
     if config is not None:
         logger.error(message)
-        retcode = config.save({'project': {'last_error': f"{message}\n{tb}"}})
-        if retcode == 0:
+        return_code = config.save({'project': {'last_error': f"{message}\n{tb}"}})
+        if return_code == 0:
             logger.info(f"Traceback has been saved to the {config.path.name}. It will be cleared on the next "
                         "successful run")
         else:

@@ -23,7 +23,8 @@ config_default = collections.OrderedDict(  # guarantees printing to the file in 
     app={
         # How do you start Java from the command line? (edit if Java not in PATH). Can be safely set to 'None' (string)
         # if in your setup the CubeMX can be invoked directly
-        'java_cmd': 'C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/jre/bin/java.exe'
+        'java_cmd':
+            'C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeMX/jre/bin/java.exe'
             if my_os == 'Windows' else 'None',
 
         # How do you start PlatformIO from the command line? (edit if not in PATH, if you use PlatformIO IDE see
@@ -69,7 +70,8 @@ config_default = collections.OrderedDict(  # guarantees printing to the file in 
         'cleanup_ignore': '',
         'cleanup_use_git': False,  # if True, 'clean' command will use git to perform the task
 
-        'inspect_ioc': True  # TODO: use getboolean, remove yes/no options? (this config will also change, need to check backwards compatibility)
+        'inspect_ioc': True  # TODO: use getboolean, remove yes/no options? (this config will also change,
+                             #  need to check for backwards compatibility)
     }
 )
 
@@ -80,6 +82,7 @@ yes_options = ['y', 'yes', 'true', '1']
 
 # CubeMX 0 return code doesn't necessarily means the correct generation (e.g. migration dialog has appeared and 'Cancel'
 # was chosen, or CubeMX_version < ioc_file_version, etc.), we should analyze the actual output (STDOUT)
+# noinspection SpellCheckingInspection
 cubemx_str_indicating_success = 'Code succesfully generated'
 cubemx_str_indicating_error = 'Exception in code generation'  # final line "KO" is also a good sign of an error
 

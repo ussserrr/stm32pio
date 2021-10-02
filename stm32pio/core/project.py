@@ -3,20 +3,17 @@ Core class representing a single STM32CubeMX + PlatformIO project. This interfac
 3rd-party applications (CLI, GUI, embedding, ...).
 """
 
-import copy
 import logging
-import shutil
-import subprocess
+import os
+import pathlib
 import weakref
-from os import PathLike
-from pathlib import Path
-from typing import Mapping, Any
+from typing import Mapping, Any, Union
 
 import stm32pio.core.config
+import stm32pio.core.clean
 import stm32pio.core.cubemx
 import stm32pio.core.log
 import stm32pio.core.pio
-import stm32pio.core.settings
 import stm32pio.core.state
 import stm32pio.core.util
 import stm32pio.core.validate
@@ -41,8 +38,8 @@ class Stm32pio:
     action can be invoked even having only a name of it – by utilizing getattr())
     """
 
-    def __init__(self, path: PathLike, parameters: Mapping = None, save_on_destruction: bool = False,
-                 logger: stm32pio.core.log.Logger = None):
+    def __init__(self, path: Union[str, bytes, os.PathLike], parameters: Mapping = None,
+                 save_on_destruction: bool = False, logger: stm32pio.core.log.Logger = None):
         """
         Minimal requirement for the file system directory to be considered as project is to have a CubeMX .ioc file so
         it (or its containing directory) is the primary identifier that should be supplied on initialization. In case of
@@ -62,15 +59,16 @@ class Stm32pio:
             underlying_logger = logging.getLogger('stm32pio.projects')
             self.logger = stm32pio.core.log.ProjectLoggerAdapter(underlying_logger, {'project_id': id(self)})
 
-        path = Path(path).expanduser().resolve(strict=True)
+        ioc_or_dir = pathlib.Path(path).expanduser().resolve(strict=True)
         explicit_ioc_file_name = None
-        if path.is_file() and path.suffix == '.ioc':  # if .ioc file was supplied instead of the directory
-            explicit_ioc_file_name = path.name
-            path = path.parent
-        elif not path.is_dir():
-            raise ValueError(f"project path '{path}' is incorrect. It should be a directory with an .ioc file or"
+        if ioc_or_dir.is_file() and ioc_or_dir.suffix == '.ioc':  # if .ioc file was supplied instead of the directory
+            explicit_ioc_file_name = ioc_or_dir.name
+            ioc_or_dir = ioc_or_dir.parent
+            self.logger.debug(f"explicit '{explicit_ioc_file_name}' file provided")
+        elif not ioc_or_dir.is_dir():
+            raise ValueError(f"project path '{ioc_or_dir}' is incorrect. It should be a directory with an .ioc file or"
                              "an .ioc file itself")
-        self.path = path
+        self.path = ioc_or_dir
 
         self.config = stm32pio.core.config.Config(self.path, runtime_parameters=parameters, logger=self.logger)
 
@@ -175,59 +173,34 @@ class Stm32pio:
 
     def clean(self, quiet_on_cli: bool = True) -> None:
         """
-        Clean-up the project folder. The method uses whether its own algorithm or can delegate the task to git (``git
-        clean`` command). This behavior is controlled by the project config's ``cleanup_use_git`` option. Note that the
-        results may not be as you initially expected with ``git clean``, refer to its docs for clarification. For
-        example, with a fresh new repository given, you actually need to run ``git add --all`` first, otherwise nothing
-        will be removed by git.
+        Clean-up a project folder. The method uses whether its own algorithm or can delegate the task to git (``git
+        clean`` command). This behavior is controlled by project config's ``cleanup_use_git`` option. Note that results
+        may not be as you initially expected with ``git clean``, refer to its docs for clarification. For example, with
+        a fresh new repository given, you actually need to run ``git add --all`` first, otherwise nothing will be
+        removed by git.
 
-        :param quiet_on_cli: should the function ask a user (on CLI, currently) before actually removing any file/folder
+        :param quiet_on_cli: should we ask a user (on CLI only, currently) before actually removing any file/folder
         """
 
         if self.config.getboolean('project', 'cleanup_use_git', fallback=False):
             self.logger.info("'cleanup_use_git' option is true, git will be used to perform the cleanup...")
-            # Remove files listed in .gitignore
-            args = ['git', 'clean', '-d', '--force', '-X']
-            if not quiet_on_cli:
-                args.append('--interactive')
-            if not self.logger.isEnabledFor(logging.DEBUG):
-                args.append('--quiet')
-            with stm32pio.core.log.LogPipe(self.logger, logging.INFO) as log:
-                # TODO: str(self.path) - 3.6 compatibility
-                subprocess.run(args, check=True, cwd=str(self.path), stdout=log.pipe, stderr=log.pipe)
-            self.logger.info("Done", extra={'from_subprocess': True})
+            worker = stm32pio.core.clean.GitStrategyI(self.path, self.logger, ask_confirmation=not quiet_on_cli)
         else:
-            removal_list = stm32pio.core.util.get_folder_contents(
-                self.path, ignore_list=self.config.get_ignore_list('project', 'cleanup_ignore'))
-            if len(removal_list):
-                if not quiet_on_cli:
-                    removal_str = '\n'.join(f'  {path.relative_to(self.path)}' for path in removal_list)
-                    while True:
-                        reply = input(f"These files/folders will be deleted:\n{removal_str}\nAre you sure? (y/n) ")
-                        if reply.lower() in stm32pio.core.settings.yes_options:
-                            break
-                        elif reply.lower() in stm32pio.core.settings.no_options:
-                            return
+            worker = stm32pio.core.clean.DefaultStrategyI(
+                self.path, self.logger, ask_confirmation=not quiet_on_cli,
+                ignore_list=self.config.get_ignore_list('project', 'cleanup_ignore'))
 
-                for entry in removal_list:
-                    if entry.is_dir():
-                        shutil.rmtree(entry)  # use shutil.rmtree() to delete non-empty directories
-                        self.logger.debug(f'del "{entry.relative_to(self.path)}"/')
-                    elif entry.is_file():
-                        entry.unlink()
-                        self.logger.debug(f'del "{entry.relative_to(self.path)}"')
-                self.logger.info("project has been cleaned")
-            else:
-                self.logger.info("no files/folders to remove")
+        worker.clean()
 
     def inspect_ioc_config(self) -> None:
-        """
-        Check the current .ioc configuration PlatformIO compatibility. MCU matching is not used at the moment as we
-        don't have a reliable way to obtain one from the platformio.ini (where it can be possibly specified?)
-        """
-        # TODO: use platformio_mcu matching, too
-        #  (see https://docs.platformio.org/en/latest/projectconf/section_env_platform.html#board-build-mcu)
-        self.cubemx.ioc.inspect(platformio_board=self.config.get('project', 'board'))
+        """Check the current .ioc configuration and PlatformIO compatibility"""
+
+        platformio_mcu = None
+        env_section = next((s for s in self.platformio.ini.sections() if 'env' in s), None)
+        if env_section is not None:
+            platformio_mcu = self.platformio.ini.get(env_section, 'board_build.mcu', fallback=None)
+
+        self.cubemx.ioc.inspect(platformio_board=self.config.get('project', 'board'), platformio_mcu=platformio_mcu)
 
     def validate_environment(self) -> stm32pio.core.validate.ToolsValidationResults:
         """

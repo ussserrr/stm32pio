@@ -39,6 +39,8 @@ class ProjectStage(enum.IntEnum):
         BUILT: same as above + '.pio' folder with build artifacts (such as .pio/build/nucleo_f031k6/firmware.bin,
                                                                            .pio/build/nucleo_f031k6/firmware.elf)
     """
+
+    # TODO: why Caps Lock?
     UNDEFINED = enum.auto()  # note: starts from 1
     EMPTY = enum.auto()
     INITIALIZED = enum.auto()
@@ -91,7 +93,7 @@ class ProjectState(collections.OrderedDict):
         pio_dir = project.path / '.pio'
 
         # Create the temporary ordered dictionary and fill it with the conditions results arrays
-        # TODO: dicts are insertion ordered (3.6+ CPython, 3.7+ language-wise)
+        # TODO: 3.6+ CPython, 3.7+ language-wise: dicts are insertion ordered already
         self[ProjectStage.UNDEFINED] = [True]
         self[ProjectStage.EMPTY] = [project.cubemx.ioc.path.is_file()]
         self[ProjectStage.INITIALIZED] = [project.config.path.is_file()]

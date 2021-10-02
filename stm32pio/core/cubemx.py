@@ -10,9 +10,10 @@ from typing import Tuple
 
 import stm32pio.core.log
 import stm32pio.core.settings
+import stm32pio.core.util
 
 
-# TODO: test case: text file but not an .ioc (just some text)
+# TODO: test case: text file given but not an .ioc (just some text)
 class IocConfig(ConfigParser):
     """
     .ioc file structure is actually very similar to INI-style configs and can be managed by the ConfigParser with small
@@ -20,15 +21,16 @@ class IocConfig(ConfigParser):
     """
 
     fake_section = 'me'
+    header = ''
 
     def __init__(self, parent_path: Path, file_name: str, logger: stm32pio.core.log.Logger):
-        # self.logger.debug(f"using explicitly provided '{explicit_file.name}' file")
         self.logger = logger
         self.path = self._find_ioc_file(parent_path, file_name)
         super().__init__(interpolation=None)
         self.optionxform = lambda option: option  # do not modify the keys
-        content = f'[{self.fake_section}]\n' + self.path.read_text()  # ConfigParser cannot handle headless configs
-        self.read_string(content)
+        content = self.path.read_text()
+        self.read_string(f'[{self.fake_section}]\n' + content)  # ConfigParser cannot handle headless configs
+        self.header = stm32pio.core.util.extract_header_comment(content, comment_symbol='#')
 
     def _find_ioc_file(self, parent_path: Path, file_name: str) -> Path:
         """
@@ -46,13 +48,13 @@ class IocConfig(ConfigParser):
         # 2. Check the value from the config file
         if len(file_name) > 0:
             result_file = parent_path.joinpath(file_name).resolve(strict=True)
-            self.logger.debug(f"using '{result_file.name}' file from the INI config")
+            self.logger.debug(f"using '{result_file.name}' file")
 
         # 3. Otherwise search for an appropriate file by yourself
         else:
             self.logger.debug("searching for any .ioc file...")
             candidates = list(parent_path.glob('*.ioc'))
-            if len(candidates) == 0:  # TODO: good candidate for the new Python 3.8 assignment expression feature :)
+            if len(candidates) == 0:  # TODO: Python 3.8: assignment expression feature
                 raise FileNotFoundError("CubeMX project .ioc file")
             elif len(candidates) == 1:
                 self.logger.debug(f"'{candidates[0].name}' is selected")
@@ -80,7 +82,7 @@ class IocConfig(ConfigParser):
         self.write(fake_file, space_around_delimiters=False)
         config_text = fake_file.getvalue()
         self.path.write_text(
-            "#MicroXplorer Configuration settings - do not modify\n" +
+            (self.header if self.header else '') +
             config_text[config_text.index('\n') + 1:-1]  # remove fake section name (first line) and last \n
         )
         fake_file.close()
@@ -128,7 +130,8 @@ class IocConfig(ConfigParser):
 
 
 class CubeMX:
-    def __init__(self, work_dir: Path, ioc_file_name: str, exe_cmd: str, java_cmd: str, logger: stm32pio.core.log.Logger):
+    def __init__(self, work_dir: Path, ioc_file_name: str, exe_cmd: str, java_cmd: str,
+                 logger: stm32pio.core.log.Logger):
         self.logger = logger
         self.work_dir = work_dir
         self.ioc = IocConfig(work_dir, ioc_file_name, logger)
@@ -145,8 +148,7 @@ class CubeMX:
             combined)
         """
 
-        # Use mkstemp() instead of the higher-level API for the compatibility with the Windows (see tempfile docs for
-        # more details)
+        # Use mkstemp() instead of higher-level API for compatibility with Windows (see tempfile docs for more details)
         cubemx_script_file, cubemx_script_name = tempfile.mkstemp()
 
         # We must remove the temp directory, so do not let any exception break our plans

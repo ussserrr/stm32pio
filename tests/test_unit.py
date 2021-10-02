@@ -272,7 +272,7 @@ class TestUnit(CustomTestCase):
 
     def test_inspect_ioc(self):
         with self.subTest(msg="Parsing an .ioc file"):
-            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logging.getLogger())
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logger=logging.getLogger('any'))
             self.assertSequenceEqual(config.sections(), [stm32pio.core.cubemx.IocConfig.fake_section],
                                      msg="Incorrect set of config sections", seq_type=list)
             self.assertGreater(len(config[config.fake_section].keys()), 10, msg="There should be a lot of keys")
@@ -295,10 +295,22 @@ class TestUnit(CustomTestCase):
                 config.inspect(PROJECT_BOARD)
             self.assertEqual(len(logs.records), 4, msg="There should be 4 warning log messages")
 
+        with self.subTest(msg="Custom board with unmatched MCUs"):
+            ioc_content = inspect.cleandoc('''
+                board=custom
+                ProjectManager.DeviceId=some_wrong_mcu
+            ''') + '\n'
+            invalid_ioc = STAGE_PATH / 'invalid.ioc'
+            invalid_ioc.write_text(ioc_content)
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, 'invalid.ioc', logger=logging.getLogger('any'))
+            with self.assertLogs(logger='any', level=logging.WARNING) as logs:
+                config.inspect(PROJECT_BOARD, 'STM32F031K6T6')
+            self.assertTrue(any('MCU' in line for line in logs.output), msg="No mention of mismatched MCUs")
+
         with self.subTest(msg="Saving the config back"):
             ioc_file = STAGE_PATH / PROJECT_IOC_FILENAME
             initial_content = ioc_file.read_text()
-            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logging.getLogger())
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logger=logging.getLogger('any'))
 
             config.save()
             self.assertEqual(ioc_file.read_text(), initial_content, msg="Configs should be identical")

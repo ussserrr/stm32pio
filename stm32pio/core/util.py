@@ -133,3 +133,22 @@ def run_command(command: str, path: Path, logger: 'stm32pio.core.log.Logger') ->
     except subprocess.CalledProcessError as e:
         logger.error(f"failed to start '{executable_name}': {e.stdout}")
         return e.returncode
+
+
+def extract_header_comment(text: str, comment_symbol: str = '#') -> str:
+    """
+    If text has 1 or more of its first consequent lines that starts with comment_symbol, return them.
+
+    :param text: string to analyze
+    :param comment_symbol: symbol for line to be considered as a comment (e.g. # or //)
+    :return: header comment
+    """
+
+    header_comment = ''
+    if text.startswith(comment_symbol):
+        for line in text.splitlines(keepends=True):
+            if line.startswith(comment_symbol):
+                header_comment += line
+            else:
+                break
+    return header_comment

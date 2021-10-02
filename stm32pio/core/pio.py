@@ -13,8 +13,9 @@ from io import StringIO
 from pathlib import Path
 from typing import List
 
-import stm32pio.core.settings
 import stm32pio.core.log
+import stm32pio.core.settings
+import stm32pio.core.util
 
 
 class PlatformioINI(configparser.ConfigParser):
@@ -56,12 +57,8 @@ class PlatformioINI(configparser.ConfigParser):
             self.remove_section(section)
         content = self.path.read_text()
         self.read_string(content)
-        if not self.header and content.startswith(';'):
-            for line in content.splitlines(keepends=True):
-                if line.startswith(';'):
-                    self.header += line
-                else:
-                    break
+        if not self.header:
+            self.header = stm32pio.core.util.extract_header_comment(content, comment_symbol=';')
 
     @property
     def is_initialized(self) -> bool:
@@ -223,8 +220,8 @@ _pio_boards_cache: List[str] = []
 _pio_boards_cache_fetched_at: float = 0
 
 
-# TODO: is there some std lib implementation of temp cache?
-#  (no, look at 3rd-party alternative: https://github.com/tkem/cachetools, just like lru_cache)
+# Is there some std lib implementation of temp cache? No, look at 3rd-party alternative, just like lru_cache:
+# https://github.com/tkem/cachetools
 def get_boards(platformio_cmd: str = stm32pio.core.settings.config_default['app']['platformio_cmd']) -> List[str]:
     """
     Obtain the PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the
