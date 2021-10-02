@@ -19,12 +19,20 @@ class ICleanStrategy(ABC):
     """Common interface for different cleaners"""
 
     def __init__(self, path: Path, logger: Logger, ask_confirmation: bool):
+        """
+        :param path: working directory
+        :param logger: logging.Logger-compatible object
+        :param ask_confirmation: if True, the full removal list will be shown and the user will be asked (on CLI)
+        to proceed
+        """
         self.path = path
         self.logger = logger
         self.ask_confirmation = ask_confirmation
 
     @abstractmethod
-    def clean(self): raise NotImplementedError
+    def clean(self):
+        """Concrete implementation"""
+        raise NotImplementedError
 
 
 class DefaultStrategyI(ICleanStrategy):
@@ -32,10 +40,6 @@ class DefaultStrategyI(ICleanStrategy):
 
     def __init__(self, path: Path, logger: Logger, ask_confirmation: bool = True, ignore_list: List[Path] = None):
         """
-        :param path: working directory
-        :param logger: logging.Logger-compatible object
-        :param ask_confirmation: if True, the full removal list will be shown and the user will be asked (on CLI)
-        to proceed
         :param ignore_list: list of *concrete paths* to not remove
         """
         super().__init__(path, logger, ask_confirmation)
@@ -70,14 +74,23 @@ class DefaultStrategyI(ICleanStrategy):
 class GitStrategyI(ICleanStrategy):
     """Delegate the entire task to the Git. See its docs for ``git clean`` command for more information"""
 
-    # __init__ can take a git executable and command argument, for example
+    def __init__(self, path: Path, logger: Logger, ask_confirmation: bool = True, exe_cmd: str = 'git',
+                 clean_args: List[str] = None):
+        """
+        :param exe_cmd: command or a path to executable
+        :param clean_args: ``git clean`` command arguments
+        """
+        super().__init__(path, logger, ask_confirmation)
+        self.exe_cmd = exe_cmd
+        self.clean_args = clean_args if clean_args is not None else [
+            '-d', '--force',  # recurse into untracked directories
+            '-X'              # remove only files ignored by Git
+        ]
 
     def clean(self):
         """Run subprocess with appropriate arguments"""
         # Remove files listed in .gitignore (see git clean --help for more information)
-        command = ['git', 'clean',
-                   '-d', '--force',  # recurse into untracked directories
-                   '-X']             # remove only files ignored by Git
+        command = [self.exe_cmd, 'clean'] + self.clean_args
         if self.ask_confirmation:
             command.append('--interactive')
         if not self.logger.isEnabledFor(logging.DEBUG):

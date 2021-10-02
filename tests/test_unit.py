@@ -138,7 +138,7 @@ class TestUnit(CustomTestCase):
         """
         project = stm32pio.core.project.Stm32pio(STAGE_PATH)
 
-        editors = {  # some edotors to check
+        editors = {  # some editors to check
             'atom': {
                 'Windows': 'atom.exe',
                 'Darwin': 'Atom',
@@ -374,7 +374,7 @@ class TestUnit(CustomTestCase):
         with self.subTest(msg="not quiet, respond yes"):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             with unittest.mock.patch('builtins.input', return_value=stm32pio.core.settings.yes_options[0]):
-                project.clean(quiet_on_cli=False)
+                project.clean(quiet=False)
                 input_args, input_kwargs = input.call_args  # input() function was called with these arguments
                 input_prompt = input_args[0]
                 # Check only for a name as the path separator is different for UNIX/Win
@@ -388,7 +388,7 @@ class TestUnit(CustomTestCase):
         with self.subTest(msg="not quiet, respond no"):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             with unittest.mock.patch('builtins.input', return_value=stm32pio.core.settings.no_options[0]):
-                project.clean(quiet_on_cli=False)
+                project.clean(quiet=False)
             self.assertTrue(tree_exists_fully(STAGE_PATH, test_tree), msg="Test tree wasn't preserved")
             self.assertTrue(project.cubemx.ioc.path.exists(), msg=".ios file wasn't preserved")
 

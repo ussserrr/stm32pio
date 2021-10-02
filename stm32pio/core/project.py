@@ -171,7 +171,7 @@ class Stm32pio:
         """
         return stm32pio.core.util.run_command(editor_command, self.path, self.logger)
 
-    def clean(self, quiet_on_cli: bool = True) -> None:
+    def clean(self, quiet: bool = True) -> None:
         """
         Clean-up a project folder. The method uses whether its own algorithm or can delegate the task to git (``git
         clean`` command). This behavior is controlled by project config's ``cleanup_use_git`` option. Note that results
@@ -179,15 +179,15 @@ class Stm32pio:
         a fresh new repository given, you actually need to run ``git add --all`` first, otherwise nothing will be
         removed by git.
 
-        :param quiet_on_cli: should we ask a user (on CLI only, currently) before actually removing any file/folder
+        :param quiet: should we ask a user (on CLI only, currently) before actually removing any file/folder
         """
 
         if self.config.getboolean('project', 'cleanup_use_git', fallback=False):
             self.logger.info("'cleanup_use_git' option is true, git will be used to perform the cleanup...")
-            worker = stm32pio.core.clean.GitStrategyI(self.path, self.logger, ask_confirmation=not quiet_on_cli)
+            worker = stm32pio.core.clean.GitStrategyI(self.path, self.logger, ask_confirmation=not quiet)
         else:
             worker = stm32pio.core.clean.DefaultStrategyI(
-                self.path, self.logger, ask_confirmation=not quiet_on_cli,
+                self.path, self.logger, ask_confirmation=not quiet,
                 ignore_list=self.config.get_ignore_list('project', 'cleanup_ignore'))
 
         worker.clean()

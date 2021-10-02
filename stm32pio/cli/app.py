@@ -227,7 +227,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
             if args.store_content:
                 project.config.save_content_as_ignore_list()
             else:
-                project.clean(quiet_on_cli=args.quiet)
+                project.clean(quiet=args.quiet)
 
     # Global errors catching. Core library is designed to throw the exception in cases when there is no sense to
     # proceed. Of course this also suppose to handle any unexpected behavior, too
