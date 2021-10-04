@@ -164,7 +164,7 @@ class CubeMX:
                 # -q: read the commands from the file, -s: silent performance
                 command_arr += [self.exe_cmd, '-q', cubemx_script_name, '-s']
                 # Redirect the output of the subprocess into the logging module (with DEBUG level)
-                with stm32pio.core.log.LogPipe(self.logger, logging.DEBUG) as log:
+                with stm32pio.core.log.LogPipe(self.logger, logging.DEBUG, accumulate=True) as log:
                     completed_process = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
                     std_output = log.value
 
@@ -204,7 +204,7 @@ class CubeMX:
                 error_lines = [line for line in std_output.splitlines(keepends=True)
                                if stm32pio.core.settings.cubemx_str_indicating_error in line]
                 if len(error_lines):
-                    self.logger.error(error_lines, extra={'from_subprocess': True})
+                    self.logger.error(error_lines, from_subprocess=True)
                     raise Exception(error_msg)
                 else:
                     self.logger.warning("Undefined result from the CubeMX (neither error or success symptoms were "
@@ -212,8 +212,8 @@ class CubeMX:
                     return completed_process.returncode
         else:
             # Most likely the 'java' error (e.g. no CubeMX is present)
-            self.logger.error(f"Return code is {completed_process.returncode}", extra={'from_subprocess': True})
+            self.logger.error(f"Return code is {completed_process.returncode}", from_subprocess=True)
             if not self.logger.isEnabledFor(logging.DEBUG):
                 # In DEBUG mode the output has already been printed
-                self.logger.error(f"Output:\n{std_output}", extra={'from_subprocess': True})
+                self.logger.error(f"Output:\n{std_output}", from_subprocess=True)
             raise Exception(error_msg)

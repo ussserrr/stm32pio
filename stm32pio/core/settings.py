@@ -70,8 +70,7 @@ config_default = collections.OrderedDict(  # guarantees printing to the file in 
         'cleanup_ignore': '',
         'cleanup_use_git': False,  # if True, 'clean' command will use git to perform the task
 
-        'inspect_ioc': True  # TODO: use getboolean, remove yes/no options? (this config will also change,
-                             #  need to check for backwards compatibility)
+        'inspect_ioc': True
     }
 )
 
@@ -88,7 +87,7 @@ cubemx_str_indicating_error = 'Exception in code generation'  # final line "KO" 
 
 # Longest name (not necessarily a method so a little bit tricky...)
 # log_fieldwidth_function = max([len(member) for member in dir(stm32pio.lib.Stm32pio)]) + 1
-log_fieldwidth_function = 20
+log_fieldwidth_function = 20  # TODO: ugly and not so reliable...
 
 show_traceback_threshold_level: int = logging.DEBUG  # when log some error and need to print the traceback
 

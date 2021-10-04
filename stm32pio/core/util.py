@@ -127,7 +127,7 @@ def run_command(command: str, path: Path, logger: 'stm32pio.core.log.Logger') ->
             # result = subprocess.run([command, self.path], check=True)
             completed_process = subprocess.run(f'{sanitized_input} "{path}"', shell=True, check=True,
                                                stdout=log.pipe, stderr=log.pipe)
-        logger.debug(completed_process.stdout, extra={'from_subprocess': True})
+        logger.debug(completed_process.stdout, from_subprocess=True)
 
         return completed_process.returncode
     except subprocess.CalledProcessError as e:

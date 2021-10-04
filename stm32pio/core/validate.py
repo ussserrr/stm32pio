@@ -7,7 +7,7 @@ import subprocess
 from typing import Optional, Callable, Tuple, List
 
 import stm32pio.core.settings
-from stm32pio.core.config import Config
+from stm32pio.core.config import ProjectConfig
 from stm32pio.core.cubemx import CubeMX
 from stm32pio.core.log import Logger, LogPipe
 
@@ -42,14 +42,14 @@ class ToolValidator:
         self.required = required
         self.logger = logger
 
-    def _run(self, command):
+    def _run(self, command: str):
         """_macro_ function to reduce a code repetition"""
         completed_process, std_output = self.runner(command)
         self.succeed = completed_process.returncode == 0
         if completed_process.returncode != 0:
             self.error = Exception(std_output)
 
-    def validate(self):
+    def validate(self) -> 'ToolValidator':
         """Start the validation using collected information (properties). Return itself for further usage"""
 
         if self.logger is not None:
@@ -105,11 +105,11 @@ class ToolsValidationResults(List[ToolValidator]):
         return basic_report + verbose_report
 
 
-def validate_environment(config: Config, cubemx: CubeMX, logger: Logger) -> ToolsValidationResults:
+def validate_environment(config: ProjectConfig, cubemx: CubeMX, logger: Logger) -> ToolsValidationResults:
     """Verify tools specified in the 'app' section of the current configuration"""
 
     def java_runner(java_cmd):
-        with LogPipe(logger, logging.DEBUG) as log:
+        with LogPipe(logger, logging.DEBUG, accumulate=True) as log:
             completed_process = subprocess.run([java_cmd, '-version'], stdout=log.pipe, stderr=log.pipe)
             std_output = log.value
         return completed_process, std_output
@@ -118,7 +118,7 @@ def validate_environment(config: Config, cubemx: CubeMX, logger: Logger) -> Tool
         return cubemx.execute_script('exit\n')  # just start and exit
 
     def platformio_runner(platformio_cmd):
-        with LogPipe(logger, logging.DEBUG) as log:
+        with LogPipe(logger, logging.DEBUG, accumulate=True) as log:
             completed_process = subprocess.run([platformio_cmd], stdout=log.pipe, stderr=log.pipe)
             std_output = log.value
         return completed_process, std_output

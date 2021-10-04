@@ -40,7 +40,6 @@ class ProjectStage(enum.IntEnum):
                                                                            .pio/build/nucleo_f031k6/firmware.elf)
     """
 
-    # TODO: why Caps Lock?
     UNDEFINED = enum.auto()  # note: starts from 1
     EMPTY = enum.auto()
     INITIALIZED = enum.auto()

@@ -98,4 +98,4 @@ class GitStrategyI(ICleanStrategy):
         with LogPipe(self.logger, logging.INFO) as log:
             # TODO: Python 3.6 compatibility: str(self.path)
             subprocess.run(command, check=True, cwd=str(self.path), stdout=log.pipe, stderr=log.pipe)
-        self.logger.info("Done", extra={'from_subprocess': True})  # fake
+        self.logger.info("Done", from_subprocess=True)  # fake

@@ -41,7 +41,7 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
 
     # Global arguments (there is also an automatically added '-h, --help' option)
     root_parser.add_argument('--version', action='version', version=f"stm32pio {stm32pio.core.util.get_version()}")
-    root_parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', default=0)
+    root_parser.add_argument('-v', '--verbose', help="enable verbose output (default: INFO)", action='count', default=1)
 
     subparsers = root_parser.add_subparsers(dest='subcommand', title='subcommands', description="valid subcommands",
                                             help="available actions")
@@ -86,7 +86,7 @@ def parse_args(args: List[str]) -> Optional[argparse.Namespace]:
     return root_parser.parse_args(args)
 
 
-def setup_logging(verbose: int = 0, dummy: bool = False) -> logging.Logger:
+def setup_logging(verbose: int = 1, dummy: bool = False) -> logging.Logger:
     """
     Configure and return some root logger. The corresponding adapters for every project will be dependent on this.
 
@@ -102,18 +102,12 @@ def setup_logging(verbose: int = 0, dummy: bool = False) -> logging.Logger:
         logger.addHandler(logging.NullHandler())
     else:
         logger = logging.getLogger('stm32pio')
-        logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+        logger.setLevel(logging.DEBUG if verbose == 2 else logging.INFO)
         handler = logging.StreamHandler()
-        formatter = stm32pio.core.log.DispatchingFormatter(
-            verbosity=stm32pio.core.log.Verbosity.VERBOSE if verbose else stm32pio.core.log.Verbosity.NORMAL,
-            general={
-                stm32pio.core.log.Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
-                stm32pio.core.log.Verbosity.VERBOSE: logging.Formatter(
-                    f"%(levelname)-8s %(funcName)-{stm32pio.core.settings.log_fieldwidth_function}s %(message)s")
-            })
+        formatter = stm32pio.core.log.DispatchingFormatter(verbosity=stm32pio.core.log.Verbosity(verbose))
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-        logger.debug("debug logging enabled")
+        logger.debug("debug logging enabled")  # will be printed only in verbose mode
     return logger
 
 
@@ -159,8 +153,9 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
             project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
                                                      save_on_destruction=True)
             if args.store_content:
-                project.config.save_content_as_ignore_list()
+                project.config.set_content_as_ignore_list()
             if project.config.get('project', 'board') == '':
+                # TODO: do not repeat a string
                 logger.warning("PlatformIO board identifier is not specified, it will be needed on PlatformIO project "
                                "creation. Type 'pio boards' or go to https://platformio.org to find an appropriate "
                                "identifier")
@@ -197,7 +192,7 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
             project = stm32pio.core.project.Stm32pio(args.path, parameters={'project': {'board': args.board}},
                                                      save_on_destruction=True)
             if args.store_content:
-                project.config.save_content_as_ignore_list()
+                project.config.set_content_as_ignore_list()
             if project.config.get('project', 'board') == '':
                 logger.info(f"project has been initialized. You can now edit {stm32pio.core.settings.config_file_name} "
                             "config file")
@@ -225,7 +220,8 @@ def main(sys_argv: List[str] = None, should_setup_logging: bool = True) -> int:
         elif args.subcommand == 'clean':
             project = stm32pio.core.project.Stm32pio(args.path)
             if args.store_content:
-                project.config.save_content_as_ignore_list()
+                project.config.set_content_as_ignore_list()
+                project.config.save()
             else:
                 project.clean(quiet=args.quiet)
 

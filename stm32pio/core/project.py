@@ -57,7 +57,7 @@ class Stm32pio:
             # Individual loggers for every single project allows to fine-tune the output when multiple projects are
             # created by some client code. Here we utilize id() for this
             underlying_logger = logging.getLogger('stm32pio.projects')
-            self.logger = stm32pio.core.log.ProjectLoggerAdapter(underlying_logger, {'project_id': id(self)})
+            self.logger = stm32pio.core.log.ProjectLogger(underlying_logger, project_id=id(self))
 
         ioc_or_dir = pathlib.Path(path).expanduser().resolve(strict=True)
         explicit_ioc_file_name = None
@@ -70,7 +70,7 @@ class Stm32pio:
                              "an .ioc file itself")
         self.path = ioc_or_dir
 
-        self.config = stm32pio.core.config.Config(self.path, runtime_parameters=parameters, logger=self.logger)
+        self.config = stm32pio.core.config.ProjectConfig(self.path, self.logger, runtime_parameters=parameters)
 
         self.cubemx = stm32pio.core.cubemx.CubeMX(
             work_dir=self.path,
@@ -196,7 +196,7 @@ class Stm32pio:
         """Check the current .ioc configuration and PlatformIO compatibility"""
 
         platformio_mcu = None
-        env_section = next((s for s in self.platformio.ini.sections() if 'env' in s), None)
+        env_section = next((section for section in self.platformio.ini.sections() if 'env' in section), None)
         if env_section is not None:
             platformio_mcu = self.platformio.ini.get(env_section, 'board_build.mcu', fallback=None)
 

@@ -49,7 +49,7 @@ class ProjectListItem(QObject):
         self._from_startup = from_startup
 
         underlying_logger = logging.getLogger('stm32pio.gui.projects')
-        self.logger = stm32pio.core.log.ProjectLoggerAdapter(underlying_logger, {'project_id': id(self)})
+        self.logger = stm32pio.core.log.ProjectLogger(underlying_logger, project_id=id(self))
         self.logging_worker = LoggingWorker(project_id=id(self))
         self.logging_worker.sendLog.connect(self.logAdded)
 

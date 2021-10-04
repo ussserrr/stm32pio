@@ -87,7 +87,6 @@ class PlatformioINI(configparser.ConfigParser):
             if self.has_section(patch_section):
                 for patch_key, patch_value in self.patch_config.items(patch_section):
                     platformio_ini_value = self.get(patch_section, patch_key, fallback=None)
-                    # TODO: #58: strict equality is an unreliable characteristic
                     if platformio_ini_value != patch_value:
                         self.logger.debug(f"[{patch_section}]{patch_key}: patch value is\n  {patch_value}\nbut "
                                           f"{self.path.name} contains\n  {platformio_ini_value}")
@@ -179,14 +178,14 @@ class PlatformIO:
         if completed_process.returncode == 0:
             # PlatformIO returns 0 even on some errors (e.g. no '--board' argument)
             if 'error' in completed_process.stdout.lower():  # guessing
-                self.logger.error(completed_process.stdout, extra={'from_subprocess': True})
+                self.logger.error(completed_process.stdout, from_subprocess=True)
                 raise Exception(error_msg)
-            self.logger.debug(completed_process.stdout, extra={'from_subprocess': True})
+            self.logger.debug(completed_process.stdout, from_subprocess=True)
             self.logger.info("successful PlatformIO project initialization")
             return completed_process.returncode
         else:
             self.logger.error(f"return code is {completed_process.returncode}. Output:\n\n{completed_process.stdout}",
-                              extra={'from_subprocess': True})
+                              from_subprocess=True)
             raise Exception(error_msg)
 
     def build(self) -> int:

@@ -444,7 +444,7 @@ class TestUnit(CustomTestCase):
         plant_fs_tree(STAGE_PATH, test_tree)
         with self.subTest(msg="save current content in ignore list"):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
-            project.config.save_content_as_ignore_list()
+            project.config.set_content_as_ignore_list()
             STAGE_PATH.joinpath('this_file_should_be_removed').touch()
             project.clean()
             self.assertTrue(tree_exists_fully(STAGE_PATH, test_tree), msg="Test tree should be preserved")
