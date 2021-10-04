@@ -128,10 +128,10 @@ class DispatchingFormatter(logging.Formatter):
         }
     }
 
-    def __init__(self, *args, general: Mapping[Verbosity, logging.Formatter] = None,
-                 special: Mapping[str, Mapping[Verbosity, logging.Formatter]] = None,
-                 verbosity: Verbosity = Verbosity.NORMAL, **kwargs):
-        super().__init__(*args, **kwargs)  # will be '%(message)s' if no arguments were given
+    def __init__(self, verbosity: Verbosity = Verbosity.NORMAL,
+                 general: Mapping[Verbosity, logging.Formatter] = None,
+                 special: Mapping[SpecialLogEvent, Mapping[Verbosity, logging.Formatter]] = None):
+        super().__init__()  # will be '%(message)s'
         self.verbosity = verbosity
         self.general = DispatchingFormatter.GENERAL_FORMATTERS_DEFAULT if general is None else general
         self.special = DispatchingFormatter.SPECIAL_FORMATTERS_DEFAULT if special is None else special

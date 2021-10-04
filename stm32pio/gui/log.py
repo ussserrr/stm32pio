@@ -7,7 +7,6 @@ from typing import MutableMapping
 from PySide2.QtCore import QObject, Signal, QThread, QtInfoMsg, QtWarningMsg, QtCriticalMsg, QtFatalMsg, \
     qInstallMessageHandler
 
-from stm32pio.core.settings import log_fieldwidth_function
 from stm32pio.core.log import Verbosity, DispatchingFormatter
 
 from stm32pio.gui.util import ProjectID
@@ -136,9 +135,4 @@ projects_logger = logging.getLogger('stm32pio.gui.projects')
 projects_logger_handler = BuffersDispatchingHandler()  # a storage of the buffers for the logging messages of all
                                                        # current projects (see its docs for more info)
 
-_projects_logger_formatter = DispatchingFormatter(
-    general={
-        Verbosity.NORMAL: logging.Formatter("%(levelname)-8s %(message)s"),
-        Verbosity.VERBOSE: logging.Formatter(
-            f"%(levelname)-8s %(funcName)-{log_fieldwidth_function}s %(message)s")
-    })
+_projects_logger_formatter = DispatchingFormatter()
