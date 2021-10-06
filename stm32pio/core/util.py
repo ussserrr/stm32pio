@@ -1,5 +1,5 @@
 """
-Some auxiliary entities not falling into the more specific categories.
+Some service code not falling into more specific categories.
 """
 
 import collections.abc
@@ -24,7 +24,7 @@ def _get_version_from_scm() -> str:
         return setuptools_scm.get_version(root='../..', relative_to=__file__)
 
 
-# TODO: refactor this after dropping 3.7-
+# TODO: refactor this after dropping 3.7
 def get_version() -> str:
     """Retrieve the app version as string"""
     if sys.version_info >= (3, 8):
@@ -137,7 +137,7 @@ def run_command(command: str, path: Path, logger: 'stm32pio.core.log.Logger') ->
 
 def extract_header_comment(text: str, comment_symbol: str = '#') -> str:
     """
-    If text has 1 or more of its first consequent lines that starts with comment_symbol, return them.
+    If text has 1 or more of its first consequent lines that starts with ``comment_symbol``, return them.
 
     :param text: string to analyze
     :param comment_symbol: symbol for line to be considered as a comment (e.g. # or //)

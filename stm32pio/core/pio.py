@@ -3,14 +3,14 @@ This module encapsulates logic needed by stm32pio to interact with PlatformIO CL
 possible import confusions with the real ``platformio.py`` package.
 """
 
-import copy
 import json
 import logging
 import subprocess
-import time
 import configparser
+from copy import copy
 from io import StringIO
 from pathlib import Path
+from time import time
 from typing import List
 
 import stm32pio.core.log
@@ -49,9 +49,11 @@ class PlatformioINI(configparser.ConfigParser):
             self.patch_config_exception = e
         super().__init__(interpolation=None)
 
-    def sync(self) -> None:
+    def sync(self) -> int:
         """
         Clean itself and re-read the config from self.path. Store first N consecutive lines starting with ; as a header
+
+        :return: number of sections after readout (excluding DEFAULT)
         """
         for section in self.sections():
             self.remove_section(section)
@@ -59,12 +61,12 @@ class PlatformioINI(configparser.ConfigParser):
         self.read_string(content)
         if not self.header:
             self.header = stm32pio.core.util.extract_header_comment(content, comment_symbol=';')
+        return len(self.sections())
 
     @property
     def is_initialized(self) -> bool:
         """Config considered to be initialized when the file is present, correct and not empty"""
-        self.sync()
-        return len(self.sections()) > 0
+        return self.sync() > 0
 
     @property
     def is_patched(self) -> bool:
@@ -107,8 +109,7 @@ class PlatformioINI(configparser.ConfigParser):
         else:
             self.logger.debug(f"patching {self.path.name} file...")
 
-            # Merge 2 configs
-            for patch_section in self.patch_config.sections():
+            for patch_section in self.patch_config.sections():  # merge 2 configs
                 if not self.has_section(patch_section):
                     self.logger.debug(f"[{patch_section}] section was added")
                     self.add_section(patch_section)
@@ -119,8 +120,9 @@ class PlatformioINI(configparser.ConfigParser):
             fake_file = StringIO()
             self.write(fake_file)
             config_text = fake_file.getvalue()
-            restored_header = (self.header + '\n') if self.header else ''
-            self.path.write_text(restored_header + config_text[:-1])
+            self.path.write_text(
+                ((self.header + '\n') if self.header else '') +  # restore a header
+                config_text[:-1])  # omit trailing \n
             fake_file.close()
             self.logger.debug(f"{self.path.name} has been patched")
 
@@ -155,42 +157,39 @@ class PlatformIO:
         self.logger.info("starting PlatformIO project initialization...")
 
         try:
-            if len(self.ini.sections()):
+            if self.ini.sync():
                 self.logger.warning(f"{self.ini.path.name} file already exist")
             # else: file is empty – PlatformIO should overwrite it
         except FileNotFoundError:
             pass  # no file – PlatformIO will create it
         except configparser.Error:
-            self.logger.warning(f"{self.ini.path.name} file is incorrect, trying to proceed now...")
+            self.logger.warning(f"{self.ini.path.name} file is incorrect, trying to proceed...")
 
         command_arr = [self.exe_cmd, 'project', 'init',
                        '--project-dir', str(self.project_path),
                        '--board', board,
                        '--project-option', 'framework=stm32cube',
-                       '--project-option', 'board_build.stm32cube.custom_config_header=yes']
+                       '--project-option', 'board_build.stm32cube.custom_config_header=yes']  # see #26
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
 
-        completed_process = subprocess.run(command_arr, encoding='utf-8',
-                                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        process = subprocess.run(command_arr, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         error_msg = "PlatformIO project initialization error"
-        if completed_process.returncode == 0:
-            # PlatformIO returns 0 even on some errors (e.g. no '--board' argument)
-            if 'error' in completed_process.stdout.lower():  # guessing
-                self.logger.error(completed_process.stdout, from_subprocess=True)
+        if process.returncode == 0:  # PlatformIO returns 0 even on some errors (e.g. no '--board' argument)
+            if 'error' in process.stdout.lower():  # strictly speaking, here we're just guessing
+                self.logger.error(process.stdout, from_subprocess=True)
                 raise Exception(error_msg)
-            self.logger.debug(completed_process.stdout, from_subprocess=True)
+            self.logger.debug(process.stdout, from_subprocess=True)
             self.logger.info("successful PlatformIO project initialization")
-            return completed_process.returncode
+            return process.returncode
         else:
-            self.logger.error(f"return code is {completed_process.returncode}. Output:\n\n{completed_process.stdout}",
-                              from_subprocess=True)
+            self.logger.error(f"return code: {process.returncode}. Output:\n\n{process.stdout}",  from_subprocess=True)
             raise Exception(error_msg)
 
     def build(self) -> int:
         """
-        Initiate a build (``platformio run`` command)
+        Initiate a build (``platformio run`` command).
 
         :return: Return code of the executed command
         """
@@ -198,52 +197,55 @@ class PlatformIO:
         self.logger.info("starting PlatformIO project build...")
 
         command_arr = [self.exe_cmd, 'run', '--project-dir', str(self.project_path)]
+
+        log_level = logging.DEBUG
         if not self.logger.isEnabledFor(logging.DEBUG):
             command_arr.append('--silent')
+            log_level = logging.WARNING  # in silent mode PlatformIO producing only warnings, if any
 
-        # In the non-verbose mode (logging.INFO) there would be a '--silent' option so if the PlatformIO will decide to
-        # output something then it's really important and we use logging.WARNING as a level
-        log_level = logging.DEBUG if self.logger.isEnabledFor(logging.DEBUG) else logging.WARNING
         with stm32pio.core.log.LogPipe(self.logger, log_level) as log:
-            completed_process = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
+            process = subprocess.run(command_arr, stdout=log.pipe, stderr=log.pipe)
 
-        if completed_process.returncode == 0:
+        if process.returncode == 0:
             self.logger.info("successful PlatformIO build")
         else:
             self.logger.error("PlatformIO build error")
 
-        return completed_process.returncode
+        return process.returncode
 
 
 _pio_boards_cache: List[str] = []
 _pio_boards_cache_fetched_at: float = 0
 
 
+# TODO: probably some lock should be acquired preventing of more than 1 execution at a time (e.g. from threads)
 # Is there some std lib implementation of temp cache? No, look at 3rd-party alternative, just like lru_cache:
 # https://github.com/tkem/cachetools
 def get_boards(platformio_cmd: str = stm32pio.core.settings.config_default['app']['platformio_cmd']) -> List[str]:
     """
-    Obtain the PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the
-    others. Additionally, establish a short-time "cache" to prevent the over-flooding with requests to subprocess.
+    Obtain PlatformIO boards list (string identifiers only). As we interested only in STM32 ones, cut off all of the
+    others. Additionally, establish a short-time "cache" for quick serving of sequential calls.
 
-    IMPORTANT NOTE: PlatformIO can go to the Internet from time to time when it decides that its own cache is out of
-    date. So it may take a long time to execute.
+    IMPORTANT NOTE: PlatformIO can go online from time to time when decided that its own cache is out of
+    date. So it may take some time to execute on the first run after a long break.
+
+    :param platformio_cmd: path or command of PlatformIO executable
+    :return: list of STM32 PlatformIO boards codes
     """
 
     global _pio_boards_cache_fetched_at, _pio_boards_cache
 
     cache_is_empty = len(_pio_boards_cache) == 0
-    current_time = time.time()
+    current_time = time()
     cache_is_outdated = current_time - _pio_boards_cache_fetched_at >= stm32pio.core.settings.pio_boards_cache_lifetime
 
     if cache_is_empty or cache_is_outdated:
-        # Windows 7, as usual, correctly works only with shell=True...
-        completed_process = subprocess.run(
-            f"{platformio_cmd} boards --json-output stm32cube",
-            encoding='utf-8', shell=True, stdout=subprocess.PIPE, check=True)
-        _pio_boards_cache = [board['id'] for board in json.loads(completed_process.stdout)]
+        # TODO: check: Windows 7, as usual, correctly works only with shell=True...
+        process = subprocess.run(f"{platformio_cmd} boards --json-output stm32cube",
+                                 encoding='utf-8', shell=True, stdout=subprocess.PIPE, check=True)
+        _pio_boards_cache = [board['id'] for board in json.loads(process.stdout)]
         _pio_boards_cache_fetched_at = current_time
 
-    # Caller can mutate the array and damage our cache so we give it a copy (as the values are strings it is equivalent
-    # to the deep copy of this list)
-    return copy.copy(_pio_boards_cache)
+    # We don't know what a caller will ended up doing with that list. Simple copy is a sufficient solution for us since
+    # copy(list[string]) basically equals deepcopy(list[string]) as strings are immutable in Python
+    return copy(_pio_boards_cache)

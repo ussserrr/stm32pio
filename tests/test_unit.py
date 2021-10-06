@@ -273,9 +273,9 @@ class TestUnit(CustomTestCase):
     def test_inspect_ioc(self):
         with self.subTest(msg="Parsing an .ioc file"):
             config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logger=logging.getLogger('any'))
-            self.assertSequenceEqual(config.sections(), [stm32pio.core.cubemx.IocConfig.fake_section],
+            self.assertSequenceEqual(config.sections(), [stm32pio.core.cubemx.IocConfig.fake_section_name],
                                      msg="Incorrect set of config sections", seq_type=list)
-            self.assertGreater(len(config[config.fake_section].keys()), 10, msg="There should be a lot of keys")
+            self.assertGreater(len(config[config.fake_section_name].keys()), 10, msg="There should be a lot of keys")
 
         with self.subTest(msg="Inspecting a proper config"):
             config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logger=logging.getLogger('any'))
@@ -316,7 +316,7 @@ class TestUnit(CustomTestCase):
             self.assertEqual(ioc_file.read_text(), initial_content, msg="Configs should be identical")
 
             changed_board = "INTEL-8086"
-            config[config.fake_section]['board'] = changed_board
+            config[config.fake_section_name]['board'] = changed_board
             config.save()
             self.assertIn(f'board={changed_board}', ioc_file.read_text(), msg="Edited parameters weren't preserved")
 

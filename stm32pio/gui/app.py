@@ -82,6 +82,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     setup_logging(initial_verbosity=settings.get('verbose'))
 
     # Restore projects list
+    # TODO: Qt pollutes a system leaving its files across several folders, right? We should probably inform a user
     settings.beginGroup('app')
     restored_projects_paths: List[str] = []
     for index in range(settings.beginReadArray('projects')):
