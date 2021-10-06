@@ -65,7 +65,7 @@ class ProjectLogger(logging.LoggerAdapter):
     def __init__(self, underlying_logger: logging.Logger, project_id: int):
         super().__init__(logger=underlying_logger, extra=dict(project_id=project_id))
 
-    # TODO: kwargs can utilize Python 3.9+ TypedDict, doesn't it?..
+    # TODO: kwargs can utilize Python 3.8+ TypedDict, doesn't it?..
     def process(self, msg: Any, kwargs: MutableMapping[str, Any]) -> Tuple[Any, MutableMapping[str, Any]]:
         """Inject a context data (both from the adapter and the log call)"""
 

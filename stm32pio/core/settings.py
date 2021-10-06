@@ -107,7 +107,7 @@ pio_boards_cache_lifetime = 5.0  # in seconds
 # Environment variable indicating we are running on a CI server and should tweak some parameters
 CI_ENV_VARIABLE = os.environ.get('PIPELINE_WORKSPACE')
 if CI_ENV_VARIABLE is not None:
-    # TODO: some PyCharm static analyzer bug. Probably can be solved after introduction of TypedDict
+    # TODO: Python 3.8+: some PyCharm static analyzer bug. Probably can be solved after introduction of TypedDict
     # noinspection PyTypedDict
     config_default['app'] = {
         'platformio_cmd': 'platformio',

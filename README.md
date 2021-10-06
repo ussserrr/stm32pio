@@ -21,11 +21,12 @@ The [GUI version](/docs/GUI/README.md) is available, too (but read this main int
 
 
 ## Features
-  - Originate the new full-fledged project in a single directory starting only from an `.ioc` file
-  - Seamlessly update an existing project after the hardware changes by CubeMX
-  - Quickly check the current state
+  - Originate new full-fledged project in a single directory starting only from an `.ioc` file
+  - Seamlessly update an existing project after making hardware changes from CubeMX
+  - Quickly check the project current state
   - Inspect tools (CubeMX, PlatformIO, etc.)
-  - Clean-up the project
+  - Analyze `.ioc` and `platformio.ini` files for potential incompatibilities
+  - Easily clean-up the project
   - *[optional]* Automatically run your favorite editor or initiate a build in the end
   - *[optional]* GUI edition (see [the dedicated README](/docs/GUI/README.md) file) (please, read this main introduction first)
 
