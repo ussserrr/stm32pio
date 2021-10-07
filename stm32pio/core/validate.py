@@ -105,7 +105,7 @@ def validate_environment(logger: stm32pio.core.log.Logger, config: stm32pio.core
                          cubemx: stm32pio.core.cubemx.CubeMX) -> ToolsValidationResults:
     """
     Defines minimal runners enough to ensure that a tool works and execute them in the given project context gathering
-    the results
+    the results.
 
     :param logger: project' logger instance
     :param config: project config containing tools commands in its "app" section

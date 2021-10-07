@@ -208,4 +208,4 @@ class Stm32pio:
 
         :return: results in the form suitable fpr printing
         """
-        return stm32pio.core.validate.validate_environment(self.config, self.cubemx, self.logger)
+        return stm32pio.core.validate.validate_environment(self.logger, self.config, self.cubemx)

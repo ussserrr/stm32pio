@@ -32,7 +32,7 @@ class PlatformioINI(configparser.ConfigParser):
         """
         Majority of properties might become invalid if will be changed after construction so they are intended to be set
         "once and for all" at the construction stage. In case they should be dynamic, one should reimplement them as
-        "@property" with proper getters/setters/etc.
+        ``@property`` with proper getters/setters/etc.
 
         :param path: path to the platformio.ini file. It will NOT be read on initialization but lazy evaluated during
         requested operations
@@ -240,9 +240,8 @@ def get_boards(platformio_cmd: str = stm32pio.core.settings.config_default['app'
     cache_is_outdated = current_time - _pio_boards_cache_fetched_at >= stm32pio.core.settings.pio_boards_cache_lifetime
 
     if cache_is_empty or cache_is_outdated:
-        # TODO: check: Windows 7, as usual, correctly works only with shell=True...
-        process = subprocess.run(f"{platformio_cmd} boards --json-output stm32cube",
-                                 encoding='utf-8', shell=True, stdout=subprocess.PIPE, check=True)
+        process = subprocess.run([platformio_cmd, 'boards', '--json-output', 'stm32cube'],
+                                 stdout=subprocess.PIPE, check=True)
         _pio_boards_cache = [board['id'] for board in json.loads(process.stdout)]
         _pio_boards_cache_fetched_at = current_time
 
