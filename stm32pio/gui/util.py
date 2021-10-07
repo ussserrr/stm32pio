@@ -4,7 +4,7 @@ from typing import Callable, List, Any, Optional
 
 from PySide2.QtCore import QObject, QRunnable, Signal
 
-import stm32pio.core.logging
+import stm32pio.core.log
 
 
 ProjectID = type(id(object))  # Int
@@ -46,7 +46,7 @@ class Worker(QObject, QRunnable):
         except Exception:
             if self.logger is not None:
                 # We cannot pass the project config here to preserve the error because we don't have the reference
-                stm32pio.core.logging.log_current_exception(self.logger)
+                stm32pio.core.log.log_current_exception(self.logger)
             result = -1
 
         if result is None or (type(result) == int and result == 0):

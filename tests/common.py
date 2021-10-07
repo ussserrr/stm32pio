@@ -50,7 +50,7 @@ STAGE_PATH = Path(TEMP_DIR.name).joinpath(PROJECT_PATH.name)
 
 # Absolute path to the main stm32pio script (make sure what we are testing)
 STM32PIO_MAIN_SCRIPT: str = inspect.getfile(stm32pio.cli.app.main)
-# Absolute path to the Python executable (no need to guess whether it's 'python' or 'python3' and so on)
+# Absolute path to the Python command (no need to guess whether it's 'python' or 'python3' and so on)
 PYTHON_EXEC: str = sys.executable
 
 print(f"Test case: {PROJECT_BOARD}")

@@ -5,9 +5,10 @@ from typing import List, Mapping, Any, Optional
 
 from PySide2.QtCore import QObject, Signal, QThreadPool, Property, Slot
 
-import stm32pio.core.logging
+import stm32pio.core.log
 import stm32pio.core.project
 import stm32pio.core.state
+import stm32pio.core.settings
 
 from stm32pio.gui.log import LoggingWorker, module_logger
 from stm32pio.gui.util import Worker
@@ -48,7 +49,7 @@ class ProjectListItem(QObject):
         self._from_startup = from_startup
 
         underlying_logger = logging.getLogger('stm32pio.gui.projects')
-        self.logger = stm32pio.core.logging.ProjectLoggerAdapter(underlying_logger, { 'project_id': id(self)} )
+        self.logger = stm32pio.core.log.ProjectLogger(underlying_logger, project_id=id(self))
         self.logging_worker = LoggingWorker(project_id=id(self))
         self.logging_worker.sendLog.connect(self.logAdded)
 
@@ -73,10 +74,8 @@ class ProjectListItem(QObject):
         # Register some kind of the deconstruction handler (later, after the project initialization, see init_project)
         self._finalizer = None
 
-        if 'instance_options' not in project_kwargs:
-            project_kwargs['instance_options'] = { 'logger': self.logger }
-        elif 'logger' not in project_kwargs['instance_options']:
-            project_kwargs['instance_options']['logger'] = self.logger
+        if 'logger' not in project_kwargs:
+            project_kwargs['logger'] = self.logger
 
         # Start the Stm32pio part initialization right after. It can take some time so we schedule it in a dedicated
         # thread
@@ -95,9 +94,13 @@ class ProjectListItem(QObject):
         try:
             self.project = stm32pio.core.project.Stm32pio(*args, **kwargs)
         except:
-            stm32pio.core.logging.log_current_exception(self.logger)
+            stm32pio.core.log.log_current_exception(self.logger)
             self._state = { 'INIT_ERROR': True }  # pseudo-stage
             self._current_stage = 'INIT_ERROR'
+        else:
+            if self.project.config.get('project', 'inspect_ioc').lower() in stm32pio.core.settings.yes_options and \
+               self.project.state.current_stage > stm32pio.core.state.ProjectStage.EMPTY:
+                self.project.inspect_ioc_config()
         finally:
             # Register some kind of the deconstruction handler
             self._finalizer = weakref.finalize(self, self.at_exit, self.workers_pool, self.logging_worker,

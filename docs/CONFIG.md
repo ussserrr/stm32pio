@@ -29,6 +29,7 @@ Note: this is not an only source of the program settings but more like a "public
 >   - [`ioc_file`](#ioc_file)
 >   - [`cleanup_ignore`](#cleanup_ignore)
 >   - [`cleanup_use_git`](#cleanup_use_git)
+>   - [`inspect_ioc`](#inspect_ioc)
 >   - [`last_error`](#last_error)
 
 
@@ -92,6 +93,11 @@ Value of the `ioc_file`.
 Boolean controlling the `clean` method: whether to utilize custom ignore list and remove the rest of the files or to delegate the task to git (`git clean`).
 #### Default
 `False`
+
+### `inspect_ioc`
+If true, `.ioc` file will be analyzed on certain operations for potential incompatibilities with recommended options (see the CLI example) and board/MCU values (compared to `platformio.ini`).
+#### Default
+`True`
 
 ### `last_error`
 This isn't really a "parameter" and initially doesn't exist at all but appears in your config after some error occurs. This will contain an error string and its Python traceback so you can examine it later to solve the problem. This will be automatically cleared after the next successful operation on this project.

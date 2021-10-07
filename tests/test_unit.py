@@ -1,6 +1,8 @@
 import collections.abc
 import configparser
-import inspect
+import contextlib
+import io
+import logging
 import platform
 import string
 import subprocess
@@ -8,14 +10,15 @@ import time
 import unittest.mock
 
 from functools import reduce
-from pathlib import Path
 from typing import Mapping, Union
 
 # Provides test constants and definitions
+import stm32pio.core.pio
 from tests.common import *
 
 import stm32pio.core.settings
 import stm32pio.core.project
+import stm32pio.core.cubemx
 import stm32pio.core.util
 
 
@@ -62,15 +65,18 @@ class TestUnit(CustomTestCase):
         """
         project = stm32pio.core.project.Stm32pio(STAGE_PATH)
 
-        test_content = inspect.cleandoc('''
+        header = inspect.cleandoc('''
             ; This is a test config .ini file
             ; with a comment. It emulates a real
             ; platformio.ini file
-
+        ''') + '\n'
+        test_content = header + inspect.cleandoc('''
             [platformio]
             include_dir = this s;789hould be replaced
+                let's add some tricky content
             ; there should appear a new parameter
             test_key3 = this should be preserved
+                alright?
 
             [test_section]
             test_key1 = test_value1
@@ -91,7 +97,9 @@ class TestUnit(CustomTestCase):
         patch_config = configparser.ConfigParser(interpolation=None)
         patch_config.read_string(project.config.get('project', 'platformio_ini_patch_content'))
 
-        self.assertGreater(len(patched_config.read(STAGE_PATH.joinpath('platformio.ini'))), 0)
+        patched_content = STAGE_PATH.joinpath('platformio.ini').read_text()
+        patched_config.read_string(patched_content)
+        self.assertGreater(len(patched_content), 0)
 
         for patch_section in patch_config.sections():
             self.assertTrue(patched_config.has_section(patch_section), msg=f"{patch_section} is missing")
@@ -108,6 +116,8 @@ class TestUnit(CustomTestCase):
                 if not patch_config.has_option(original_section, original_key):
                     self.assertEqual(patched_config.get(original_section, original_key), original_value,
                                      msg=f"{original_section}: {original_key}={original_value} is corrupted")
+
+        self.assertIn(header, patched_content, msg='Header should be preserved')
 
     def test_build_should_handle_error(self):
         """
@@ -128,7 +138,7 @@ class TestUnit(CustomTestCase):
         """
         project = stm32pio.core.project.Stm32pio(STAGE_PATH)
 
-        editors = {  # some edotors to check
+        editors = {  # some editors to check
             'atom': {
                 'Windows': 'atom.exe',
                 'Darwin': 'Atom',
@@ -222,7 +232,7 @@ class TestUnit(CustomTestCase):
         """
         PlatformIO identifiers of boards are requested using PlatformIO CLI in JSON format
         """
-        boards = stm32pio.core.util.get_platformio_boards()
+        boards = stm32pio.core.pio.get_boards()
 
         self.assertIsInstance(boards, collections.abc.MutableSequence)
         self.assertGreater(len(boards), 0, msg="boards list is empty")
@@ -238,7 +248,7 @@ class TestUnit(CustomTestCase):
         shutil.copy(STAGE_PATH.joinpath(PROJECT_IOC_FILENAME), STAGE_PATH.joinpath('Abracadabra.ioc'))
 
         project = stm32pio.core.project.Stm32pio(STAGE_PATH.joinpath('42.ioc'))  # pick just one
-        self.assertTrue(project.ioc_file.samefile(STAGE_PATH.joinpath('42.ioc')),
+        self.assertTrue(project.cubemx.ioc.path.samefile(STAGE_PATH.joinpath('42.ioc')),
                         msg="Provided .ioc file hasn't been chosen")
         self.assertEqual(project.config.get('project', 'ioc_file'), '42.ioc',
                          msg="Provided .ioc file is not in the config")
@@ -251,7 +261,7 @@ class TestUnit(CustomTestCase):
             self.assertTrue(result_should_be_ok.succeed, msg="All the tools are correct but the validation says "
                                                              "otherwise")
 
-        with self.subTest(mag="Invalid config"):
+        with self.subTest(msg="Invalid config"):
             project.config.set('app', 'platformio_cmd', 'this_command_doesnt_exist')
             result_should_fail = project.validate_environment()
             self.assertFalse(result_should_fail.succeed, msg="One tool is incorrect and the results should reflect "
@@ -259,6 +269,56 @@ class TestUnit(CustomTestCase):
             platformio_result = next((result for result in result_should_fail if result.name == 'platformio_cmd'), None)
             self.assertIsNotNone(platformio_result, msg="PlatformIO validation results not found")
             self.assertFalse(platformio_result.succeed, msg="PlatformIO validation results should be False")
+
+    def test_inspect_ioc(self):
+        with self.subTest(msg="Parsing an .ioc file"):
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logger=logging.getLogger('any'))
+            self.assertSequenceEqual(config.sections(), [stm32pio.core.cubemx.IocConfig.fake_section_name],
+                                     msg="Incorrect set of config sections", seq_type=list)
+            self.assertGreater(len(config[config.fake_section_name].keys()), 10, msg="There should be a lot of keys")
+
+        with self.subTest(msg="Inspecting a proper config"):
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logger=logging.getLogger('any'))
+            with contextlib.redirect_stderr(io.StringIO()) as logs:
+                config.inspect(PROJECT_BOARD)
+            self.assertEqual(logs.getvalue(), '', msg="Correctly set config shouldn't produce any warnings")
+
+        with self.subTest(msg="Inspecting an invalid config"):
+            invalid_content = inspect.cleandoc('''
+                board=SOME-BOARD-123
+                # board is wrong and no other parameters at all
+            ''') + '\n'
+            invalid_ioc = STAGE_PATH / 'invalid.ioc'
+            invalid_ioc.write_text(invalid_content)
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, 'invalid.ioc', logger=logging.getLogger('any'))
+            with self.assertLogs(logger='any', level=logging.WARNING) as logs:
+                config.inspect(PROJECT_BOARD)
+            self.assertEqual(len(logs.records), 4, msg="There should be 4 warning log messages")
+
+        with self.subTest(msg="Custom board with unmatched MCUs"):
+            ioc_content = inspect.cleandoc('''
+                board=custom
+                ProjectManager.DeviceId=some_wrong_mcu
+            ''') + '\n'
+            invalid_ioc = STAGE_PATH / 'invalid.ioc'
+            invalid_ioc.write_text(ioc_content)
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, 'invalid.ioc', logger=logging.getLogger('any'))
+            with self.assertLogs(logger='any', level=logging.WARNING) as logs:
+                config.inspect(PROJECT_BOARD, 'STM32F031K6T6')
+            self.assertTrue(any('MCU' in line for line in logs.output), msg="No mention of mismatched MCUs")
+
+        with self.subTest(msg="Saving the config back"):
+            ioc_file = STAGE_PATH / PROJECT_IOC_FILENAME
+            initial_content = ioc_file.read_text()
+            config = stm32pio.core.cubemx.IocConfig(STAGE_PATH, PROJECT_IOC_FILENAME, logger=logging.getLogger('any'))
+
+            config.save()
+            self.assertEqual(ioc_file.read_text(), initial_content, msg="Configs should be identical")
+
+            changed_board = "INTEL-8086"
+            config[config.fake_section_name]['board'] = changed_board
+            config.save()
+            self.assertIn(f'board={changed_board}', ioc_file.read_text(), msg="Edited parameters weren't preserved")
 
     def test_clean(self):
         def plant_fs_tree(path: Path, tree: Mapping[str, Union[str, Mapping]], exist_ok: bool = True):
@@ -307,30 +367,30 @@ class TestUnit(CustomTestCase):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             project.clean()
             self.assertTrue(tree_not_exists_fully(STAGE_PATH, test_tree), msg="Test tree hasn't been removed")
-            self.assertTrue(project.ioc_file.exists(), msg=".ios file wasn't preserved")
+            self.assertTrue(project.cubemx.ioc.path.exists(), msg=".ios file wasn't preserved")
 
         self.setUp()  # same actions we perform between test cases (external cleaning)
         plant_fs_tree(STAGE_PATH, test_tree)
         with self.subTest(msg="not quiet, respond yes"):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             with unittest.mock.patch('builtins.input', return_value=stm32pio.core.settings.yes_options[0]):
-                project.clean(quiet_on_cli=False)
+                project.clean(quiet=False)
                 input_args, input_kwargs = input.call_args  # input() function was called with these arguments
                 input_prompt = input_args[0]
                 # Check only for a name as the path separator is different for UNIX/Win
                 self.assertTrue(all(endpoint.name in input_prompt for endpoint in test_tree_endpoints),
                                 msg="Paths for removal should be reported to the user")
             self.assertTrue(tree_not_exists_fully(STAGE_PATH, test_tree), msg="Test tree hasn't been removed")
-            self.assertTrue(project.ioc_file.exists(), msg=".ios file wasn't preserved")
+            self.assertTrue(project.cubemx.ioc.path.exists(), msg=".ios file wasn't preserved")
 
         self.setUp()
         plant_fs_tree(STAGE_PATH, test_tree)
         with self.subTest(msg="not quiet, respond no"):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
             with unittest.mock.patch('builtins.input', return_value=stm32pio.core.settings.no_options[0]):
-                project.clean(quiet_on_cli=False)
+                project.clean(quiet=False)
             self.assertTrue(tree_exists_fully(STAGE_PATH, test_tree), msg="Test tree wasn't preserved")
-            self.assertTrue(project.ioc_file.exists(), msg=".ios file wasn't preserved")
+            self.assertTrue(project.cubemx.ioc.path.exists(), msg=".ios file wasn't preserved")
 
         self.setUp()
         plant_fs_tree(STAGE_PATH, test_tree)
@@ -384,7 +444,7 @@ class TestUnit(CustomTestCase):
         plant_fs_tree(STAGE_PATH, test_tree)
         with self.subTest(msg="save current content in ignore list"):
             project = stm32pio.core.project.Stm32pio(STAGE_PATH)
-            project.config.save_content_as_ignore_list()
+            project.config.set_content_as_ignore_list()
             STAGE_PATH.joinpath('this_file_should_be_removed').touch()
             project.clean()
             self.assertTrue(tree_exists_fully(STAGE_PATH, test_tree), msg="Test tree should be preserved")

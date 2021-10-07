@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -8,6 +8,8 @@ import pathlib
 import platform
 import sys
 from typing import Optional, List
+
+import stm32pio.core.pio
 
 try:
     from PySide2.QtCore import Signal, QtInfoMsg, QtWarningMsg, QtCriticalMsg, QtFatalMsg, qInstallMessageHandler, \
@@ -31,13 +33,13 @@ MODULE_PATH = pathlib.Path(__file__).parent  # module path, e.g. root/stm32pio/g
 ROOT_PATH = MODULE_PATH.parent.parent  # repo's or the site-package's entry root
 try:
     import stm32pio.core.settings
-    import stm32pio.core.logging
+    import stm32pio.core.log
     import stm32pio.core.util
     import stm32pio.core.state
 except ModuleNotFoundError:
     sys.path.append(str(ROOT_PATH))  # hack to resolve imports if the app was launched as 'python path/to/app.py'
     import stm32pio.core.settings
-    import stm32pio.core.logging
+    import stm32pio.core.log
     import stm32pio.core.util
     import stm32pio.core.state
 
@@ -80,6 +82,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     setup_logging(initial_verbosity=settings.get('verbose'))
 
     # Restore projects list
+    # TODO: Qt pollutes a system leaving its files across several folders, right? We should probably inform a user
     settings.beginGroup('app')
     restored_projects_paths: List[str] = []
     for index in range(settings.beginReadArray('projects')):
@@ -108,7 +111,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     # TODO: use setContextProperties() (see in Qt6, not present in Qt5...)
     engine.rootContext().setContextProperty('appVersion', stm32pio.core.util.get_version())
     engine.rootContext().setContextProperty('rootPath', root_path)
-    engine.rootContext().setContextProperty('Logging', stm32pio.core.logging.logging_levels)
+    engine.rootContext().setContextProperty('Logging', stm32pio.core.log.logging_levels)
     engine.rootContext().setContextProperty(stm32pio.core.state.ProjectStage.__name__, project_stages)
     engine.rootContext().setContextProperty('projectsModel', projects_model)
     engine.rootContext().setContextProperty('boardsModel', boards_model)
@@ -131,7 +134,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
     # TODO: this uses default platformio command but it might be unavailable.
     #  Also, it unnecessarily slows down the startup
     def loading():
-        boards = ['None'] + stm32pio.core.util.get_platformio_boards()
+        boards = ['None'] + stm32pio.core.pio.get_boards()
         boards_model.setStringList(boards)
 
     def loaded(action_name: str, success: bool):
@@ -143,7 +146,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
             # At the end, append (or jump to) a CLI-provided project, if there is one
             if args is not None and 'path' in args:
                 list_item_kwargs = { 'from_startup': True }
-                if args.board:
+                if args.board:  # TODO: test this
                     list_item_kwargs['project_kwargs'] = { 'parameters': { 'project': { 'board': args.board } } }  # pizdec konechno...
                 projects_model.addListItem(str(pathlib.Path(args.path)), list_item_kwargs=list_item_kwargs)
                 # Append always happens to the end of list and we want to jump to the last added project (CLI one). The
@@ -151,7 +154,7 @@ def create_app(sys_argv: List[str] = None) -> QApplicationClass:
                 projects_model.goToProject.emit((len(restored_projects_paths) + 1) - 1)
                 projects_model.saveInSettings()
         except:
-            stm32pio.core.logging.log_current_exception(logging.getLogger('stm32pio.gui.app'))
+            stm32pio.core.log.log_current_exception(logging.getLogger('stm32pio.gui.app'))
             success = False
 
         main_window.backendLoaded.emit(success)  # inform the GUI
