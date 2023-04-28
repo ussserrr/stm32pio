@@ -36,7 +36,7 @@ The [GUI version](/docs/GUI/README.md) is available, too (but read this main int
 **Python:** 3.6+
 
 The app introduces zero dependencies by itself. Of course, you need to have all necessary tools installed on your machine in order to perform the operations:
-  - STM32CubeMX. All recent versions are fine (5.x, 6.x).
+  - STM32CubeMX. Most recent versions are fine (5.x, < 6.5.0). Support for generating code with GPDSC toolchain removed in 6.6.0.
     
     - CubeMX is written in Java, so Java Runtime Environment (JRE) is required. For CubeMX versions starting from 6.3.0 it is included in the installation bundle (of CubeMX). If you are using older versions of CubeMX, either upgrade or install JRE manually.
     
